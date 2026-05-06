@@ -1,12 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-<<<<<<< HEAD
-=======
-import { ALL_MODULES, ModuleDef } from "@/lib/modules";
-
-const ALWAYS_SHOWN = ["Dashboard", "Settings"];
->>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
 
 interface SidebarProps {
   activeModules?: string[];
@@ -14,11 +8,7 @@ interface SidebarProps {
   role?: string;
 }
 
-<<<<<<< HEAD
 const GROUPS: { title: string; items: Array<{ label: string; href: string; icon: string; module?: string }> }[] = [
-=======
-const GROUPS: { title: string; items: Array<{ label: string; href: string; icon: string }> }[] = [
->>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
   {
     title: "Main",
     items: [
@@ -28,79 +18,48 @@ const GROUPS: { title: string; items: Array<{ label: string; href: string; icon:
   {
     title: "Finance",
     items: [
-<<<<<<< HEAD
       { label: "Customers", href: "/portal/customers", icon: "👥", module: "customers" },
       { label: "Invoices", href: "/portal/invoices", icon: "📄", module: "invoices" },
       { label: "Quotes", href: "/portal/quotes", icon: "💬", module: "quotes" },
       { label: "Payments", href: "/portal/payments", icon: "💳", module: "payments" },
       { label: "Compliance", href: "/portal/compliance", icon: "⚖️", module: "compliance" },
-=======
-      { label: "Customers", href: "/portal/customers", icon: "👥" },
-      { label: "Invoices", href: "/portal/invoices", icon: "📄" },
-      { label: "Quotes", href: "/portal/quotes", icon: "💬" },
-      { label: "Payments", href: "/portal/payments", icon: "💳" },
-      { label: "Compliance", href: "/portal/compliance", icon: "⚖️" },
->>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
     ],
   },
   {
     title: "Operations",
     items: [
-<<<<<<< HEAD
       { label: "Suppliers", href: "/portal/suppliers", icon: "🚚", module: "suppliers" },
       { label: "Inventory", href: "/portal/items", icon: "📦", module: "items" },
       { label: "Projects", href: "/portal/projects", icon: "📊", module: "projects" },
       { label: "Tasks", href: "/portal/tasks", icon: "✅", module: "tasks" },
-=======
-      { label: "Suppliers", href: "/portal/suppliers", icon: "🚚" },
-      { label: "Inventory", href: "/portal/items", icon: "📦" },
-      { label: "Projects", href: "/portal/projects", icon: "📊" },
-      { label: "Tasks", href: "/portal/tasks", icon: "✅" },
->>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
     ],
   },
   {
     title: "People",
     items: [
-<<<<<<< HEAD
       { label: "Employees", href: "/portal/employees", icon: "👤", module: "employees" },
       { label: "Payroll", href: "/portal/payroll", icon: "💰", module: "payroll" },
       { label: "Leave", href: "/portal/leave", icon: "🏖️", module: "leave" },
-=======
-      { label: "Employees", href: "/portal/employees", icon: "👤" },
-      { label: "Payroll", href: "/portal/payroll", icon: "💰" },
-      { label: "Leave", href: "/portal/leave", icon: "🏖️" },
->>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
     ],
   },
   {
     title: "Service",
     items: [
-<<<<<<< HEAD
       { label: "Support", href: "/portal/support", icon: "🎧", module: "support" },
       { label: "Messages", href: "/portal/chat", icon: "✉️", module: "chat" },
       { label: "Appointments", href: "/portal/appointments", icon: "📅", module: "appointments" },
-=======
-      { label: "Support", href: "/portal/support", icon: "🎧" },
-      { label: "Messages", href: "/portal/chat", icon: "✉️" },
-      { label: "Appointments", href: "/portal/appointments", icon: "📅" },
->>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
     ],
   },
   {
     title: "Account",
     items: [
       { label: "Reports", href: "/portal/reports", icon: "📈" },
-<<<<<<< HEAD
       { label: "Billing", href: "/portal/billing", icon: "💳" },
-=======
->>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
       { label: "Settings", href: "/portal/settings", icon: "⚙️" },
     ],
   },
 ];
 
-<<<<<<< HEAD
 export default function Sidebar({ activeModules, companyName, role }: SidebarProps) {
   const pathname = usePathname();
 
@@ -115,38 +74,6 @@ export default function Sidebar({ activeModules, companyName, role }: SidebarPro
     return pathname.startsWith(href);
   };
 
-=======
-// Map href → module id
-const HREF_TO_MODULE: Record<string, string> = {
-  "/portal/customers": "customers",
-  "/portal/invoices": "invoices",
-  "/portal/quotes": "quotes",
-  "/portal/payments": "payments",
-  "/portal/compliance": "compliance",
-  "/portal/suppliers": "suppliers",
-  "/portal/items": "items",
-  "/portal/projects": "projects",
-  "/portal/tasks": "tasks",
-  "/portal/employees": "employees",
-  "/portal/payroll": "payroll",
-  "/portal/leave": "leave",
-  "/portal/support": "support",
-  "/portal/chat": "chat",
-  "/portal/appointments": "appointments",
-};
-
-export default function Sidebar({ activeModules, companyName, role }: SidebarProps) {
-  const pathname = usePathname();
-
-  function isVisible(href: string): boolean {
-    // Dashboard, Reports, Settings are always visible
-    if (!HREF_TO_MODULE[href]) return true;
-    // If no module list specified, show all (admin view)
-    if (!activeModules || activeModules.length === 0) return true;
-    return activeModules.includes(HREF_TO_MODULE[href]);
-  }
-
->>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -180,11 +107,7 @@ export default function Sidebar({ activeModules, companyName, role }: SidebarPro
       )}
 
       {GROUPS.map((group) => {
-<<<<<<< HEAD
         const visible = group.items.filter((item) => isVisible(item.module));
-=======
-        const visible = group.items.filter((item) => isVisible(item.href));
->>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
         if (visible.length === 0) return null;
         return (
           <div key={group.title}>
@@ -193,11 +116,7 @@ export default function Sidebar({ activeModules, companyName, role }: SidebarPro
               {visible.map((item) => (
                 <a
                   key={item.href}
-<<<<<<< HEAD
                   className={`nav-item ${isActive(item.href) ? "active" : ""}`}
-=======
-                  className={`nav-item ${pathname === item.href ? "active" : ""}`}
->>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
                   href={item.href}
                 >
                   <span style={{ fontSize: 15 }}>{item.icon}</span>
