@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { cookies } from "next/headers";
 
 const DEFAULT_ERPNEXT_URL = process.env.ERPNEXT_URL || process.env.NEXT_PUBLIC_ERPNEXT_URL || "https://business-suite.fuzedigital.co.za";
@@ -8,6 +9,15 @@ export const ERPNEXT_URL_COOKIE = "fuze_erp_url";
 
 export class ERPNextError extends Error {
   status: number;
+=======
+const ERPNEXT_URL = process.env.ERPNEXT_URL || process.env.NEXT_PUBLIC_ERPNEXT_URL;
+const ERPNEXT_API_KEY = process.env.ERPNEXT_API_KEY;
+const ERPNEXT_API_SECRET = process.env.ERPNEXT_API_SECRET;
+
+export class ERPNextError extends Error {
+  status: number;
+
+>>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
   constructor(message: string, status = 500) {
     super(message);
     this.name = "ERPNextError";
@@ -15,6 +25,7 @@ export class ERPNextError extends Error {
   }
 }
 
+<<<<<<< HEAD
 function cleanUrl(url?: string | null): string {
   return (url || DEFAULT_ERPNEXT_URL).replace(/\/$/, "");
 }
@@ -28,11 +39,14 @@ export async function getActiveERPNextUrl(): Promise<string> {
   }
 }
 
+=======
+>>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
 function authHeaders(): HeadersInit {
   if (!ERPNEXT_API_KEY || !ERPNEXT_API_SECRET) return {};
   return { Authorization: `token ${ERPNEXT_API_KEY}:${ERPNEXT_API_SECRET}` };
 }
 
+<<<<<<< HEAD
 async function sessionHeaders(): Promise<HeadersInit> {
   try {
     const cookieStore = await cookies();
@@ -49,21 +63,49 @@ async function sessionHeaders(): Promise<HeadersInit> {
 
 export interface ERPListResponse<T> { data?: T[]; message?: T[]; }
 export interface ERPDocumentResponse<T> { data?: T; message?: T; }
+=======
+export interface ERPListResponse<T> {
+  data?: T[];
+  message?: T[];
+}
+
+export interface ERPDocumentResponse<T> {
+  data?: T;
+  message?: T;
+}
+>>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
 
 function encodeFields(fields?: string[]): string {
   return fields ? `fields=${encodeURIComponent(JSON.stringify(fields))}` : "";
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
 function encodeFilters(filters?: unknown[]): string {
   return filters ? `filters=${encodeURIComponent(JSON.stringify(filters))}` : "";
 }
 
+<<<<<<< HEAD
 export function resourceListPath(doctype: string, options: { fields?: string[]; filters?: unknown[]; limit?: number; orderBy?: string } = {}): string {
+=======
+export function resourceListPath(
+  doctype: string,
+  options: {
+    fields?: string[];
+    filters?: unknown[];
+    limit?: number;
+    orderBy?: string;
+  } = {}
+): string {
+>>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
   const params = [
     encodeFields(options.fields),
     encodeFilters(options.filters),
     `limit_page_length=${options.limit ?? 100}`,
     options.orderBy ? `order_by=${encodeURIComponent(options.orderBy)}` : ""
   ].filter(Boolean).join("&");
+<<<<<<< HEAD
   return `/api/resource/${encodeURIComponent(doctype)}?${params}`;
 }
 
@@ -111,6 +153,74 @@ export async function erpPatch<T>(doctype: string, name: string, body: Record<st
 export async function erpList<T>(doctype: string, options: { fields?: string[]; filters?: unknown[]; limit?: number; orderBy?: string; admin?: boolean } = {}): Promise<T[]> {
   try {
     const response = await erpGet<ERPListResponse<T>>(resourceListPath(doctype, options), { useToken: options.admin });
+=======
+
+  return `/api/resource/${encodeURIComponent(doctype)}?${params}`;
+}
+
+export async function erpGet<T>(path: string): Promise<T> {
+  if (!ERPNEXT_URL) throw new ERPNextError("Missing ERPNEXT_URL");
+
+  const res = await fetch(`${ERPNEXT_URL}${path}`, {
+    headers: authHeaders(),
+    cache: "no-store"
+  });
+
+  const text = await res.text();
+  let json: unknown = {};
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = { raw: text };
+  }
+
+  if (!res.ok) {
+    throw new ERPNextError("ERPNext GET failed", res.status);
+  }
+
+  return json as T;
+}
+
+export async function erpPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  if (!ERPNEXT_URL) throw new ERPNextError("Missing ERPNEXT_URL");
+
+  const res = await fetch(`${ERPNEXT_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders()
+    },
+    body: JSON.stringify(body),
+    cache: "no-store"
+  });
+
+  const text = await res.text();
+  let json: unknown = {};
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = { raw: text };
+  }
+
+  if (!res.ok) {
+    throw new ERPNextError("ERPNext POST failed", res.status);
+  }
+
+  return json as T;
+}
+
+export async function erpList<T>(
+  doctype: string,
+  options: {
+    fields?: string[];
+    filters?: unknown[];
+    limit?: number;
+    orderBy?: string;
+  } = {}
+): Promise<T[]> {
+  try {
+    const response = await erpGet<ERPListResponse<T>>(resourceListPath(doctype, options));
+>>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
     return response.data ?? response.message ?? [];
   } catch {
     return [];
@@ -121,10 +231,25 @@ export async function erpCreate<T>(doctype: string, doc: Record<string, unknown>
   try {
     const response = await erpPost<ERPDocumentResponse<T>>(`/api/resource/${encodeURIComponent(doctype)}`, doc);
     return response.data ?? response.message ?? null;
+<<<<<<< HEAD
   } catch { return null; }
 }
 
 export async function erpMethod<T>(method: string, body: Record<string, unknown>, opts: { baseUrl?: string; useToken?: boolean } = { useToken: true }): Promise<T | null> {
   const response = await erpPost<ERPDocumentResponse<T>>(`/api/method/${method}`, body, opts);
   return (response.data ?? response.message ?? response) as T;
+=======
+  } catch {
+    return null;
+  }
+}
+
+export async function erpMethod<T>(method: string, body: Record<string, unknown>): Promise<T | null> {
+  try {
+    const response = await erpPost<ERPDocumentResponse<T>>(`/api/method/${method}`, body);
+    return response.data ?? response.message ?? null;
+  } catch {
+    return null;
+  }
+>>>>>>> cf61deae7e9ae9ce94e63e1c2a3bf16b7d6e37af
 }

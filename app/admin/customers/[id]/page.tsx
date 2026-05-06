@@ -33,7 +33,7 @@ interface Job {
 async function getTenant(id: string): Promise<Tenant | null> {
   try {
     const res = await erpGet<{ data?: Tenant; message?: Tenant }>(
-      `/api/resource/Fuze%20SaaS%20Tenant/${encodeURIComponent(id)}`, { useToken: true }
+      `/api/resource/Fuze%20SaaS%20Tenant/${encodeURIComponent(id)}`
     );
     return res.data ?? res.message ?? null;
   } catch {
@@ -47,7 +47,6 @@ async function getJobs(id: string): Promise<Job[]> {
     filters: [["tenant", "=", id]],
     limit: 20,
     orderBy: "creation desc",
-    admin: true,
   });
 }
 

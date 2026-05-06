@@ -5,7 +5,7 @@ export async function GET() {
   const response = NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"));
   
   // Clear all portal cookies
-  [MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, ROLE_COOKIE, "fuze_erp_url", "fuze_email"].forEach((name) => {
+  [MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, ROLE_COOKIE].forEach((name) => {
     response.cookies.set(name, "", { path: "/", maxAge: 0 });
   });
 

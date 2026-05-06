@@ -23,7 +23,6 @@ async function getTenants(): Promise<Tenant[]> {
     fields: ["name", "customer", "subscription", "site_name", "domain", "admin_email", "status", "trial_start", "trial_end", "is_demo", "creation", "modified"],
     limit: 200,
     orderBy: "creation desc",
-    admin: true,
   });
 }
 

@@ -34,7 +34,6 @@ async function getTenants(): Promise<Tenant[]> {
     fields: ["name", "customer", "subscription", "site_name", "domain", "admin_email", "status", "trial_start", "trial_end", "is_demo", "creation", "modified"],
     limit: 100,
     orderBy: "creation desc",
-    admin: true,
   });
 }
 
@@ -43,7 +42,6 @@ async function getJobs(): Promise<ProvisioningJob[]> {
     fields: ["name", "tenant", "job_type", "status", "error", "creation", "modified"],
     limit: 25,
     orderBy: "creation desc",
-    admin: true,
   });
 }
 
