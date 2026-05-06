@@ -1,5 +1,4 @@
 "use client";
-
 import { usePathname } from "next/navigation";
 
 interface SidebarProps {
@@ -8,12 +7,13 @@ interface SidebarProps {
   role?: string;
 }
 
-const GROUPS: { title: string; items: Array<{ label: string; href: string; icon: string; module?: string }> }[] = [
+const GROUPS: {
+  title: string;
+  items: Array<{ label: string; href: string; icon: string; module?: string }>;
+}[] = [
   {
     title: "Main",
-    items: [
-      { label: "Dashboard", href: "/portal", icon: "⊞" },
-    ],
+    items: [{ label: "Dashboard", href: "/portal", icon: "⊞" }],
   },
   {
     title: "Finance",
@@ -29,6 +29,7 @@ const GROUPS: { title: string; items: Array<{ label: string; href: string; icon:
     title: "Operations",
     items: [
       { label: "Suppliers", href: "/portal/suppliers", icon: "🚚", module: "suppliers" },
+      { label: "Purchase Orders", href: "/portal/purchase-orders", icon: "🛒", module: "purchase-orders" },
       { label: "Inventory", href: "/portal/items", icon: "📦", module: "items" },
       { label: "Projects", href: "/portal/projects", icon: "📊", module: "projects" },
       { label: "Tasks", href: "/portal/tasks", icon: "✅", module: "tasks" },
@@ -40,6 +41,7 @@ const GROUPS: { title: string; items: Array<{ label: string; href: string; icon:
       { label: "Employees", href: "/portal/employees", icon: "👤", module: "employees" },
       { label: "Payroll", href: "/portal/payroll", icon: "💰", module: "payroll" },
       { label: "Leave", href: "/portal/leave", icon: "🏖️", module: "leave" },
+      { label: "Attendance", href: "/portal/attendance", icon: "📋", module: "attendance" },
     ],
   },
   {
@@ -127,6 +129,25 @@ export default function Sidebar({ activeModules, companyName, role }: SidebarPro
           </div>
         );
       })}
+
+      <div style={{ marginTop: "auto", padding: "12px 10px", borderTop: "1px solid var(--line)" }}>
+        <a
+          href="/api/auth/logout"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 10px",
+            borderRadius: 8,
+            color: "var(--muted)",
+            fontSize: 13,
+            fontWeight: 600,
+            textDecoration: "none",
+          }}
+        >
+          <span style={{ fontSize: 15 }}>⏻</span> Sign Out
+        </a>
+      </div>
     </aside>
   );
 }
