@@ -49,13 +49,49 @@ async function parseResponse<T>(res: Response, fallbackMessage: string): Promise
   if (!res.ok) {
     const data = json as { exception?: string; exc_type?: string; message?: string; _server_messages?: string; exc?: string };
     let serverMessage = "";
+
+    // Extract from _server_messages (Frappe double-encodes this)
     if (data._server_messages) {
       try {
-        const outer = JSON.parse(data._server_messages) as string[];
-        serverMessage = outer.map((item) => { try { return JSON.parse(item).message || item; } catch { return item; } }).join(" ");
-      } catch { serverMessage = String(data._server_messages); }
+        const raw = typeof data._server_messages === "string"
+          ? data._server_messages
+          : JSON.stringify(data._server_messages);
+        const outer = JSON.parse(raw);
+        const items = Array.isArray(outer) ? outer : [outer];
+        serverMessage = items
+          .map((item: unknown) => {
+            if (typeof item === "string") {
+              try { return (JSON.parse(item) as { message?: string }).message || item; } catch { return item; }
+            }
+            return String(item || "");
+          })
+          .filter(Boolean)
+          .join(" ");
+      } catch {
+        serverMessage = String(data._server_messages);
+      }
     }
-    throw new BusinessSuiteError(data.message || serverMessage || data.exception || data.exc_type || data.exc || fallbackMessage, res.status);
+
+    // Also try to extract from exc (Frappe sometimes puts the traceback here with the message at top)
+    let excMessage = "";
+    if (data.exc) {
+      try {
+        const parsed = JSON.parse(data.exc) as unknown;
+        excMessage = typeof parsed === "string" ? parsed.split("\n")[0] : "";
+      } catch {
+        excMessage = String(data.exc).split("\n")[0];
+      }
+    }
+
+    const message =
+      serverMessage ||
+      data.message ||
+      data.exception ||
+      excMessage ||
+      data.exc_type ||
+      fallbackMessage;
+
+    throw new BusinessSuiteError(message, res.status);
   }
   return json as T;
 }
