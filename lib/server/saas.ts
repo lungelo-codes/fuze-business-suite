@@ -1,4 +1,4 @@
-import { erpnextFetch } from "@/lib/server/erpnext";
+import { erpMethod } from "@/lib/server/erpnext";
 
 export type SignupPayload = {
   full_name?: string;
@@ -30,58 +30,35 @@ function normalizeModules(modules?: string[] | string): string {
 }
 
 export async function getSaaSModules(): Promise<SaaSModule[]> {
-  const res = await erpnextFetch<{
-    message?: SaaSModule[];
-    data?: SaaSModule[];
-  }>("/api/method/fuze_suite.api.saas.get_modules", {
-    method: "GET",
-    cache: "no-store",
-  });
+  const rows = await erpMethod<SaaSModule[]>(
+    "fuze_suite.api.saas.get_modules",
+    {}
+  );
 
-  const rows = Array.isArray(res?.message)
-    ? res.message
-    : Array.isArray(res?.data)
-      ? res.data
-      : [];
-
-  return rows.map((row) => ({
-    name: row.name,
-    module_key: row.module_key,
-    module_name: row.module_name,
-    app_name: row.app_name,
-    description: row.description,
-    enabled: row.enabled,
-  }));
+  return Array.isArray(rows) ? rows : [];
 }
 
 export async function createDemoTenant(payload: SignupPayload) {
-  const body = new URLSearchParams();
+  const response = await erpMethod<{
+    ok: boolean;
+    message?: string;
+    tenant?: string;
+    provisioning_job?: string;
+    site_name?: string;
+    login_url?: string;
+    email?: string;
+    status?: string;
+  }>(
+    "fuze_suite.api.saas.create_demo_tenant",
+    {
+      company_name: payload.company_name,
+      email: payload.email,
+      full_name: payload.full_name || "",
+      phone: payload.phone || "",
+      requested_module: normalizeModules(payload.requested_module),
+      trial_days: payload.trial_days || 14,
+    }
+  );
 
-  body.set("company_name", payload.company_name);
-  body.set("email", payload.email);
-
-  if (payload.full_name) body.set("full_name", payload.full_name);
-  if (payload.phone) body.set("phone", payload.phone);
-  if (payload.trial_days) body.set("trial_days", String(payload.trial_days));
-
-  body.set("requested_module", normalizeModules(payload.requested_module));
-
-  const res = await erpnextFetch<{
-    message?: {
-      ok: boolean;
-      message?: string;
-      tenant?: string;
-      provisioning_job?: string;
-      site_name?: string;
-      login_url?: string;
-      email?: string;
-      status?: string;
-    };
-  }>("/api/method/fuze_suite.api.saas.create_demo_tenant", {
-    method: "POST",
-    body,
-    cache: "no-store",
-  });
-
-  return res.message;
+  return response;
 }
