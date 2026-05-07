@@ -81,9 +81,14 @@ async function createTenantWithFallback(payload: Record<string, unknown>, module
     } catch (error) {
       lastError = error;
       const message = error instanceof Error ? error.message : String(error || "");
-      // Only retry module-name validation errors. Other errors are still retried once without requested_module.
-      if (!message.toLowerCase().includes("requested module") && !message.toLowerCase().includes("module")) {
-        // Continue through fallback attempts because older backend methods may simply reject unknown keys.
+      // If it's a hard provisioning failure (not a module validation issue), don't retry — fail fast.
+      if (
+        message.toLowerCase().includes("command failed") ||
+        message.toLowerCase().includes("provisioning failed") ||
+        message.toLowerCase().includes("integrity") ||
+        message.toLowerCase().includes("duplicate entry")
+      ) {
+        throw error;
       }
     }
   }
