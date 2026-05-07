@@ -63,14 +63,14 @@ export default function ReportsPage() {
         <div className="page-head">
           <div>
             <h1 className="page-title">Reports</h1>
-            <div className="page-sub">Business analytics from ERPNext</div>
+            <div className="page-sub">Business analytics </div>
           </div>
         </div>
         <div className="card card-pad" style={{ textAlign: "center", padding: "48px 24px" }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>📊</div>
           <h3 style={{ color: "var(--navy-ink)", marginBottom: 8 }}>No report data available</h3>
           <p style={{ color: "var(--muted)", fontSize: 14 }}>
-            Report data will appear once your ERPNext instance has transactions. Check back after adding invoices, payments, and customers.
+            Report data will appear once your business workspace has transactions. Check back after adding invoices, payments, and customers.
           </p>
         </div>
       </div>
@@ -82,7 +82,7 @@ export default function ReportsPage() {
       <div className="page-head">
         <div>
           <h1 className="page-title">Reports</h1>
-          <div className="page-sub">Business analytics from your ERPNext data</div>
+          <div className="page-sub">Business analytics from your business data</div>
         </div>
       </div>
 

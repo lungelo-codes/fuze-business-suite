@@ -259,7 +259,7 @@ export default function ContactPage() {
                   Enterprise enquiries
                 </h3>
                 <p style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 1.7, margin: "0 0 20px" }}>
-                  Need a custom solution for a large organisation? We offer tailored ERPNext deployments,
+                  Need a custom solution for a large organisation? We offer tailored Business Suite deployments,
                   custom module development, and dedicated support contracts.
                 </p>
                 <a

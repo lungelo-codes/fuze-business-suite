@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import SimpleTable, { StatusCell } from "@/components/SimpleTable";
 import { erpGet, erpList } from "@/lib/server/erpnext";
 import TenantActions from "./TenantActions";
+import TenantModules from "./TenantModules";
 
 interface Tenant {
   name: string;
@@ -159,8 +160,10 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
         </div>
       </div>
 
+      <TenantModules tenantId={tenant.name} plan={String(tenant.subscription || "Starter")} />
+
       {/* Provisioning jobs */}
-      <div className="card">
+      <div className="card" style={{ marginTop: 18 }}>
         <div className="card-head">
           <h3>Provisioning Jobs ({jobs.length})</h3>
         </div>
@@ -177,7 +180,7 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
                 label: "Error",
                 render: (row) => (
                   <span style={{ fontSize: 12, color: "var(--danger)" }}>
-                    {row.error ? "Has error — check ERPNext" : "—"}
+                    {row.error ? "Has error — check Business Suite" : "—"}
                   </span>
                 ),
               },

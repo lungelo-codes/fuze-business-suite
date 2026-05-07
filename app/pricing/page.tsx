@@ -20,12 +20,12 @@ const FAQ = [
     a: "Absolutely. There are no long-term contracts. You can cancel your subscription at any time and your data will remain accessible for 30 days.",
   },
   {
-    q: "What is ERPNext?",
-    a: "ERPNext is an open-source Enterprise Resource Planning system. Fuze Business Suite is a polished SaaS front-end that connects to your dedicated ERPNext instance, giving you a clean interface without the complexity.",
+    q: "What is Business Suite?",
+    a: "Business Suite is an open-source Enterprise Resource Planning system. Fuze Business Suite is a polished SaaS front-end that connects to your dedicated business workspace, giving you a clean interface without the complexity.",
   },
   {
-    q: "Do I get my own ERPNext instance?",
-    a: "Yes. Every Fuze account comes with a dedicated, isolated ERPNext instance hosted on our infrastructure. Your data is never shared with other tenants.",
+    q: "Do I get my own business workspace?",
+    a: "Yes. Every Fuze account comes with a dedicated, isolated business workspace hosted on our infrastructure. Your data is never shared with other tenants.",
   },
 ];
 
@@ -114,7 +114,7 @@ export default function PricingPage() {
           <div className="section-label">What&apos;s included</div>
           <h2 className="section-title">Full module breakdown</h2>
           <p className="section-sub">
-            Every module maps directly to an ERPNext DocType. Your data lives in your own dedicated instance.
+            Every module maps directly to an Business Suite DocType. Your data lives in your own dedicated instance.
           </p>
 
           {(["Finance", "Operations", "People", "Service"] as const).map((group) => {

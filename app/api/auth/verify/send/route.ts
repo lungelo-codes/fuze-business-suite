@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
     const token = signVerification(email.toLowerCase(), code, expiresAt);
 
-    // Try to send via ERPNext email
+    // Try to send via Business Suite backend email
     try {
       await erpMethod("frappe.core.doctype.communication.email.make", {
         recipients: email,
@@ -27,8 +27,8 @@ export async function POST(req: Request) {
         send_email: 1,
       });
     } catch {
-      // ERPNext email may not be configured — log but don't fail
-      console.warn("[verify/send] ERPNext email send failed — code:", code);
+      // Business Suite backend email may not be configured — log but don't fail
+      console.warn("[verify/send] Business Suite backend email send failed — code:", code);
     }
 
     const response = NextResponse.json({

@@ -35,7 +35,7 @@ export default function TenantActions({ tenantId, currentStatus }: TenantActions
   return (
     <div>
       <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 0 }}>
-        Manage the tenant account status. Changes are applied via the ERPNext API.
+        Manage the tenant account status. Changes are applied via the Business Suite API.
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
@@ -88,7 +88,7 @@ export default function TenantActions({ tenantId, currentStatus }: TenantActions
             className="btn"
             style={{ justifyContent: "center", fontSize: 12 }}
           >
-            Open in ERPNext ↗
+            Open in Business Suite ↗
           </a>
         </div>
       </div>

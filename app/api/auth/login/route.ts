@@ -8,6 +8,7 @@ const ERPNEXT_URL =
 
 const ERPNEXT_API_KEY = process.env.ERPNEXT_API_KEY;
 const ERPNEXT_API_SECRET = process.env.ERPNEXT_API_SECRET;
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "").split(",").map((v) => v.trim().toLowerCase()).filter(Boolean);
 
 type LoginBody = {
   email?: string;
@@ -77,7 +78,7 @@ async function fetchUserRoles(email: string, sid?: string): Promise<string[]> {
 export async function POST(req: Request) {
   try {
     if (!ERPNEXT_URL) {
-      return jsonError("Missing ERPNext URL. Set ERPNEXT_URL or NEXT_PUBLIC_API_URL.", 500);
+      return jsonError("Missing Business Suite backend URL. Set ERPNEXT_URL or NEXT_PUBLIC_API_URL.", 500);
     }
 
     const { email, password } = (await req.json()) as LoginBody;
@@ -112,7 +113,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: "Login failed. Check your email and password.",
+          error: "Login failed. Check your email and password. Admin users must use an Administrator/System Manager account or an email listed in ADMIN_EMAILS.",
           details: loginJson,
         },
         { status: 401 }
@@ -120,7 +121,7 @@ export async function POST(req: Request) {
     }
 
     const roles = await fetchUserRoles(email, sid);
-    const isAdmin = email === "Administrator" || roles.includes("Administrator") || roles.includes("System Manager");
+    const isAdmin = email === "Administrator" || ADMIN_EMAILS.includes(email.toLowerCase()) || roles.includes("Administrator") || roles.includes("System Manager");
 
     const response = NextResponse.json({
       success: true,

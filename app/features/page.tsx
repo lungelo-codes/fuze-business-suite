@@ -5,8 +5,8 @@ import { ALL_MODULES } from "@/lib/modules";
 const HIGHLIGHTS = [
   {
     icon: "🏗️",
-    title: "Dedicated ERPNext Instance",
-    body: "Every Fuze customer gets their own isolated ERPNext instance. Your data is never co-mingled with other businesses.",
+    title: "Dedicated Business Suite Instance",
+    body: "Every Fuze customer gets their own isolated business workspace. Your data is never co-mingled with other businesses.",
   },
   {
     icon: "🔐",
@@ -20,8 +20,8 @@ const HIGHLIGHTS = [
   },
   {
     icon: "⚡",
-    title: "Real-time ERPNext Data",
-    body: "All portal pages pull live data directly from your ERPNext backend. No stale caches, no manual syncs.",
+    title: "Real-time Business Suite Data",
+    body: "All portal pages pull live data directly from your Business Suite backend. No stale caches, no manual syncs.",
   },
   {
     icon: "🧩",
@@ -36,7 +36,7 @@ const HIGHLIGHTS = [
   {
     icon: "🔄",
     title: "Automated Provisioning",
-    body: "New tenants are provisioned automatically via ERPNext background jobs. From signup to live instance in minutes.",
+    body: "New tenants are provisioned automatically via Business Suite background jobs. From signup to live instance in minutes.",
   },
   {
     icon: "📊",
@@ -46,7 +46,7 @@ const HIGHLIGHTS = [
   {
     icon: "🎧",
     title: "Integrated Support",
-    body: "Submit and track support tickets directly from the portal. All issues are logged as ERPNext Issues for your team to manage.",
+    body: "Submit and track support tickets directly from the portal. All issues are logged as Business Suite Issues for your team to manage.",
   },
 ];
 
@@ -58,13 +58,13 @@ const HOW_IT_WORKS = [
   },
   {
     step: "02",
-    title: "Your ERPNext instance is provisioned",
-    body: "Our system automatically creates a dedicated ERPNext site for your business. Login credentials are emailed to you once ready.",
+    title: "Your business workspace is provisioned",
+    body: "Our system automatically creates a dedicated business workspace for your business. Login credentials are emailed to you once ready.",
   },
   {
     step: "03",
     title: "Log in and start working",
-    body: "Use the Fuze portal to manage invoices, customers, employees, compliance and more — all backed by your ERPNext instance.",
+    body: "Use the Fuze portal to manage invoices, customers, employees, compliance and more — all backed by your business workspace.",
   },
 ];
 
@@ -81,7 +81,7 @@ export default function FeaturesPage() {
             Everything your business needs
           </h1>
           <p className="section-sub" style={{ margin: "0 auto 36px", maxWidth: 560 }}>
-            Fuze Business Suite is a complete SaaS platform built on ERPNext — giving South African businesses
+            Fuze Business Suite is a complete SaaS platform built on Business Suite — giving South African businesses
             enterprise-grade tools without the enterprise price tag.
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
@@ -135,7 +135,7 @@ export default function FeaturesPage() {
           <div className="section-label">Modules</div>
           <h2 className="section-title">Every module, explained</h2>
           <p className="section-sub">
-            Each module is a fully integrated view into your ERPNext data. Activate only what you need.
+            Each module is a fully integrated view into your Business Suite data. Activate only what you need.
           </p>
           <div className="modules-groups">
             {(["Finance", "Operations", "People", "Service"] as const).map((group) => {
@@ -165,7 +165,7 @@ export default function FeaturesPage() {
       <section className="section cta-section">
         <div className="container cta-inner">
           <h2 className="cta-title">Ready to see it in action?</h2>
-          <p className="cta-body">Start your free trial and have your ERPNext instance running in minutes.</p>
+          <p className="cta-body">Start your free trial and have your business workspace running in minutes.</p>
           <Link className="btn-hero-primary" href="/signup">Get started free →</Link>
         </div>
       </section>

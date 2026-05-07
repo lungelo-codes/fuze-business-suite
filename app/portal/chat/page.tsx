@@ -1,35 +1,4 @@
-import SimpleTable, { StatusCell } from "@/components/SimpleTable";
-import { getModuleData } from "@/lib/server/data";
-
-export default async function Page() {
-  const data = await getModuleData("chat");
-
-  return (
-    <div>
-      <div className="page-head">
-        <div>
-          <h1 className="page-title">Chat</h1>
-          <div className="page-sub">Communication records from ERPNext</div>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-head">
-          <h3>Chat</h3>
-        </div>
-        <div className="card-body">
-          <SimpleTable
-            data={data}
-            columns={[
-              { key: "name", label: "Message" },
-{ key: "subject", label: "Subject" },
-{ key: "sender", label: "Sender" },
-{ key: "communication_type", label: "Type" },
-{ key: "creation", label: "Created" }
-            ]}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
+import CrudModulePage from "@/components/crud/CrudModulePage";
+import { getCrudConfig } from "@/lib/crudConfig";
+import { getCrudRows } from "@/lib/server/crudData";
+export default async function Page() { const config = getCrudConfig("chat"); const rows = await getCrudRows("chat"); if (!config) return <div>Unknown module</div>; return <CrudModulePage moduleId="chat" config={config} initialRows={rows} />; }

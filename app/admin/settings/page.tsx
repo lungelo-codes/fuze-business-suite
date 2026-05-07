@@ -18,7 +18,7 @@ export default function AdminSettingsPage() {
           <div className="list">
             <div className="list-row">
               <div>
-                <div className="t">ERPNext URL</div>
+                <div className="t">Business Suite URL</div>
                 <div className="s">
                   <a href={erpnextUrl} target="_blank" rel="noreferrer" style={{ color: "var(--teal)", wordBreak: "break-all" }}>
                     {erpnextUrl}
@@ -91,7 +91,7 @@ export default function AdminSettingsPage() {
               className="btn"
               style={{ justifyContent: "center" }}
             >
-              🔗 Open ERPNext ↗
+              🔗 Open Business Suite ↗
             </a>
             <a
               href="/api/auth/logout"
@@ -118,11 +118,11 @@ export default function AdminSettingsPage() {
             </thead>
             <tbody>
               {[
-                { name: "ERPNEXT_URL", required: true, desc: "Server-side ERPNext base URL (e.g. https://erp.yourdomain.com)" },
-                { name: "NEXT_PUBLIC_ERPNEXT_URL", required: true, desc: "Client-visible ERPNext URL" },
+                { name: "ERPNEXT_URL", required: true, desc: "Server-side Business Suite base URL (e.g. https://erp.yourdomain.com)" },
+                { name: "NEXT_PUBLIC_ERPNEXT_URL", required: true, desc: "Client-visible Business Suite URL" },
                 { name: "NEXT_PUBLIC_BASE_URL", required: true, desc: "This app's public URL (used in redirects)" },
-                { name: "ERPNEXT_API_KEY", required: false, desc: "ERPNext API key for token authentication" },
-                { name: "ERPNEXT_API_SECRET", required: false, desc: "ERPNext API secret for token authentication" },
+                { name: "ERPNEXT_API_KEY", required: false, desc: "Business Suite API key for token authentication" },
+                { name: "ERPNEXT_API_SECRET", required: false, desc: "Business Suite API secret for token authentication" },
                 { name: "VERIFICATION_SECRET", required: true, desc: "Secret for signing email verification tokens" },
                 { name: "NEXTAUTH_SECRET", required: true, desc: "NextAuth session secret" },
                 { name: "ADMIN_EMAILS", required: false, desc: "Comma-separated list of admin email addresses" },

@@ -97,7 +97,7 @@ export default async function AdminPage() {
                 { key: "tenant", label: "Tenant" },
                 { key: "job_type", label: "Type" },
                 { key: "status", label: "Status", render: (row) => <StatusCell status={row.status} /> },
-                { key: "error", label: "Error", render: (row) => <span style={{ fontSize: 12, color: "var(--danger)" }}>{row.error ? "View in ERPNext" : "—"}</span> },
+                { key: "error", label: "Error", render: (row) => <span style={{ fontSize: 12, color: "var(--danger)" }}>{row.error ? "View in Business Suite" : "—"}</span> },
               ]}
               empty="No provisioning jobs yet"
             />

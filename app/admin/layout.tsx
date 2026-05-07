@@ -29,7 +29,7 @@ function AdminSidebar() {
 
       <div className="nav-section">Dashboard</div>
       <nav className="nav">
-        <a className={`nav-item ${isActive("/admin") && !isActive("/admin/customers") && !isActive("/admin/plans") && !isActive("/admin/settings") ? "active" : ""}`} href="/admin">
+        <a className={`nav-item ${isActive("/admin") && !isActive("/admin/customers") && !isActive("/admin/plans") && !isActive("/admin/modules") && !isActive("/admin/settings") ? "active" : ""}`} href="/admin">
           <span style={{ fontSize: 15 }}>⊞</span> Overview
         </a>
       </nav>
@@ -45,6 +45,9 @@ function AdminSidebar() {
       <nav className="nav">
         <a className={`nav-item ${isActive("/admin/plans") ? "active" : ""}`} href="/admin/plans">
           <span style={{ fontSize: 15 }}>💳</span> Plans
+        </a>
+        <a className={`nav-item ${isActive("/admin/modules") ? "active" : ""}`} href="/admin/modules">
+          <span style={{ fontSize: 15 }}>🧩</span> Modules
         </a>
         <a className={`nav-item ${isActive("/admin/settings") ? "active" : ""}`} href="/admin/settings">
           <span style={{ fontSize: 15 }}>⚙️</span> Settings
@@ -74,6 +77,7 @@ function AdminTopbar() {
     "/admin": "Overview",
     "/admin/customers": "Tenants",
     "/admin/plans": "Plans",
+    "/admin/modules": "Modules",
     "/admin/settings": "Settings",
   };
   const label = Object.entries(LABELS)

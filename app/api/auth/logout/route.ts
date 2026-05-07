@@ -9,7 +9,7 @@ export async function GET() {
     response.cookies.set(name, "", { path: "/", maxAge: 0 });
   });
 
-  // Clear ERPNext session cookie
+  // Clear Business Suite backend session cookie
   response.cookies.set("sid", "", { path: "/", maxAge: 0 });
   response.cookies.set("system_user", "", { path: "/", maxAge: 0 });
   response.cookies.set("user_id", "", { path: "/", maxAge: 0 });

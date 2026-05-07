@@ -4,9 +4,9 @@ import { ALL_MODULES, PLANS } from "@/lib/modules";
 
 const FEATURES = [
   { icon: "⚖️", title: "Built for South Africa", body: "Native VAT201, EMP201, UIF, SDL, and CIPC compliance calendars — SARS deadlines built in." },
-  { icon: "🔗", title: "Powered by ERPNext", body: "Your own ERPNext instance provisioned on signup. Real data, real accounting, no vendor lock-in." },
-  { icon: "📊", title: "Live Dashboards", body: "KPI dashboards refresh in real time from your ERPNext data so you always see the full picture." },
-  { icon: "🔒", title: "Isolated Instances", body: "Every customer gets their own isolated ERPNext site — your data is never shared." },
+  { icon: "🔗", title: "Powered by Business Suite", body: "Your own business workspace provisioned on signup. Real data, real accounting, no vendor lock-in." },
+  { icon: "📊", title: "Live Dashboards", body: "KPI dashboards refresh in real time from your business data so you always see the full picture." },
+  { icon: "🔒", title: "Isolated Instances", body: "Every customer gets their own isolated business workspace — your data is never shared." },
   { icon: "💼", title: "Pick Your Modules", body: "Only pay for what you need. Enable modules as you grow — invoicing, HR, payroll and more." },
   { icon: "🚀", title: "Up in Minutes", body: "Submit your details and your demo environment is provisioned automatically. No IT required." },
 ];
@@ -32,13 +32,13 @@ export default function HomePage() {
             <span className="hero-accent">on one platform</span>
           </h1>
           <p className="hero-body">
-            Fuze Business Suite gives growing SA companies invoicing, compliance, HR, payroll and more — powered by your own private ERPNext instance. Live in minutes.
+            Fuze Business Suite gives growing SA companies invoicing, compliance, HR, payroll and more — powered by your own private business workspace. Live in minutes.
           </p>
           <div className="hero-cta">
             <Link className="btn-hero-primary" href="/signup">Start Free Trial</Link>
             <Link className="btn-hero-ghost" href="/#pricing">See plans →</Link>
           </div>
-          <p className="hero-note">14-day free trial · No credit card required · Your own ERPNext site</p>
+          <p className="hero-note">14-day free trial · No credit card required · Your own business workspace</p>
         </div>
         <div className="pills-row">
           {ALL_MODULES.map((m) => (
@@ -54,8 +54,8 @@ export default function HomePage() {
           <div className="steps-grid">
             {[
               { n: "01", title: "Choose your plan & modules", body: "Pick the plan that fits your business. Select only the modules you need — Finance, HR, Compliance, and more." },
-              { n: "02", title: "Your ERPNext instance is provisioned", body: "We spin up a private ERPNext site for your company automatically. You get your own URL and login credentials." },
-              { n: "03", title: "Start managing your business", body: "Log in to your Fuze portal, see live data from ERPNext, and run your business from one dashboard." },
+              { n: "02", title: "Your business workspace is provisioned", body: "We spin up a private business workspace for your company automatically. You get your own URL and login credentials." },
+              { n: "03", title: "Start managing your business", body: "Log in to your Fuze portal, see live data , and run your business from one dashboard." },
             ].map((step) => (
               <div className="step-card" key={step.n}>
                 <div className="step-num">{step.n}</div>
@@ -152,7 +152,7 @@ export default function HomePage() {
       <section className="section cta-section">
         <div className="container cta-inner">
           <h2 className="cta-title">Ready to grow your business?</h2>
-          <p className="cta-body">Join South African businesses running on Fuze. Your ERPNext instance is waiting.</p>
+          <p className="cta-body">Join South African businesses running on Fuze. Your business workspace is waiting.</p>
           <Link className="btn-hero-primary" href="/signup">Get started free →</Link>
         </div>
       </section>

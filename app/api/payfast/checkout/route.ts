@@ -14,6 +14,8 @@ export async function POST(req: Request) {
       firstName?: string;
       lastName?: string;
       tenantId?: string;
+      amount?: number;
+      modules?: string[];
     };
 
     const { planId, email, firstName, lastName, tenantId } = body;
@@ -42,6 +44,9 @@ export async function POST(req: Request) {
       );
     }
 
+    const amount = Number(body.amount || plan.price || 0);
+    const moduleList = Array.isArray(body.modules) ? body.modules.join(",") : "";
+
     const payload: Record<string, string> = {
       merchant_id: merchantId,
       merchant_key: merchantKey,
@@ -52,12 +57,13 @@ export async function POST(req: Request) {
       name_last: lastName || "",
       email_address: email,
       m_payment_id: tenantId || `FUZE-${Date.now()}`,
-      amount: plan.price.toFixed(2),
+      amount: amount.toFixed(2),
       item_name: `Fuze Business Suite - ${plan.label}`,
-      item_description: `${plan.label} plan subscription`,
+      item_description: `${plan.label} plan subscription${moduleList ? ` with modules: ${moduleList}` : ""}`,
       custom_str1: planId,
       custom_str2: tenantId || "",
       custom_str3: email,
+      custom_str4: moduleList,
     };
 
     // Remove empty values

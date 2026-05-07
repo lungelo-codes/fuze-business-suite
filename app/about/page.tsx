@@ -19,7 +19,7 @@ const VALUES = [
   {
     icon: "🔓",
     title: "Open at the core",
-    body: "Fuze is built on ERPNext, a world-class open-source ERP. You own your data. You can export it, migrate it, or run it yourself.",
+    body: "Fuze is built on Business Suite, a world-class open-source ERP. You own your data. You can export it, migrate it, or run it yourself.",
   },
   {
     icon: "⚡",
@@ -34,7 +34,7 @@ const VALUES = [
 ];
 
 const STATS = [
-  { value: "ERPNext", label: "Powered by" },
+  { value: "Business Suite", label: "Powered by" },
   { value: "Next.js 14", label: "Frontend framework" },
   { value: "ZAR", label: "Native currency" },
   { value: "15+", label: "Business modules" },
@@ -117,12 +117,12 @@ export default function AboutPage() {
                 for small and medium businesses. Fuze changes that.
               </p>
               <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.7, marginBottom: 16 }}>
-                By building a clean, modern SaaS layer on top of ERPNext — one of the world&apos;s best
+                By building a clean, modern SaaS layer on top of Business Suite — one of the world&apos;s best
                 open-source ERP platforms — we give South African businesses the same tools used by large
                 corporations, at a fraction of the cost.
               </p>
               <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.7 }}>
-                Every Fuze customer gets a dedicated ERPNext instance, a polished portal interface, and full
+                Every Fuze customer gets a dedicated business workspace, a polished portal interface, and full
                 access to their data at all times.
               </p>
             </div>
@@ -140,7 +140,7 @@ export default function AboutPage() {
               </h3>
               <p style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 1.7, margin: 0 }}>
                 Unlike traditional SaaS where your data lives in a shared database, every Fuze customer gets
-                their own isolated ERPNext instance. You own your data completely.
+                their own isolated business workspace. You own your data completely.
               </p>
             </div>
           </div>
@@ -182,7 +182,7 @@ export default function AboutPage() {
           >
             {[
               {
-                name: "ERPNext",
+                name: "Business Suite",
                 desc: "World-class open-source ERP. Powers the entire business logic layer — accounting, HR, inventory, CRM and more.",
                 url: "https://erpnext.com",
               },

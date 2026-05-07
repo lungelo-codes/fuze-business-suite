@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import PublicHeader from "@/components/PublicHeader";
-import { ALL_MODULES, PLANS, getModulesForPlan, MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE } from "@/lib/modules";
+import { ALL_MODULES, PLANS, getModulesForPlan, calculateSubscriptionTotal, MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE } from "@/lib/modules";
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -31,6 +31,7 @@ function SignupForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [siteUrl, setSiteUrl] = useState("");
+  const [tenantId, setTenantId] = useState("");
 
   const [form, setForm] = useState<FormData>({
     full_name: "",
@@ -63,8 +64,6 @@ function SignupForm() {
   }
 
   function toggleModule(id: string) {
-    const planMods = getModulesForPlan(form.plan);
-    if (!planMods.includes(id)) return;
     setForm((f) => ({
       ...f,
       modules: f.modules.includes(id) ? f.modules.filter((m) => m !== id) : [...f.modules, id],
@@ -129,6 +128,7 @@ function SignupForm() {
       setCookie(COMPANY_COOKIE, form.company_name);
 
       if (json.site_url) setSiteUrl(json.site_url);
+      if (json.tenant) setTenantId(String(json.tenant));
       setStep(5);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Signup failed");
@@ -139,6 +139,49 @@ function SignupForm() {
 
   const planDef = PLANS.find((p) => p.id === form.plan);
   const allowedMods = getModulesForPlan(form.plan);
+  const monthlyTotal = calculateSubscriptionTotal(form.plan, form.modules);
+
+  async function startPayment() {
+    setLoading(true);
+    setError("");
+    try {
+      const nameParts = form.full_name.trim().split(/\s+/);
+      const firstName = nameParts.shift() || form.full_name;
+      const lastName = nameParts.join(" ");
+      const res = await fetch("/api/payfast/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId: form.plan,
+          email: form.email,
+          firstName,
+          lastName,
+          tenantId,
+          amount: monthlyTotal,
+          modules: form.modules,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Payment checkout failed");
+      const formEl = document.createElement("form");
+      formEl.method = "POST";
+      formEl.action = json.url;
+      Object.entries(json.payload || {}).forEach(([key, value]) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = String(value);
+        formEl.appendChild(input);
+      });
+      document.body.appendChild(formEl);
+      formEl.submit();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Payment checkout failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
 
   const GROUPS = [
     { label: "Finance", ids: ["invoices", "quotes", "payments", "customers", "compliance"] },
@@ -165,7 +208,7 @@ function SignupForm() {
             Creating your business system…
           </div>
           <div style={{ color: "rgba(255,255,255,.6)", fontSize: 14 }}>
-            Setting up your ERPNext instance. This may take a moment.
+            Setting up your business workspace. This may take a moment.
           </div>
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
@@ -188,7 +231,7 @@ function SignupForm() {
           {step === 1 && (
             <>
               <h2 className="signup-heading">Tell us about your business</h2>
-              <p className="signup-sub">We will use this to set up your Fuze account and ERPNext instance.</p>
+              <p className="signup-sub">We will use this to set up your Fuze account and business workspace.</p>
               <div className="field-row">
                 <div className="field">
                   <label className="label">Full Name *</label>
@@ -250,7 +293,7 @@ function SignupForm() {
             <>
               <h2 className="signup-heading">Select your modules</h2>
               <p className="signup-sub">
-                Your <strong>{form.plan}</strong> plan includes {allowedMods.length} modules. Select the ones you want to activate.
+                Your <strong>{form.plan}</strong> plan includes {allowedMods.length} modules. You can also add extra modules as paid add-ons.
               </p>
               <div className="module-select-groups">
                 {GROUPS.map((g) => {
@@ -260,20 +303,20 @@ function SignupForm() {
                       <div className="module-select-label">{g.label}</div>
                       <div className="module-select-grid">
                         {mods.map((m) => {
-                          const available = allowedMods.includes(m.id);
+                          const included = allowedMods.includes(m.id);
                           const selected = form.modules.includes(m.id);
                           return (
                             <div
                               key={m.id}
-                              className={`module-toggle ${selected ? "mod-on" : ""} ${!available ? "mod-locked" : ""}`}
-                              onClick={() => available && toggleModule(m.id)}
+                              className={`module-toggle ${selected ? "mod-on" : ""}`}
+                              onClick={() => toggleModule(m.id)}
                             >
                               <span className="mod-icon">{m.icon}</span>
                               <div className="mod-info">
                                 <span className="mod-label">{m.label}</span>
-                                {!available && <span className="mod-upgrade">Upgrade to unlock</span>}
+                                <span className="mod-upgrade">{included ? "Included" : `Add-on R${m.addonPrice}/mo`}</span>
                               </div>
-                              <span className="mod-check">{selected ? "✓" : !available ? "🔒" : "+"}</span>
+                              <span className="mod-check">{selected ? "✓" : "+"}</span>
                             </div>
                           );
                         })}
@@ -283,7 +326,7 @@ function SignupForm() {
                 })}
               </div>
               <div className="modules-selected-count">
-                {form.modules.length} module{form.modules.length !== 1 ? "s" : ""} selected
+                {form.modules.length} module{form.modules.length !== 1 ? "s" : ""} selected · Estimated total: R{monthlyTotal}/month
               </div>
             </>
           )}
@@ -307,6 +350,7 @@ function SignupForm() {
                 <div className="review-row"><span>Email</span><strong>{form.email}</strong></div>
                 <div className="review-row"><span>Plan</span><strong>{form.plan}</strong></div>
                 <div className="review-row"><span>Modules</span><strong>{form.modules.length} selected</strong></div>
+                <div className="review-row"><span>Monthly Estimate</span><strong>R{monthlyTotal}</strong></div>
                 <div className="review-row"><span>Site</span><strong>{form.preferred_site_name}.fuze.co.za</strong></div>
               </div>
             </>
@@ -318,11 +362,11 @@ function SignupForm() {
               <div className="success-icon">🚀</div>
               <h2 className="signup-heading">Your account is being prepared!</h2>
               <p className="signup-sub">
-                Welcome to Fuze, <strong>{form.full_name}</strong>. Your ERPNext instance for <strong>{form.company_name}</strong> is being provisioned.
+                Welcome to Fuze, <strong>{form.full_name}</strong>. Your business workspace for <strong>{form.company_name}</strong> is being provisioned.
               </p>
               {siteUrl && (
                 <div className="site-url-box">
-                  <div className="site-url-label">Your ERPNext site</div>
+                  <div className="site-url-label">Your business workspace</div>
                   <a href={siteUrl} target="_blank" rel="noreferrer" className="site-url-link">{siteUrl}</a>
                 </div>
               )}
@@ -338,7 +382,12 @@ function SignupForm() {
               <div className="success-note">
                 Login details will be emailed to <strong>{form.email}</strong> once your instance is ready.
               </div>
-              <button className="btn btn-primary" style={{ width: "100%", marginTop: 16 }} onClick={() => router.push("/login")}>
+              {monthlyTotal > 0 && (
+                <button className="btn btn-primary" style={{ width: "100%", marginTop: 16 }} onClick={startPayment} disabled={loading}>
+                  {loading ? "Opening payment…" : `Continue to Payment · R${monthlyTotal}/month`}
+                </button>
+              )}
+              <button className="btn" style={{ width: "100%", marginTop: 12 }} onClick={() => router.push("/login")}>
                 Go to Login
               </button>
             </div>

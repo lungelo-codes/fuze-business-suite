@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
+import { cookies } from "next/headers";
 import KPI from "@/components/KPI";
 import SimpleTable, { StatusCell } from "@/components/SimpleTable";
 import { getDashboardData } from "@/lib/server/data";
+import { MODULE_COOKIE, PLAN_COOKIE, calculateSubscriptionTotal, getModulesForPlan } from "@/lib/modules";
 import { money } from "@/lib/mappers";
 import type {
   AppointmentRecord,
@@ -66,13 +68,16 @@ function SectionCard({ title, href, actionLabel = "View All", children }: { titl
   );
 }
 
-function DashboardQuickActions() {
+function DashboardQuickActions({ activeModules }: { activeModules: string[] }) {
+  const active = new Set(activeModules);
   const actions = [
     { label: "Create Support Ticket", href: "/portal/support", icon: "🎧" },
     { label: "Book Appointment", href: "/portal/appointments", icon: "📅" },
     { label: "Send Message", href: "/portal/chat", icon: "✉️" },
     { label: "View Reports", href: "/portal/reports", icon: "📈" }
-  ];
+  ].filter((action) => !action.href.includes("support") || active.has("support"))
+   .filter((action) => !action.href.includes("appointments") || active.has("appointments"))
+   .filter((action) => !action.href.includes("chat") || active.has("chat"));
   return (
     <div className="card card-pad mb">
       <div className="toolbar" style={{ marginBottom: 0 }}>
@@ -84,7 +89,8 @@ function DashboardQuickActions() {
   );
 }
 
-function ModuleOverview({ data }: { data: DashboardData }) {
+function ModuleOverview({ data, activeModules }: { data: DashboardData; activeModules: string[] }) {
+  const active = new Set(activeModules);
   const modules = [
     { label: "Customers", value: data.customers.length, href: "/portal/customers", icon: "👥" },
     { label: "Invoices", value: data.invoices.length, href: "/portal/invoices", icon: "📄" },
@@ -94,7 +100,7 @@ function ModuleOverview({ data }: { data: DashboardData }) {
     { label: "Tasks", value: data.tasks.length, href: "/portal/tasks", icon: "✅" },
     { label: "Support", value: data.support.length, href: "/portal/support", icon: "🎧" },
     { label: "Appointments", value: data.appointments.length, href: "/portal/appointments", icon: "📅" }
-  ];
+  ].filter((module) => active.has(module.href.replace("/portal/", "")));
   return (
     <SectionCard title="Business Modules">
       <div className="card-body">
@@ -151,6 +157,11 @@ function RecentInvoices({ invoices }: { invoices: InvoiceRecord[] }) {
 }
 
 export default async function DashboardPage() {
+  const cookieStore = await cookies();
+  const plan = cookieStore.get(PLAN_COOKIE)?.value || "Starter";
+  let activeModules: string[] = [];
+  try { activeModules = JSON.parse(decodeURIComponent(cookieStore.get(MODULE_COOKIE)?.value || "[]")); } catch { activeModules = []; }
+  if (!activeModules.length) activeModules = getModulesForPlan(plan);
   const data = await getDashboardData();
   const totalRevenue = data.invoices.reduce((sum, invoice) => sum + (invoice.grand_total ?? 0), 0);
   const outstanding = data.invoices.reduce((sum, invoice) => sum + (invoice.outstanding_amount ?? 0), 0);
@@ -166,7 +177,7 @@ export default async function DashboardPage() {
       <div className="page-head">
         <div>
           <h1 className="page-title">Customer Dashboard</h1>
-          <div className="page-sub">Business overview, support, appointments, tasks, finance, and compliance from ERPNext.</div>
+          <div className="page-sub">Live business overview powered by Business Suite records.</div>
         </div>
         <div className="row"><a className="btn" href="/portal/appointments">+ Appointment</a><a className="btn btn-primary" href="/portal/support">+ Support Ticket</a></div>
       </div>
@@ -176,11 +187,17 @@ export default async function DashboardPage() {
         <KPI label="Open Support" value={openSupport} hint="Tickets needing attention" tone="purple" icon="S" />
         <KPI label="Appointments" value={upcomingAppointments} hint="Upcoming scheduled events" tone="teal" icon="A" />
       </div>
-      <DashboardQuickActions />
+      <div className="card card-pad mb" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", fontWeight: 800, letterSpacing: ".6px" }}>Subscription</div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: "var(--navy-ink)", marginTop: 2 }}>{plan} · {activeModules.length} active modules · R{calculateSubscriptionTotal(plan, activeModules)}/month</div>
+        </div>
+        <a className="btn btn-teal" href="/portal/modules">Manage Modules</a>
+      </div>
+      <DashboardQuickActions activeModules={activeModules} />
       <div className="two-col"><RecentInvoices invoices={data.invoices} /><SectionCard title="Support Tickets" href="/portal/support"><SupportList support={data.support} /></SectionCard></div>
       <div className="three-col mb"><SectionCard title="Appointments" href="/portal/appointments"><AppointmentList appointments={data.appointments} /></SectionCard><SectionCard title="Tasks" href="/portal/tasks"><TaskList tasks={data.tasks} /></SectionCard><SectionCard title="Messages" href="/portal/chat"><CommunicationList chat={data.chat} /></SectionCard></div>
-      <div className="two-col"><ModuleOverview data={data} /><SectionCard title="Compliance Watch" href="/portal/compliance" actionLabel="Open"><ComplianceList compliance={data.compliance} /></SectionCard></div>
-      <div className="banner info mt">This dashboard follows the uploaded HTML prototype structure: KPI tiles, quick actions, service lists, calendar/appointments, support tickets, communications, and module cards.</div>
+      <div className="two-col"><ModuleOverview data={data} activeModules={activeModules} /><SectionCard title="Compliance Watch" href="/portal/compliance" actionLabel="Open"><ComplianceList compliance={data.compliance} /></SectionCard></div>
     </div>
   );
 }

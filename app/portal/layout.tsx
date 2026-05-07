@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
-import Sidebar from "@/components/Sidebar";
-import Topbar from "@/components/Topbar";
+import PortalShell from "@/components/PortalShell";
 import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, ROLE_COOKIE } from "@/lib/modules";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -22,12 +21,8 @@ export default async function PortalLayout({ children }: { children: React.React
   const role = roleCookie ? decodeURIComponent(roleCookie) : undefined;
 
   return (
-    <div className="app">
-      <Sidebar activeModules={activeModules} companyName={companyName} role={role} />
-      <main className="main">
-        <Topbar plan={planCookie} companyName={companyName} />
-        <div className="content-wrap">{children}</div>
-      </main>
-    </div>
+    <PortalShell activeModules={activeModules} companyName={companyName} role={role} plan={planCookie}>
+      {children}
+    </PortalShell>
   );
 }
