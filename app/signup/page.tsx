@@ -351,7 +351,7 @@ function SignupForm() {
                 <div className="review-row"><span>Plan</span><strong>{form.plan}</strong></div>
                 <div className="review-row"><span>Modules</span><strong>{form.modules.length} selected</strong></div>
                 <div className="review-row"><span>Monthly Estimate</span><strong>R{monthlyTotal}</strong></div>
-                <div className="review-row"><span>Site</span><strong>{form.preferred_site_name}.fuze.co.za</strong></div>
+                <div className="review-row"><span>Site</span><strong>{form.preferred_site_name}.fuzedigital.co.za</strong></div>
               </div>
             </>
           )}
@@ -387,7 +387,7 @@ function SignupForm() {
                   {loading ? "Opening payment…" : `Continue to Payment · R${monthlyTotal}/month`}
                 </button>
               )}
-              <button className="btn" style={{ width: "100%", marginTop: 12 }} onClick={() => router.push("/login")}>
+              <button className="btn" style={{ width: "100%", marginTop: 12 }} onClick={() => router.push(siteUrl || "/login")}>
                 Go to Login
               </button>
             </div>

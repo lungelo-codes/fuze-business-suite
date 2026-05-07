@@ -23,6 +23,7 @@ function LoginForm() {
 
   const reason = params?.get("reason");
   const redirect = params?.get("redirect");
+  const tenantSite = params?.get("site") || "";
 
   async function login(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
@@ -40,7 +41,7 @@ function LoginForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: email.trim(), password, site: tenantSite }),
       });
 
       const text = await res.text();
@@ -79,7 +80,7 @@ function LoginForm() {
           <div style={{ textAlign: "center", marginBottom: 28 }}>
             <div className="brand-mark" style={{ margin: "0 auto 12px", width: 44, height: 44, borderRadius: 12, fontSize: 18 }}>FB</div>
             <h1 className="signup-heading" style={{ marginBottom: 6 }}>Welcome back</h1>
-            <p className="signup-sub" style={{ margin: 0 }}>Sign in to your Fuze portal</p>
+            <p className="signup-sub" style={{ margin: 0 }}>{tenantSite ? `Sign in to ${tenantSite}` : "Sign in to your Fuze portal"}</p>
           </div>
 
           {reason === "admin_required" && (
