@@ -11,7 +11,7 @@ function K({ label, value, hint, tone = "" }: { label: string; value: string; hi
 function Empty({ label }: { label: string }) { return <div className="empty">{label}</div>; }
 
 const emptyDashboard = { kpis: { revenue:0, expenses:0, profit:0, cashBalance:0, receivables:0, payables:0, cashIn:0, cashOut:0 }, monthly: [] as Any[], aging: ["Current","1-30","31-60","61-90","90+"].map(bucket=>({ bucket, receivable:0, payable:0 })), overdueInvoices: [] as Any[] };
-const emptyVat = { outputVat:0, inputVat:0, netVat:0, standardRate:15, monthly: [] as Any[], returns: [] as Any[], byStatus: {} as Any, latest: null as Any };
+const emptyVat = { outputVat:0, inputVat:0, netVat:0, standardRate:15, monthly: [] as Any[], returns: [] as Any[], byStatus: {} as Any, latest: null as unknown as Any };
 const emptyBank = { bankAccounts: [] as Any[], unreconciledPayments: [] as Any[], totals: { unreconciledCount:0, unreconciledAmount:0 } };
 const emptyPayroll = { salarySlips: [] as Any[], totals: { employees:0, gross:0, deductions:0, net:0 } };
 async function getJson(url: string) { try { const r = await fetch(url, { cache: "no-store" }); const j = await r.json().catch(()=>null); return r.ok && j && !j.error ? j : null; } catch { return null; } }
