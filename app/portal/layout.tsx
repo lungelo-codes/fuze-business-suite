@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import PortalShell from "@/components/PortalShell";
-import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, ROLE_COOKIE } from "@/lib/modules";
+import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, ROLE_COOKIE, getModulesForPlan } from "@/lib/modules";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
@@ -16,6 +16,8 @@ export default async function PortalLayout({ children }: { children: React.React
   } catch {
     activeModules = [];
   }
+
+  if (!activeModules.length) activeModules = getModulesForPlan(planCookie || "Starter");
 
   const companyName = companyCookie ? decodeURIComponent(companyCookie) : undefined;
   const role = roleCookie ? decodeURIComponent(roleCookie) : undefined;

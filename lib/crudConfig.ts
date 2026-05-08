@@ -20,21 +20,6 @@ export const CRUD_MODULES: Record<string, CrudModuleConfig> = {
     formFields: [f("customer_name", "Customer Name", "text", true), s("customer_type", "Customer Type", ["Company", "Individual"], true), l("customer_group", "Customer Group", "Customer Group", true, "All Customer Groups"), l("territory", "Territory", "Territory", true, "All Territories"), f("email_id", "Email", "email"), f("mobile_no", "Mobile", "tel"), f("tax_id", "Tax/VAT Number")],
     defaults: { customer_type: "Company", customer_group: "All Customer Groups", territory: "All Territories" },
   },
-
-  contacts: {
-    id: "contacts", title: "Contacts", subtitle: "People linked to customers, leads and suppliers. Add email, phone, role and company relationship.", doctype: "Contact", nameField: "first_name",
-    listFields: ["name", "first_name", "last_name", "email_id", "mobile_no", "phone", "designation", "company_name", "modified"],
-    tableFields: [f("first_name", "First Name"), f("last_name", "Last Name"), f("email_id", "Email", "email"), f("mobile_no", "Mobile", "tel"), f("designation", "Role"), f("company_name", "Company")],
-    formFields: [f("first_name", "First Name", "text", true), f("last_name", "Last Name"), f("email_id", "Email", "email"), f("mobile_no", "Mobile", "tel"), f("phone", "Phone", "tel"), f("designation", "Job Title"), f("company_name", "Company"), txt("notes", "Notes")],
-    defaults: {},
-  },
-  documents: {
-    id: "documents", title: "Documents", subtitle: "ERPNext File records and cloud storage links for customers, invoices, projects and quotes.", doctype: "File", nameField: "file_name",
-    listFields: ["name", "file_name", "attached_to_doctype", "attached_to_name", "file_url", "is_private", "modified"],
-    tableFields: [f("file_name", "File"), f("attached_to_doctype", "Linked To"), f("attached_to_name", "Record"), f("file_url", "URL"), f("is_private", "Private", "checkbox")],
-    formFields: [f("file_name", "File Name", "text", true), f("file_url", "File URL"), f("attached_to_doctype", "Linked DocType"), f("attached_to_name", "Linked Record"), f("is_private", "Private", "checkbox")],
-    defaults: { is_private: 1 },
-  },
   suppliers: {
     id: "suppliers", title: "Suppliers", subtitle: "Supplier records for buying and procurement.", doctype: "Supplier", nameField: "supplier_name",
     listFields: ["name", "supplier_name", "supplier_type", "supplier_group", "country", "tax_id", "modified"],
