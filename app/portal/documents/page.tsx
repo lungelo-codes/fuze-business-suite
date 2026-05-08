@@ -1,10 +1,5 @@
 import CrudModulePage from "@/components/crud/CrudModulePage";
 import { getCrudConfig } from "@/lib/crudConfig";
 import { getCrudRows } from "@/lib/server/crudData";
-
-export default async function Page() {
-  const config = getCrudConfig("documents");
-  const rows = await getCrudRows("documents");
-  if (!config) return <div>Unknown module</div>;
-  return <CrudModulePage moduleId="documents" config={config} initialRows={rows} />;
-}
+function CloudConnector({ name, subtitle, action }: { name: string; subtitle: string; action: string }) { return <div className="cloud-card"><div className="cloud-icon">▣</div><div><h3>{name}</h3><p>{subtitle}</p></div><button type="button">{action}</button></div>; }
+export default async function Page() { const config = getCrudConfig("documents"); const rows = await getCrudRows("documents"); if (!config) return <div>Unknown module</div>; return <div className="space-y-6"><div className="document-connectors"><CloudConnector name="Google Drive" subtitle="Link customer folders, contracts and invoices from Drive." action="Connect Drive" /><CloudConnector name="Dropbox" subtitle="Connect shared business folders and attach files to records." action="Connect Dropbox" /><CloudConnector name="Upload Files" subtitle="Upload PDFs, images and documents into ERPNext File records." action="Upload" /></div><CrudModulePage moduleId="documents" config={config} initialRows={rows} /></div>; }
