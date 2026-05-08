@@ -58,6 +58,8 @@ export default async function DashboardPage() {
   const outstanding = data.invoices.reduce((sum, invoice) => sum + (invoice.outstanding_amount ?? 0), 0);
   const openSupport = data.support.filter((ticket) => isOpenStatus(ticket.status)).length;
   const openWork = data.tasks.filter((task) => isOpenStatus(task.status)).length + data.support.filter((ticket) => isOpenStatus(ticket.status)).length;
+  const totalPaid = data.payments.reduce((sum, p) => sum + (p.paid_amount ?? 0), 0);
+  const openQuotes = data.quotes.filter((q) => isOpenStatus(q.status) || (q.status || "").toLowerCase() === "open").length;
 
   const records = [
     ...data.invoices.slice(0, 2).map((row) => ({ module: "Finance", title: `${row.name} awaiting ${money(row.outstanding_amount || row.grand_total || 0)}`, status: row.status || "Invoice", owner: row.customer || "Customer", value: money(row.grand_total || 0), href: "/portal/invoices" })),
@@ -102,8 +104,19 @@ export default async function DashboardPage() {
       <section className="demo-stat-grid">
         {moduleAllowed(active, "invoices") ? <StatCard label="Total Revenue" value={money(totalRevenue)} hint="Sales invoices" href="/portal/invoices" icon="₊" /> : null}
         {moduleAllowed(active, "invoices") ? <StatCard label="Outstanding" value={money(outstanding)} hint="Unpaid balance" href="/portal/invoices" icon="!" /> : null}
-        {moduleAllowed(active, "customers") ? <StatCard label="Customers" value={data.customers.length} hint="Customer records" href="/portal/customers" icon="★" /> : null}
-        {(moduleAllowed(active, "support") || moduleAllowed(active, "tasks")) ? <StatCard label="Open Work" value={openWork} hint="Tasks and tickets" href={moduleAllowed(active, "tasks") ? "/portal/tasks" : "/portal/support"} icon="⚡" /> : null}
+        {moduleAllowed(active, "customers")
+          ? <StatCard label="Customers" value={data.customers.length} hint="Customer records" href="/portal/customers" icon="★" />
+          : moduleAllowed(active, "employees")
+            ? <StatCard label="Employees" value={data.employees.length} hint="Staff records" href="/portal/employees" icon="👤" />
+            : <StatCard label="Active Modules" value={activeModules.length} hint="Enabled features" href="/portal/modules" icon="⚙" />}
+        {(moduleAllowed(active, "support") || moduleAllowed(active, "tasks"))
+          ? <StatCard label="Open Work" value={openWork} hint="Tasks and tickets" href={moduleAllowed(active, "tasks") ? "/portal/tasks" : "/portal/support"} icon="⚡" />
+          : null}
+        {moduleAllowed(active, "quotes")
+          ? <StatCard label="Quotations" value={data.quotes.length} hint={`${openQuotes} open`} href="/portal/quotes" icon="📋" />
+          : moduleAllowed(active, "payments")
+            ? <StatCard label="Total Paid" value={money(totalPaid)} hint="Payment entries" href="/portal/payments" icon="✓" />
+            : null}
       </section>
 
       <section className="demo-grid">
