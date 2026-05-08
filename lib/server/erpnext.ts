@@ -1,11 +1,16 @@
 import { cookies } from "next/headers";
 
-const ERPNEXT_URL = process.env.ERPNEXT_URL || process.env.NEXT_PUBLIC_ERPNEXT_URL;
+const DEFAULT_ERPNEXT_URL = process.env.ERPNEXT_URL || process.env.NEXT_PUBLIC_ERPNEXT_URL;
 const ERPNEXT_API_KEY = process.env.ERPNEXT_API_KEY;
 const ERPNEXT_API_SECRET = process.env.ERPNEXT_API_SECRET;
 
+const SESSION_COOKIE = "sid";
+const TENANT_BACKEND_COOKIE = "tenant_backend";
+const ROLE_COOKIE = "fuze_role";
+
 export class BusinessSuiteError extends Error {
   status: number;
+
   constructor(message: string, status = 500) {
     super(message);
     this.name = "BusinessSuiteError";
@@ -13,55 +18,114 @@ export class BusinessSuiteError extends Error {
   }
 }
 
-function authHeaders(): HeadersInit {
-  if (ERPNEXT_API_KEY && ERPNEXT_API_SECRET) return { Authorization: `token ${ERPNEXT_API_KEY}:${ERPNEXT_API_SECRET}` };
+function normaliseUrl(url?: string | null): string {
+  return String(url || "").trim().replace(/\/$/, "");
+}
+
+function isAdminRole(role?: string) {
+  return role === "admin" || role === "Administrator" || role === "System Manager";
+}
+
+function getCookieValue(name: string): string {
   try {
-    const sid = cookies().get("sid")?.value;
-    if (sid) return { Cookie: `sid=${sid}` };
-  } catch {}
+    return cookies().get(name)?.value || "";
+  } catch {
+    return "";
+  }
+}
+
+function getRuntimeBackendUrl(): string {
+  const tenantBackend = normaliseUrl(getCookieValue(TENANT_BACKEND_COOKIE));
+  if (tenantBackend) return tenantBackend;
+
+  const fallback = normaliseUrl(DEFAULT_ERPNEXT_URL);
+  if (!fallback) throw new BusinessSuiteError("Missing ERPNEXT_URL");
+  return fallback;
+}
+
+function authHeaders(): HeadersInit {
+  const sid = getCookieValue(SESSION_COOKIE);
+  if (sid) return { Cookie: `sid=${sid}` };
+
+  const role = getCookieValue(ROLE_COOKIE);
+  if (isAdminRole(role) && ERPNEXT_API_KEY && ERPNEXT_API_SECRET) {
+    return { Authorization: `token ${ERPNEXT_API_KEY}:${ERPNEXT_API_SECRET}` };
+  }
+
   return {};
 }
 
-export interface ERPListResponse<T> { data?: T[]; message?: T[]; }
-export interface ERPDocumentResponse<T> { data?: T; message?: T; }
+export interface ERPListResponse<T> {
+  data?: T[];
+  message?: T[];
+}
+
+export interface ERPDocumentResponse<T> {
+  data?: T;
+  message?: T;
+}
 
 function encodeFields(fields?: string[]): string {
   return fields ? `fields=${encodeURIComponent(JSON.stringify(fields))}` : "";
 }
+
 function encodeFilters(filters?: unknown[]): string {
   return filters ? `filters=${encodeURIComponent(JSON.stringify(filters))}` : "";
 }
 
-export function resourceListPath(doctype: string, options: { fields?: string[]; filters?: unknown[]; limit?: number; orderBy?: string } = {}): string {
+export function resourceListPath(
+  doctype: string,
+  options: { fields?: string[]; filters?: unknown[]; limit?: number; orderBy?: string } = {}
+): string {
   const params = [
     encodeFields(options.fields),
     encodeFilters(options.filters),
     `limit_page_length=${options.limit ?? 100}`,
-    options.orderBy ? `order_by=${encodeURIComponent(options.orderBy)}` : ""
-  ].filter(Boolean).join("&");
+    options.orderBy ? `order_by=${encodeURIComponent(options.orderBy)}` : "",
+  ]
+    .filter(Boolean)
+    .join("&");
+
   return `/api/resource/${encodeURIComponent(doctype)}?${params}`;
 }
 
 async function parseResponse<T>(res: Response, fallbackMessage: string): Promise<T> {
   const text = await res.text();
   let json: unknown = {};
-  try { json = text ? JSON.parse(text) : {}; } catch { json = { raw: text }; }
+
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = { raw: text };
+  }
+
   if (!res.ok) {
-    const data = json as { exception?: string; exc_type?: string; message?: string; _server_messages?: string; exc?: string };
+    const data = json as {
+      exception?: string;
+      exc_type?: string;
+      message?: string;
+      _server_messages?: string;
+      exc?: string;
+    };
+
     let serverMessage = "";
 
-    // Extract from _server_messages (Frappe double-encodes this)
     if (data._server_messages) {
       try {
-        const raw = typeof data._server_messages === "string"
-          ? data._server_messages
-          : JSON.stringify(data._server_messages);
+        const raw =
+          typeof data._server_messages === "string"
+            ? data._server_messages
+            : JSON.stringify(data._server_messages);
         const outer = JSON.parse(raw);
         const items = Array.isArray(outer) ? outer : [outer];
         serverMessage = items
           .map((item: unknown) => {
             if (typeof item === "string") {
-              try { return (JSON.parse(item) as { message?: string }).message || item; } catch { return item; }
+              try {
+                return (JSON.parse(item) as { message?: string }).message || item;
+              } catch {
+                return item;
+              }
             }
             return String(item || "");
           })
@@ -72,7 +136,6 @@ async function parseResponse<T>(res: Response, fallbackMessage: string): Promise
       }
     }
 
-    // Also try to extract from exc (Frappe sometimes puts the traceback here with the message at top)
     let excMessage = "";
     if (data.exc) {
       try {
@@ -93,56 +156,87 @@ async function parseResponse<T>(res: Response, fallbackMessage: string): Promise
 
     throw new BusinessSuiteError(message, res.status);
   }
+
   return json as T;
 }
 
+export function getERPNextBaseUrl(): string {
+  return getRuntimeBackendUrl();
+}
+
 export async function erpGet<T>(path: string): Promise<T> {
-  if (!ERPNEXT_URL) throw new BusinessSuiteError("Missing ERPNEXT_URL");
-  const res = await fetch(`${ERPNEXT_URL}${path}`, { headers: authHeaders(), cache: "no-store" });
+  const baseUrl = getRuntimeBackendUrl();
+  const res = await fetch(`${baseUrl}${path}`, {
+    headers: authHeaders(),
+    cache: "no-store",
+  });
+
   return parseResponse<T>(res, "Could not load data");
 }
 
 export async function erpPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
-  if (!ERPNEXT_URL) throw new BusinessSuiteError("Missing ERPNEXT_URL");
-  const res = await fetch(`${ERPNEXT_URL}${path}`, {
+  const baseUrl = getRuntimeBackendUrl();
+  const res = await fetch(`${baseUrl}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    },
     body: JSON.stringify(body),
-    cache: "no-store"
+    cache: "no-store",
   });
+
   return parseResponse<T>(res, "Could not save data");
 }
 
 export async function erpPatch<T>(doctype: string, name: string, body: Record<string, unknown>): Promise<T> {
-  if (!ERPNEXT_URL) throw new BusinessSuiteError("Missing ERPNEXT_URL");
-  const res = await fetch(`${ERPNEXT_URL}/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(body),
-    cache: "no-store"
-  });
+  const baseUrl = getRuntimeBackendUrl();
+  const res = await fetch(
+    `${baseUrl}/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    }
+  );
+
   const response = await parseResponse<ERPDocumentResponse<T>>(res, "Could not update record");
   return (response.data ?? response.message) as T;
 }
 
 export async function erpDelete(doctype: string, name: string): Promise<boolean> {
-  if (!ERPNEXT_URL) throw new BusinessSuiteError("Missing ERPNEXT_URL");
-  const res = await fetch(`${ERPNEXT_URL}/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`, {
-    method: "DELETE",
-    headers: { ...authHeaders() },
-    cache: "no-store"
-  });
+  const baseUrl = getRuntimeBackendUrl();
+  const res = await fetch(
+    `${baseUrl}/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(),
+      cache: "no-store",
+    }
+  );
+
   await parseResponse<unknown>(res, "Could not delete record");
   return true;
 }
 
-export async function erpList<T>(doctype: string, options: { fields?: string[]; filters?: unknown[]; limit?: number; orderBy?: string } = {}): Promise<T[]> {
+export async function erpList<T>(
+  doctype: string,
+  options: { fields?: string[]; filters?: unknown[]; limit?: number; orderBy?: string } = {}
+): Promise<T[]> {
   const response = await erpGet<ERPListResponse<T>>(resourceListPath(doctype, options));
   return response.data ?? response.message ?? [];
 }
 
 export async function erpCreate<T>(doctype: string, doc: Record<string, unknown>): Promise<T> {
-  const response = await erpPost<ERPDocumentResponse<T>>(`/api/resource/${encodeURIComponent(doctype)}`, doc);
+  const response = await erpPost<ERPDocumentResponse<T>>(
+    `/api/resource/${encodeURIComponent(doctype)}`,
+    doc
+  );
+
   const created = response.data ?? response.message;
   if (!created) throw new BusinessSuiteError(`Could not create ${doctype}`);
   return created;
@@ -152,7 +246,9 @@ export async function erpExists(doctype: string, name: string): Promise<boolean>
   try {
     await erpGet(`/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`);
     return true;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 export async function erpMethod<T>(method: string, body: Record<string, unknown>): Promise<T | null> {

@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { COMPANY_COOKIE } from "@/lib/modules";
-import { erpGet, erpList, erpPatch, BusinessSuiteError } from "@/lib/server/erpnext";
+import { erpGet, erpList, erpPatch, BusinessSuiteError, getERPNextBaseUrl } from "@/lib/server/erpnext";
 
 type Any = Record<string, unknown>;
 const COMPANY_FIELDS = ["name","company_name","company_logo","default_letter_head","phone_no","email","website","tax_id","registration_details","default_bank_account","default_currency"];
-const ERPNEXT_URL = process.env.ERPNEXT_URL || process.env.NEXT_PUBLIC_ERPNEXT_URL || "";
 const PROFILE_FIELDS = ["name","company","trading_name","registration_number","industry","financial_year_end","base_currency","vat_registered","vat_registration_date","phone","email","website","street_address","suburb","city","province","postal_code","bank_name","account_number","branch_code"];
 
 function pick(input: Any, allowed: string[]) {
@@ -36,7 +35,8 @@ export async function GET(req: Request) {
     const profile = profiles[0] || null;
 
     const cleanCompany = pick(company, COMPANY_FIELDS);
-    if (typeof cleanCompany.company_logo === "string" && cleanCompany.company_logo.startsWith("/") && ERPNEXT_URL) cleanCompany.company_logo = `${ERPNEXT_URL}${cleanCompany.company_logo}`;
+    const erpnextUrl = getERPNextBaseUrl();
+    if (typeof cleanCompany.company_logo === "string" && cleanCompany.company_logo.startsWith("/") && erpnextUrl) cleanCompany.company_logo = `${erpnextUrl}${cleanCompany.company_logo}`;
     return NextResponse.json({ data: { company: cleanCompany, profile } });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Could not load business settings" }, { status: e instanceof BusinessSuiteError ? e.status : 500 });
@@ -50,7 +50,8 @@ export async function PATCH(req: Request) {
     if (!companyName) return NextResponse.json({ error: "No company found" }, { status: 404 });
 
     const companyPayload = pick(body.company_settings as Any || body, ["company_logo","default_letter_head","phone_no","email","website","tax_id","registration_details","default_bank_account"]);
-    if (typeof companyPayload.company_logo === "string" && ERPNEXT_URL && companyPayload.company_logo.startsWith(ERPNEXT_URL)) companyPayload.company_logo = companyPayload.company_logo.slice(ERPNEXT_URL.length);
+    const erpnextUrl = getERPNextBaseUrl();
+    if (typeof companyPayload.company_logo === "string" && erpnextUrl && companyPayload.company_logo.startsWith(erpnextUrl)) companyPayload.company_logo = companyPayload.company_logo.slice(erpnextUrl.length);
     let company: Any = {};
     if (Object.keys(companyPayload).length) company = await erpPatch<Any>("Company", companyName, companyPayload);
 
