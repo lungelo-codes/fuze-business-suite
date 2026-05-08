@@ -1,23 +1,11 @@
-import type { ReactNode } from "react";
 import { cookies } from "next/headers";
-import KPI from "@/components/KPI";
-import SimpleTable, { StatusCell } from "@/components/SimpleTable";
 import { getDashboardData } from "@/lib/server/data";
-import { MODULE_COOKIE, PLAN_COOKIE, calculateSubscriptionTotal, getModulesForPlan } from "@/lib/modules";
+import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, getModulesForPlan } from "@/lib/modules";
 import { money } from "@/lib/mappers";
-import type {
-  AppointmentRecord,
-  CommunicationRecord,
-  ComplianceRecord,
-  DashboardData,
-  InvoiceRecord,
-  SupportTicket,
-  TaskRecord
-} from "@/lib/types";
 
 function isOpenStatus(status?: string): boolean {
   const value = (status || "").toLowerCase();
-  return value.includes("open") || value.includes("progress") || value.includes("waiting") || value.includes("overdue");
+  return value.includes("open") || value.includes("progress") || value.includes("waiting") || value.includes("overdue") || value.includes("pending");
 }
 
 function dateOnly(value?: string): string {
@@ -25,179 +13,144 @@ function dateOnly(value?: string): string {
   return value.split(" ")[0]?.split("T")[0] || value;
 }
 
-function timeOnly(value?: string): string {
-  if (!value) return "";
-  const date = new Date(value);
-  if (!Number.isNaN(date.getTime())) return date.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" });
-  const parts = value.split(" ");
-  return parts.length > 1 ? parts[1].slice(0, 5) : "";
+function moduleAllowed(active: Set<string>, id: string) {
+  return active.has(id);
 }
 
 function initials(value?: string): string {
-  const text = value || "FB";
-  return text.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() || "").join("") || "FB";
+  const text = value || "BS";
+  return text.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() || "").join("") || "BS";
 }
 
-function EmptyList({ label }: { label: string }) {
-  return <div className="empty">{label}</div>;
+function StatusPill({ status }: { status?: string }) {
+  const s = status || "Active";
+  const key = s.toLowerCase();
+  const cls = key.includes("overdue") || key.includes("urgent") ? "chip danger" : key.includes("pending") || key.includes("waiting") ? "chip warn" : "chip ok";
+  return <span className={cls}>{s}</span>;
 }
 
-function ListRow({ title, subtitle, status, href, avatar }: { title: string; subtitle?: string; status?: string; href?: string; avatar?: string }) {
-  const body = (
-    <div className="list-row">
-      <div className="avi">{initials(avatar || title)}</div>
-      <div>
-        <div className="t">{title}</div>
-        <div className="s">{subtitle || "-"}</div>
-      </div>
-      {status ? <div className="r"><StatusCell status={status} /></div> : null}
-    </div>
-  );
-  return href ? <a href={href}>{body}</a> : body;
-}
-
-function SectionCard({ title, href, actionLabel = "View All", children }: { title: string; href?: string; actionLabel?: string; children: ReactNode }) {
+function StatCard({ label, value, hint, href }: { label: string; value: string | number; hint: string; href: string }) {
   return (
-    <div className="card">
-      <div className="card-head">
-        <h3>{title}</h3>
-        {href ? <a className="btn btn-sm" href={href}>{actionLabel}</a> : null}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function DashboardQuickActions({ activeModules }: { activeModules: string[] }) {
-  const active = new Set(activeModules);
-  const actions = [
-    { label: "Create Support Ticket", href: "/portal/support", icon: "🎧" },
-    { label: "Book Appointment", href: "/portal/appointments", icon: "📅" },
-    { label: "Send Message", href: "/portal/chat", icon: "✉️" },
-    { label: "View Reports", href: "/portal/reports", icon: "📈" }
-  ].filter((action) => !action.href.includes("support") || active.has("support"))
-   .filter((action) => !action.href.includes("appointments") || active.has("appointments"))
-   .filter((action) => !action.href.includes("chat") || active.has("chat"));
-  return (
-    <div className="card card-pad mb">
-      <div className="toolbar" style={{ marginBottom: 0 }}>
-        {actions.map((action) => (
-          <a className="btn" href={action.href} key={action.href}><span>{action.icon}</span>{action.label}</a>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ModuleOverview({ data, activeModules }: { data: DashboardData; activeModules: string[] }) {
-  const active = new Set(activeModules);
-  const modules = [
-    { label: "Customers", value: data.customers.length, href: "/portal/customers", icon: "👥" },
-    { label: "Invoices", value: data.invoices.length, href: "/portal/invoices", icon: "📄" },
-    { label: "Quotes", value: data.quotes.length, href: "/portal/quotes", icon: "💬" },
-    { label: "Payments", value: data.payments.length, href: "/portal/payments", icon: "💳" },
-    { label: "Projects", value: data.projects.length, href: "/portal/projects", icon: "📊" },
-    { label: "Tasks", value: data.tasks.length, href: "/portal/tasks", icon: "✅" },
-    { label: "Support", value: data.support.length, href: "/portal/support", icon: "🎧" },
-    { label: "Appointments", value: data.appointments.length, href: "/portal/appointments", icon: "📅" }
-  ].filter((module) => active.has(module.href.replace("/portal/", "")));
-  return (
-    <SectionCard title="Business Modules">
-      <div className="card-body">
-        <div className="module-cards">
-          {modules.map((module) => (
-            <a className="module-card" href={module.href} key={module.href}>
-              <span className="module-icon">{module.icon}</span>
-              <span><span className="module-name">{module.label}</span><span className="module-desc">{module.value} records</span></span>
-            </a>
-          ))}
+    <a href={href} className="demo-stat-card">
+      <div className="demo-stat-top">
+        <div>
+          <div className="demo-stat-label">{label}</div>
+          <div className="demo-stat-value">{value}</div>
+          <div className="demo-stat-hint">{hint}</div>
         </div>
+        <div className="demo-stat-icon">↗</div>
       </div>
-    </SectionCard>
-  );
-}
-
-function SupportList({ support }: { support: SupportTicket[] }) {
-  return <div className="list">{support.slice(0, 6).map((item) => <ListRow key={item.name} title={item.subject || item.name} subtitle={`${item.customer || item.raised_by || "Customer"} • ${item.priority || "Normal"} • ${dateOnly(item.opening_date || item.modified)}`} status={item.status} href="/portal/support" avatar={item.customer || item.raised_by || item.subject} />)}{support.length === 0 ? <EmptyList label="No support tickets." /> : null}</div>;
-}
-
-function AppointmentList({ appointments }: { appointments: AppointmentRecord[] }) {
-  return <div className="list">{appointments.slice(0, 6).map((item) => <ListRow key={item.name} title={item.subject || item.name} subtitle={`${dateOnly(item.starts_on)} ${timeOnly(item.starts_on)}${item.event_type ? ` • ${item.event_type}` : ""}`} status={item.status} href="/portal/appointments" avatar={item.subject} />)}{appointments.length === 0 ? <EmptyList label="No appointments." /> : null}</div>;
-}
-
-function TaskList({ tasks }: { tasks: TaskRecord[] }) {
-  return <div className="list">{tasks.slice(0, 6).map((item) => <ListRow key={item.name} title={item.subject || item.name} subtitle={`${item.project || "No project"} • Due ${dateOnly(item.exp_end_date || item.modified)}`} status={item.status || item.priority} href="/portal/tasks" avatar={item.subject} />)}{tasks.length === 0 ? <EmptyList label="No tasks." /> : null}</div>;
-}
-
-function CommunicationList({ chat }: { chat: CommunicationRecord[] }) {
-  return <div className="list">{chat.slice(0, 6).map((item) => <ListRow key={item.name} title={item.subject || item.communication_type || item.name} subtitle={`${item.sender || "System"} • ${dateOnly(item.creation || item.modified)}`} href="/portal/chat" avatar={item.sender || item.subject} />)}{chat.length === 0 ? <EmptyList label="No messages." /> : null}</div>;
-}
-
-function ComplianceList({ compliance }: { compliance: ComplianceRecord[] }) {
-  return <div className="list">{compliance.slice(0, 6).map((item) => <ListRow key={`${item.kind}-${item.name}`} title={`${item.kind} • ${item.name}`} subtitle={`${item.company || "Company"} • Due ${dateOnly(item.due_date)}`} status={item.status} href="/portal/compliance" avatar={item.kind} />)}{compliance.length === 0 ? <EmptyList label="No compliance records." /> : null}</div>;
-}
-
-function RecentInvoices({ invoices }: { invoices: InvoiceRecord[] }) {
-  return (
-    <SectionCard title="Recent Invoices" href="/portal/invoices">
-      <div className="card-body">
-        <SimpleTable
-          data={invoices.slice(0, 8)}
-          columns={[
-            { key: "name", label: "Invoice" },
-            { key: "customer", label: "Customer" },
-            { key: "posting_date", label: "Date", render: (row) => dateOnly(row.posting_date) },
-            { key: "grand_total", label: "Total", render: (row) => money(row.grand_total) },
-            { key: "status", label: "Status", render: (row) => <StatusCell status={row.status} /> }
-          ]}
-        />
-      </div>
-    </SectionCard>
+    </a>
   );
 }
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
   const plan = cookieStore.get(PLAN_COOKIE)?.value || "Starter";
+  const companyName = cookieStore.get(COMPANY_COOKIE)?.value ? decodeURIComponent(cookieStore.get(COMPANY_COOKIE)?.value || "") : "your business";
   let activeModules: string[] = [];
   try { activeModules = JSON.parse(decodeURIComponent(cookieStore.get(MODULE_COOKIE)?.value || "[]")); } catch { activeModules = []; }
   if (!activeModules.length) activeModules = getModulesForPlan(plan);
+  const active = new Set(activeModules);
   const data = await getDashboardData();
+
   const totalRevenue = data.invoices.reduce((sum, invoice) => sum + (invoice.grand_total ?? 0), 0);
   const outstanding = data.invoices.reduce((sum, invoice) => sum + (invoice.outstanding_amount ?? 0), 0);
   const openSupport = data.support.filter((ticket) => isOpenStatus(ticket.status)).length;
-  const upcomingAppointments = data.appointments.filter((item) => {
-    if (!item.starts_on) return false;
-    const startsOn = new Date(item.starts_on);
-    return !Number.isNaN(startsOn.getTime()) && startsOn >= new Date();
-  }).length;
+  const openWork = data.tasks.filter((task) => isOpenStatus(task.status)).length + data.support.filter((ticket) => isOpenStatus(ticket.status)).length;
+
+  const records = [
+    ...data.invoices.slice(0, 2).map((row) => ({ module: "Finance", title: `${row.name} awaiting ${money(row.outstanding_amount || row.grand_total || 0)}`, status: row.status || "Invoice", owner: row.customer || "Customer", value: money(row.grand_total || 0), href: "/portal/invoices" })),
+    ...data.tasks.slice(0, 2).map((row) => ({ module: "Projects", title: row.subject || row.name, status: row.status || row.priority || "Open", owner: row.project || "Task", value: dateOnly(row.exp_end_date || row.modified), href: "/portal/tasks" })),
+    ...data.support.slice(0, 2).map((row) => ({ module: "Support", title: row.subject || row.name, status: row.status || row.priority || "Open", owner: row.customer || row.raised_by || "Customer", value: row.priority || "Normal", href: "/portal/support" })),
+    ...data.compliance.slice(0, 2).map((row) => ({ module: "Compliance", title: `${row.kind} • ${row.name}`, status: row.status || "Open", owner: row.company || "Company", value: dateOnly(row.due_date), href: "/portal/compliance" })),
+  ].slice(0, 7);
+
+  const alerts = [
+    { title: `${data.compliance.length} compliance records available`, module: "Finance & Compliance", href: "/portal/compliance", show: moduleAllowed(active, "compliance") },
+    { title: `${data.quotes.length} quotations in the sales workspace`, module: "CRM & Sales", href: "/portal/quotes", show: moduleAllowed(active, "quotes") },
+    { title: `${openWork} open tasks, tickets or support items`, module: "Operations", href: moduleAllowed(active, "tasks") ? "/portal/tasks" : "/portal/support", show: moduleAllowed(active, "tasks") || moduleAllowed(active, "support") },
+    { title: `${data.payments.length} payments captured`, module: "Finance", href: "/portal/payments", show: moduleAllowed(active, "payments") },
+  ].filter((a) => a.show);
 
   return (
     <div>
-      <div className="page-head">
-        <div>
-          <h1 className="page-title">Customer Dashboard</h1>
-          <div className="page-sub">Live business overview powered by Business Suite records.</div>
+      <section className="demo-hero">
+        <div className="demo-hero-grid">
+          <div>
+            <div className="demo-eyebrow">Welcome back</div>
+            <h1 className="demo-hero-title">Run {companyName} from one clean workspace.</h1>
+            <p className="demo-hero-copy">This executive dashboard gives you a live view of revenue, customers, open work, alerts, subscriptions and important records across every module you selected.</p>
+            <div className="demo-hero-actions">
+              {moduleAllowed(active, "crm") ? <a className="btn btn-teal" href="/portal/crm">Open CRM</a> : null}
+              {moduleAllowed(active, "invoices") ? <a className="btn btn-primary" href="/portal/invoices">Create Invoice</a> : null}
+              <a className="btn" href="/portal/reports">View Reports</a>
+            </div>
+          </div>
+          <div className="demo-hero-plan">
+            <div className="demo-eyebrow">Subscription plan</div>
+            <h3>{plan}</h3>
+            <p className="demo-hero-copy">{activeModules.length} modules enabled for this tenant.</p>
+            <div className="demo-pill-row">
+              <div className="demo-pill-box"><span>Modules</span><b>{activeModules.length} active</b></div>
+              <div className="demo-pill-box"><span>Status</span><b>Active</b></div>
+            </div>
+          </div>
         </div>
-        <div className="row"><a className="btn" href="/portal/appointments">+ Appointment</a><a className="btn btn-primary" href="/portal/support">+ Support Ticket</a></div>
-      </div>
-      <div className="kpi-grid">
-        <KPI label="Revenue" value={money(totalRevenue)} hint="Sales invoices" icon="R" />
-        <KPI label="Outstanding" value={money(outstanding)} hint="Unpaid balance" tone="warn" icon="O" />
-        <KPI label="Open Support" value={openSupport} hint="Tickets needing attention" tone="purple" icon="S" />
-        <KPI label="Appointments" value={upcomingAppointments} hint="Upcoming scheduled events" tone="teal" icon="A" />
-      </div>
-      <div className="card card-pad mb" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", fontWeight: 800, letterSpacing: ".6px" }}>Subscription</div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: "var(--navy-ink)", marginTop: 2 }}>{plan} · {activeModules.length} active modules · R{calculateSubscriptionTotal(plan, activeModules)}/month</div>
+      </section>
+
+      <section className="demo-stat-grid">
+        {moduleAllowed(active, "invoices") ? <StatCard label="Total Revenue" value={money(totalRevenue)} hint="Sales invoices" href="/portal/invoices" /> : null}
+        {moduleAllowed(active, "invoices") ? <StatCard label="Outstanding" value={money(outstanding)} hint="Unpaid balance" href="/portal/invoices" /> : null}
+        {moduleAllowed(active, "customers") ? <StatCard label="Customers" value={data.customers.length} hint="Customer records" href="/portal/customers" /> : null}
+        {(moduleAllowed(active, "support") || moduleAllowed(active, "tasks")) ? <StatCard label="Open Work" value={openWork} hint="Tasks and tickets" href={moduleAllowed(active, "tasks") ? "/portal/tasks" : "/portal/support"} /> : null}
+      </section>
+
+      <section className="demo-grid">
+        <div className="demo-panel">
+          <div className="demo-panel-head"><div><h3>Live Business Records</h3><p>Important records from your enabled modules.</p></div><a className="btn btn-sm" href="/portal/reports">View All</a></div>
+          <div className="overflow-auto">
+            <table className="demo-table">
+              <thead><tr><th>Module</th><th>Record</th><th>Status</th><th>Owner</th><th>Value</th></tr></thead>
+              <tbody>
+                {records.length ? records.map((record) => (
+                  <tr key={`${record.module}-${record.title}`} onClick={() => {}}>
+                    <td><a href={record.href} className="text-[#28a486] font-black">{record.module}</a></td>
+                    <td><a href={record.href}><b>{record.title}</b><div className="demo-record-sub">Click to open {record.module}</div></a></td>
+                    <td><StatusPill status={record.status} /></td>
+                    <td>{record.owner}</td>
+                    <td><b>{record.value}</b></td>
+                  </tr>
+                )) : <tr><td colSpan={5}>No records yet. Start by creating your first customer, invoice or task.</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <a className="btn btn-teal" href="/portal/modules">Manage Modules</a>
-      </div>
-      <DashboardQuickActions activeModules={activeModules} />
-      <div className="two-col"><RecentInvoices invoices={data.invoices} /><SectionCard title="Support Tickets" href="/portal/support"><SupportList support={data.support} /></SectionCard></div>
-      <div className="three-col mb"><SectionCard title="Appointments" href="/portal/appointments"><AppointmentList appointments={data.appointments} /></SectionCard><SectionCard title="Tasks" href="/portal/tasks"><TaskList tasks={data.tasks} /></SectionCard><SectionCard title="Messages" href="/portal/chat"><CommunicationList chat={data.chat} /></SectionCard></div>
-      <div className="two-col"><ModuleOverview data={data} activeModules={activeModules} /><SectionCard title="Compliance Watch" href="/portal/compliance" actionLabel="Open"><ComplianceList compliance={data.compliance} /></SectionCard></div>
+        <div className="demo-panel">
+          <div className="demo-panel-head"><div><h3>Action Required</h3><p>Click an item to open its module.</p></div></div>
+          <div className="demo-alert-list">
+            {alerts.length ? alerts.map((alert) => <a key={alert.title} href={alert.href} className="demo-alert">{alert.title}<span>{alert.module}</span></a>) : <div className="demo-alert">No urgent alerts<span>Your workspace is clear.</span></div>}
+          </div>
+        </div>
+      </section>
+
+      <section className="demo-section-grid">
+        <div className="demo-panel">
+          <div className="demo-panel-head"><div><h3>Recent Activity</h3><p>Latest business movement across your system.</p></div></div>
+          <div className="p-3 grid gap-2">
+            {[...data.chat.slice(0, 3).map((row) => ({ title: row.subject || row.communication_type || row.name, sub: row.sender || "System", href: "/portal/chat" })), ...data.appointments.slice(0, 2).map((row) => ({ title: row.subject || row.name, sub: dateOnly(row.starts_on), href: "/portal/appointments" }))].slice(0, 5).map((item) => <a key={`${item.href}-${item.title}`} href={item.href} className="demo-record-card"><span className="demo-record-avatar">{initials(item.title)}</span><span><span className="demo-record-title">{item.title}</span><span className="demo-record-sub">{item.sub}</span></span></a>)}
+          </div>
+        </div>
+        <div className="demo-panel">
+          <div className="demo-panel-head"><div><h3>Quick Actions</h3><p>Daily business shortcuts.</p></div></div>
+          <div className="p-4 demo-quick-actions">
+            {moduleAllowed(active, "customers") ? <a href="/portal/customers">Add Customer<span className="demo-record-sub">Open customer module</span></a> : null}
+            {moduleAllowed(active, "quotes") ? <a href="/portal/quotes">Create Quote<span className="demo-record-sub">Prepare proposal</span></a> : null}
+            {moduleAllowed(active, "invoices") ? <a href="/portal/invoices">Create Invoice<span className="demo-record-sub">Bill your client</span></a> : null}
+            {moduleAllowed(active, "documents") ? <a href="/portal/documents">Upload Document<span className="demo-record-sub">Attach files</span></a> : null}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

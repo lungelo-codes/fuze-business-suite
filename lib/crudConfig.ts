@@ -20,6 +20,14 @@ export const CRUD_MODULES: Record<string, CrudModuleConfig> = {
     formFields: [f("customer_name", "Customer Name", "text", true), s("customer_type", "Customer Type", ["Company", "Individual"], true), l("customer_group", "Customer Group", "Customer Group", true, "All Customer Groups"), l("territory", "Territory", "Territory", true, "All Territories"), f("email_id", "Email", "email"), f("mobile_no", "Mobile", "tel"), f("tax_id", "Tax/VAT Number")],
     defaults: { customer_type: "Company", customer_group: "All Customer Groups", territory: "All Territories" },
   },
+
+  contacts: {
+    id: "contacts", title: "Contacts", subtitle: "People linked to customers, suppliers, leads and daily communication.", doctype: "Contact", nameField: "first_name",
+    listFields: ["name", "first_name", "last_name", "email_id", "phone", "mobile_no", "company_name", "modified"],
+    tableFields: [f("first_name", "First Name"), f("last_name", "Last Name"), f("email_id", "Email", "email"), f("phone", "Phone", "tel"), f("mobile_no", "Mobile", "tel"), f("company_name", "Company")],
+    formFields: [f("first_name", "First Name", "text", true), f("last_name", "Last Name"), f("email_id", "Email", "email"), f("phone", "Phone", "tel"), f("mobile_no", "Mobile / WhatsApp", "tel"), f("company_name", "Company Name"), txt("notes", "Notes")],
+    defaults: {},
+  },
   suppliers: {
     id: "suppliers", title: "Suppliers", subtitle: "Supplier records for buying and procurement.", doctype: "Supplier", nameField: "supplier_name",
     listFields: ["name", "supplier_name", "supplier_type", "supplier_group", "country", "tax_id", "modified"],
