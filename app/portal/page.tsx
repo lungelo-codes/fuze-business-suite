@@ -29,7 +29,7 @@ function StatusPill({ status }: { status?: string }) {
   return <span className={cls}>{s}</span>;
 }
 
-function StatCard({ label, value, hint, href }: { label: string; value: string | number; hint: string; href: string }) {
+function StatCard({ label, value, hint, href, icon }: { label: string; value: string | number; hint: string; href: string; icon: string }) {
   return (
     <a href={href} className="demo-stat-card">
       <div className="demo-stat-top">
@@ -38,7 +38,7 @@ function StatCard({ label, value, hint, href }: { label: string; value: string |
           <div className="demo-stat-value">{value}</div>
           <div className="demo-stat-hint">{hint}</div>
         </div>
-        <div className="demo-stat-icon">↗</div>
+        <div className="demo-stat-icon">{icon}</div>
       </div>
     </a>
   );
@@ -74,7 +74,7 @@ export default async function DashboardPage() {
   ].filter((a) => a.show);
 
   return (
-    <div>
+    <div className="demo-workspace animate-fade-up">
       <section className="demo-hero">
         <div className="demo-hero-grid">
           <div>
@@ -100,10 +100,10 @@ export default async function DashboardPage() {
       </section>
 
       <section className="demo-stat-grid">
-        {moduleAllowed(active, "invoices") ? <StatCard label="Total Revenue" value={money(totalRevenue)} hint="Sales invoices" href="/portal/invoices" /> : null}
-        {moduleAllowed(active, "invoices") ? <StatCard label="Outstanding" value={money(outstanding)} hint="Unpaid balance" href="/portal/invoices" /> : null}
-        {moduleAllowed(active, "customers") ? <StatCard label="Customers" value={data.customers.length} hint="Customer records" href="/portal/customers" /> : null}
-        {(moduleAllowed(active, "support") || moduleAllowed(active, "tasks")) ? <StatCard label="Open Work" value={openWork} hint="Tasks and tickets" href={moduleAllowed(active, "tasks") ? "/portal/tasks" : "/portal/support"} /> : null}
+        {moduleAllowed(active, "invoices") ? <StatCard label="Total Revenue" value={money(totalRevenue)} hint="Sales invoices" href="/portal/invoices" icon="₊" /> : null}
+        {moduleAllowed(active, "invoices") ? <StatCard label="Outstanding" value={money(outstanding)} hint="Unpaid balance" href="/portal/invoices" icon="!" /> : null}
+        {moduleAllowed(active, "customers") ? <StatCard label="Customers" value={data.customers.length} hint="Customer records" href="/portal/customers" icon="★" /> : null}
+        {(moduleAllowed(active, "support") || moduleAllowed(active, "tasks")) ? <StatCard label="Open Work" value={openWork} hint="Tasks and tickets" href={moduleAllowed(active, "tasks") ? "/portal/tasks" : "/portal/support"} icon="⚡" /> : null}
       </section>
 
       <section className="demo-grid">
