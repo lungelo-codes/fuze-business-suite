@@ -1,141 +1,85 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, Suspense, useState } from "react";
-import PublicHeader from "@/components/PublicHeader";
 import Link from "next/link";
-
-type LoginResponse = {
-  success?: boolean;
-  role?: "admin" | "customer";
-  redirectTo?: string;
-  error?: string;
-  details?: unknown;
-};
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import PublicHeader from "@/components/PublicHeader";
 
 function LoginForm() {
   const router = useRouter();
-  const params = useSearchParams();
+  const search = useSearchParams();
+  const tenantSite = search?.get("site") || "";
+  const reason = search?.get("reason") || "";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const reason = params?.get("reason");
-  const redirect = params?.get("redirect");
-  const tenantSite = params?.get("site") || "";
-
-  async function login(event?: FormEvent<HTMLFormElement>) {
-    event?.preventDefault();
-    setMessage("");
-
-    if (!email.trim() || !password) {
-      setMessage("Enter your email and password.");
-      return;
-    }
-
+  async function login(e: React.FormEvent) {
+    e.preventDefault();
     setLoading(true);
-
+    setMessage("");
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email: email.trim(), password, site: tenantSite }),
+        body: JSON.stringify({ email, password, site: tenantSite || undefined }),
       });
-
-      const text = await res.text();
-      let json: LoginResponse = {};
-      try {
-        json = text ? (JSON.parse(text) as LoginResponse) : {};
-      } catch {
-        json = { error: text || "Invalid server response." };
-      }
-
-      if (!res.ok || !json.success) {
-        setMessage(json.error || "Login failed. Check your email and password.");
-        return;
-      }
-
-      const target = redirect || json.redirectTo || (json.role === "admin" ? "/admin" : "/portal");
-      setMessage("Login successful. Opening dashboard…");
-      router.replace(target);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Login failed. Check your email and password.");
+      router.push(json.redirect || "/portal");
       router.refresh();
-
-      setTimeout(() => {
-        window.location.assign(target);
-      }, 400);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not connect to the login server.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Login failed. Check your email and password.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="public-root">
+    <div className="public-root premium-website auth-page">
       <PublicHeader />
-      <div className="signup-wrap" style={{ maxWidth: 480 }}>
-        <div className="signup-card">
-          <div style={{ textAlign: "center", marginBottom: 28 }}>
-            <div className="brand-mark" style={{ margin: "0 auto 12px", width: 44, height: 44, borderRadius: 12, fontSize: 18 }}>FB</div>
-            <h1 className="signup-heading" style={{ marginBottom: 6 }}>Welcome back</h1>
-            <p className="signup-sub" style={{ margin: 0 }}>{tenantSite ? `Sign in to ${tenantSite}` : "Sign in to your Fuze portal"}</p>
+      <main className="auth-shell">
+        <section className="auth-story-card">
+          <div className="auth-badge">Secure business workspace</div>
+          <h1>Welcome back to your operating system.</h1>
+          <p>Sign in to manage your customers, sales, invoices, documents, projects, HR and support from one modern portal.</p>
+          <div className="auth-preview-stack">
+            <div><b>Today</b><span>6 alerts, 11 tickets, 4 quotes waiting</span></div>
+            <div><b>Finance</b><span>Invoices, VAT, payments and compliance</span></div>
+            <div><b>CRM</b><span>Pipeline, leads, contacts and follow-ups</span></div>
+          </div>
+        </section>
+
+        <section className="auth-card">
+          <div className="auth-card-head">
+            <span className="suite-kicker">Login</span>
+            <h2>Access your portal</h2>
+            <p>{tenantSite ? `Signing into ${tenantSite}` : "Use your Business Suite credentials."}</p>
           </div>
 
-          {reason === "admin_required" && (
-            <div style={{ background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "10px 14px", fontSize: 13, marginBottom: 16 }}>
-              Admin access required. Please log in with a System Manager account.
-            </div>
-          )}
+          {reason === "admin_required" && <div className="auth-alert">Admin access required. Please log in with a System Manager account.</div>}
 
-          <form onSubmit={login}>
-            <label className="label">Email Address</label>
-            <input
-              className="inp"
-              type="email"
-              placeholder="jane@acme.co.za"
-              value={email}
-              autoComplete="email"
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-            />
-            <label className="label">Password</label>
-            <input
-              className="inp"
-              type="password"
-              placeholder="Your password"
-              value={password}
-              autoComplete="current-password"
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-            />
-
-            <button className="btn btn-primary" style={{ width: "100%", padding: "11px 0", marginTop: 4 }} type="submit" disabled={loading}>
-              {loading ? "Signing in…" : "Sign In"}
-            </button>
+          <form onSubmit={login} className="auth-form">
+            <label>Email address</label>
+            <input type="email" placeholder="jane@company.co.za" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" disabled={loading} required />
+            <label>Password</label>
+            <input type="password" placeholder="Your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" disabled={loading} required />
+            <button className="modern-primary auth-submit" type="submit" disabled={loading}>{loading ? "Signing in…" : "Sign in →"}</button>
           </form>
 
-          {message && (
-            <div className="error" style={{ marginTop: 10, whiteSpace: "pre-wrap" }}>
-              {message}
-            </div>
-          )}
+          {message && <div className="auth-error">{message}</div>}
 
-          <div style={{ textAlign: "center", marginTop: 20, fontSize: 13, color: "var(--muted)" }}>
-            Don&apos;t have an account?{" "}
-            <Link href="/signup" style={{ color: "var(--teal)", fontWeight: 700 }}>Start free trial →</Link>
+          <div className="auth-footnote">
+            New to Business Suite? <Link href="/signup">Start a free trial</Link>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }
 
 export default function LoginPage() {
-  return (
-    <Suspense>
-      <LoginForm />
-    </Suspense>
-  );
+  return <Suspense><LoginForm /></Suspense>;
 }

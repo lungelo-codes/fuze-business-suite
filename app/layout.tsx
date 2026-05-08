@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Fuze Business Suite",
-  description: "Business management SaaS wired to Business Suite"
+  title: "Business Suite | Fuze Digital",
+  description: "Modern business management SaaS for South African SMEs: CRM, finance, compliance, HR, projects, documents and support."
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
