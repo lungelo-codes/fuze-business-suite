@@ -539,8 +539,8 @@ body:has(.modal-back.open) .sidebar-edge-pill,body:has(.drawer-back.open) .sideb
 @media(max-width:860px){.portal-shell.sidebar-open .sidebar{position:fixed;z-index:70;left:0;top:0;bottom:0}.portal-shell.sidebar-open .main{margin-left:0}.portal-shell.sidebar-closed .content-wrap{padding-left:18px}.sidebar-edge-pill{height:64px;width:38px}}
 
 /* Main navigation collapse repair: independent from record drawers/modals */
-.portal-shell{grid-template-columns:232px minmax(0,1fr)}
-.portal-shell.sidebar-closed{grid-template-columns:minmax(0,1fr)}
+.portal-shell{display:grid;grid-template-columns:232px minmax(0,1fr)}
+.portal-shell.sidebar-closed{display:grid;grid-template-columns:minmax(0,1fr)}
 .main-nav-slot{min-width:0;min-height:100vh}
 .main-nav-slot.hide{display:none}
 .portal-shell.sidebar-closed .main{grid-column:1;min-width:0;width:100%;margin-left:0}
@@ -559,7 +559,7 @@ body:has(.modal-back.open) .sidebar-edge-pill,body:has(.drawer-back.open) .sideb
    Applies the canvas/demo visual system across portal pages without
    changing auth, module filtering, or ERPNext API logic.
 ────────────────────────────────────────────────────────────── */
-.demo-shell{--demo-bg:#F5F6FA;--demo-card:#fff;--demo-panel:#fff;--demo-line:#E6E8EF;--demo-text:#15132E;--demo-muted:#6B7086;--demo-soft:#F1F3F7;--demo-shadow:0 18px 45px rgba(22,26,45,.08);grid-template-columns:260px minmax(0,1fr);background:var(--demo-bg);color:var(--demo-text)}
+.demo-shell{--demo-bg:#F5F6FA;--demo-card:#fff;--demo-panel:#fff;--demo-line:#E6E8EF;--demo-text:#15132E;--demo-muted:#6B7086;--demo-soft:#F1F3F7;--demo-shadow:0 18px 45px rgba(22,26,45,.08);display:grid;grid-template-columns:260px minmax(0,1fr);background:var(--demo-bg);color:var(--demo-text)}
 .demo-shell.theme-dark{--demo-bg:#0b1020;--demo-card:#111827;--demo-panel:#0f172a;--demo-line:rgba(255,255,255,.1);--demo-text:#fff;--demo-muted:#94A3B8;--demo-soft:rgba(255,255,255,.06);--demo-shadow:0 18px 45px rgba(0,0,0,.28)}
 .demo-shell .main{background:var(--demo-bg);color:var(--demo-text)}
 .demo-content-wrap{padding:28px 32px 64px;max-width:1560px}
@@ -586,7 +586,6 @@ body:has(.modal-back.open) .sidebar-edge-pill,body:has(.drawer-back.open) .sideb
    Keeps the demo look, but compacts the module hero so the actual
    dashboard/cards/data are visible immediately after clicking a module.
 ────────────────────────────────────────────────────────────── */
-.demo-content-wrap{padding-top:18px!important;}
 .demo-workspace,.crud-demo-workspace{gap:14px!important;margin-top:0!important;padding-top:0!important;}
 .demo-workspace.animate-fade-up,.crud-demo-workspace.animate-fade-up{animation:fadeUpTight .24s ease both!important;}
 @keyframes fadeUpTight{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -615,7 +614,7 @@ body:has(.modal-back.open) .sidebar-edge-pill,body:has(.drawer-back.open) .sideb
 
 /* FINAL POSITION FIX: content must start immediately under topbar */
 .demo-content-wrap{padding-top:12px!important;}
-.demo-main{overflow:auto!important;}
+.demo-main{display:flex!important;flex-direction:column!important;overflow:auto!important;min-height:100vh;}
 .demo-workspace,.crud-demo-workspace{gap:12px!important;margin:0!important;padding:0!important;}
 .demo-module-titlebar{border:1px solid var(--demo-line);background:var(--demo-card);box-shadow:var(--demo-shadow);border-radius:24px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0!important;min-height:0!important;}
 .demo-module-titlebar h1{font-size:24px;line-height:1.12;margin:3px 0 4px;color:var(--demo-text);letter-spacing:-.025em;font-weight:950;}
