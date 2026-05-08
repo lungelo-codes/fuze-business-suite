@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
-import { erpGet } from "@/lib/server/erpnext";
+import { erpList } from "@/lib/server/erpnext";
 
-interface TenantDoc {
-  status?: string;
-  site_name?: string;
-  trial_end?: string;
-}
-
-interface ERPResponse {
-  data?: TenantDoc;
-  message?: TenantDoc;
+interface Tenant {
+  name: string;
+  status: string;
+  site_name: string;
 }
 
 export async function GET(req: Request) {
@@ -18,33 +13,26 @@ export async function GET(req: Request) {
     const tenant = searchParams.get("tenant");
 
     if (!tenant) {
-      return NextResponse.json({ error: "Missing tenant parameter" }, { status: 400 });
+      return NextResponse.json({ ready: false, status: "Unknown" });
     }
 
-    // Fetch the tenant doc directly from the Frappe resource API
-    const res = await erpGet<ERPResponse>(
-      `/api/resource/Fuze SaaS Tenant/${encodeURIComponent(tenant)}`
-    );
+    const rows = await erpList<Tenant>("Fuze SaaS Tenant", {
+      fields: ["name", "status", "site_name"],
+      filters: [["name", "=", tenant]],
+      limit: 1,
+    });
 
-    const doc: TenantDoc = res.data ?? res.message ?? {};
-    const status = (doc.status ?? "").toLowerCase();
-    const ready = status === "active";
+    const doc = rows[0];
+    if (!doc) {
+      return NextResponse.json({ ready: false, status: "Not Found" });
+    }
 
     return NextResponse.json({
-      ready,
-      status: doc.status ?? "Unknown",
-      site_name: doc.site_name ?? null,
-      trial_end: doc.trial_end ?? null,
+      ready: doc.status === "Active",
+      status: doc.status,
+      site_name: doc.site_name,
     });
-  } catch (error) {
-    // Return not-ready rather than an error — the poller will just retry
-    return NextResponse.json(
-      {
-        ready: false,
-        status: "Unknown",
-        error: error instanceof Error ? error.message : "Could not check status",
-      },
-      { status: 200 } // intentional 200 so the frontend doesn't treat this as a fatal error
-    );
+  } catch {
+    return NextResponse.json({ ready: false, status: "Unknown" });
   }
 }
