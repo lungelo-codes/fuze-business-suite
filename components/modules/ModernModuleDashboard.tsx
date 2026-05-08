@@ -150,28 +150,17 @@ export default function ModernModuleDashboard({ title, eyebrow, description, row
 
   return (
     <div className="demo-workspace animate-fade-up">
-      <section className="demo-hero demo-hero-lift">
-        <div className="demo-hero-grid">
-          <div>
-            <div className="demo-eyebrow">{eyebrow}</div>
-            <h1 className="demo-hero-title">{title}</h1>
-            <p className="demo-hero-copy">{description}</p>
-            <div className="demo-hero-actions">
-              {actions.slice(0, 4).map((action) => action.href
-                ? <a key={action.label} href={action.href} className="btn btn-teal">{action.label}</a>
-                : <button key={action.label} type="button" className="btn btn-teal">{action.label}</button>
-              )}
-            </div>
-          </div>
-          <div className="demo-hero-plan">
-            <div className="demo-eyebrow">Workspace summary</div>
-            <h3>{rows.length} records</h3>
-            <p className="demo-hero-copy">Tenant-safe live records with module-specific dashboards and actions.</p>
-            <div className="demo-pill-row">
-              <div className="demo-pill-box"><span>Active</span><b>{rows.filter((r) => !String(r[statusField] || "").toLowerCase().includes("closed")).length}</b></div>
-              <div className="demo-pill-box"><span>Source</span><b>ERPNext</b></div>
-            </div>
-          </div>
+      <section className="demo-module-titlebar">
+        <div>
+          <div className="demo-eyebrow">{eyebrow}</div>
+          <h1>{title}</h1>
+          <p>{description}</p>
+        </div>
+        <div className="demo-module-actions">
+          {actions.slice(0, 3).map((action) => action.href
+            ? <a key={action.label} href={action.href} className="btn btn-teal">{action.label}</a>
+            : <button key={action.label} type="button" className="btn btn-teal">{action.label}</button>
+          )}
         </div>
       </section>
 

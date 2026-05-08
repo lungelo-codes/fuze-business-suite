@@ -42,7 +42,7 @@ function Icon({ name }: { name: string }) {
 }
 
 const GROUPS: NavGroup[] = [
-  { title: "Home", items: [{ label: "Executive Dashboard", href: "/portal", icon: "dashboard" }] },
+  { title: "Home", items: [{ label: "Dashboard", href: "/portal", icon: "dashboard" }] },
   { title: "CRM & Sales", items: [
     { label: "CRM Workspace", href: "/portal/crm", icon: "crm", module: "crm" },
     { label: "Leads", href: "/portal/leads", icon: "target", module: "leads" },

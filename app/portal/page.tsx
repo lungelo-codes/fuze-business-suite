@@ -79,8 +79,8 @@ export default async function DashboardPage() {
         <div className="demo-hero-grid">
           <div>
             <div className="demo-eyebrow">Welcome back</div>
-            <h1 className="demo-hero-title">Run {companyName} from one clean workspace.</h1>
-            <p className="demo-hero-copy">This executive dashboard gives you a live view of revenue, customers, open work, alerts, subscriptions and important records across every module you selected.</p>
+            <h1 className="demo-hero-title">{companyName} Dashboard</h1>
+            <p className="demo-hero-copy">A live view of revenue, customers, open work, alerts, subscriptions and important records across every module you selected.</p>
             <div className="demo-hero-actions">
               {moduleAllowed(active, "crm") ? <a className="btn btn-teal" href="/portal/crm">Open CRM</a> : null}
               {moduleAllowed(active, "invoices") ? <a className="btn btn-primary" href="/portal/invoices">Create Invoice</a> : null}
