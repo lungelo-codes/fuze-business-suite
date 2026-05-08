@@ -32,7 +32,7 @@ function setCookie(name: string, value: string, days = 365) {
   document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires};path=/`;
 }
 
-const WAIT_SECONDS = 300; // 5 minutes shown to the customer
+const WAIT_SECONDS = 90; // ~90 seconds with template restore
 
 function formatTime(s: number): string {
   const m = Math.floor(s / 60);
@@ -41,9 +41,9 @@ function formatTime(s: number): string {
 }
 
 const PROGRESS_STEPS = [
-  { label: "Creating your database", doneAfter: 270 },
-  { label: "Installing ERPNext modules", doneAfter: 180 },
-  { label: "Configuring your business suite", doneAfter: 60 },
+  { label: "Creating your database", doneAfter: 75 },
+  { label: "Installing modules", doneAfter: 45 },
+  { label: "Configuring your business suite", doneAfter: 15 },
   { label: "Sending your login details by email", doneAfter: 0 },
 ];
 
@@ -579,7 +579,7 @@ function SignupForm() {
                 <p className="signup-sub" style={{ marginBottom: 20 }}>
                   We are installing your business suite for{" "}
                   <strong>{form.company_name}</strong>. This usually takes about{" "}
-                  <strong>5 minutes</strong>. Grab a coffee ☕ — we will email{" "}
+                  <strong>about 90 seconds</strong>. Grab a coffee ☕ — we will email{" "}
                   <strong>{form.email}</strong> the moment it is live.
                 </p>
               ) : (
