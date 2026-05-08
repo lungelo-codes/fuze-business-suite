@@ -15,6 +15,7 @@ export const ALL_MODULES: ModuleDef[] = [
   { id: "customers", label: "Customers", icon: "👥", description: "Manage your customer database", path: "/portal/customers", group: "Finance", addonPrice: 99, doctype: "Customer", active: true, includedIn: ["Starter", "Growth", "Business Pro"] },
   { id: "invoices", label: "Invoices", icon: "📄", description: "Create and manage sales invoices", path: "/portal/invoices", group: "Finance", addonPrice: 149, doctype: "Sales Invoice", active: true, includedIn: ["Starter", "Growth", "Business Pro"] },
   { id: "quotes", label: "Quotes", icon: "💬", description: "Generate and track quotations", path: "/portal/quotes", group: "Finance", addonPrice: 99, doctype: "Quotation", active: true, includedIn: ["Starter", "Growth", "Business Pro"] },
+  { id: "contacts", label: "Contacts", icon: "📇", description: "Manage people linked to customers, leads and suppliers", path: "/portal/contacts", group: "CRM", addonPrice: 79, doctype: "Contact", active: true, includedIn: ["Starter", "Growth", "Business Pro"] },
 
   { id: "crm", label: "CRM Pipeline", icon: "📌", description: "Lead and opportunity pipeline with sales stages", path: "/portal/crm", group: "CRM", addonPrice: 149, doctype: "Opportunity", active: true, includedIn: ["Growth", "Business Pro"] },
   { id: "leads", label: "Leads", icon: "🧲", description: "Capture and qualify new leads", path: "/portal/leads", group: "CRM", addonPrice: 99, doctype: "Lead", active: true, includedIn: ["Growth", "Business Pro"] },
@@ -27,6 +28,7 @@ export const ALL_MODULES: ModuleDef[] = [
   { id: "suppliers", label: "Suppliers", icon: "🚚", description: "Manage supplier relationships", path: "/portal/suppliers", group: "Operations", addonPrice: 99, doctype: "Supplier", active: true, includedIn: ["Growth", "Business Pro"] },
   { id: "purchase-orders", label: "Purchase Orders", icon: "🛒", description: "Create and track purchase orders", path: "/portal/purchase-orders", group: "Operations", addonPrice: 149, doctype: "Purchase Order", active: true, includedIn: ["Growth", "Business Pro"] },
   { id: "items", label: "Inventory", icon: "📦", description: "Track stock, products and services", path: "/portal/items", group: "Operations", addonPrice: 149, doctype: "Item", active: true, includedIn: ["Growth", "Business Pro"] },
+  { id: "documents", label: "Documents", icon: "📁", description: "Document management, file uploads and cloud storage links", path: "/portal/documents", group: "Operations", addonPrice: 129, doctype: "File", active: true, includedIn: ["Business Pro"] },
   { id: "projects", label: "Projects", icon: "📊", description: "Plan and track projects", path: "/portal/projects", group: "Operations", addonPrice: 149, doctype: "Project", active: true, includedIn: ["Growth", "Business Pro"] },
   { id: "tasks", label: "Tasks", icon: "✅", description: "Assign and manage team tasks", path: "/portal/tasks", group: "Operations", addonPrice: 79, doctype: "Task", active: true, includedIn: ["Growth", "Business Pro"] },
   { id: "employees", label: "Employees", icon: "👤", description: "HR records and employee management", path: "/portal/employees", group: "People", addonPrice: 149, doctype: "Employee", active: true, includedIn: ["Business Pro"] },
@@ -40,8 +42,8 @@ export const ALL_MODULES: ModuleDef[] = [
 
 export interface PlanDef { id: string; label: string; price: number; period: string; description: string; modules: string[]; highlight?: boolean; badge?: string; }
 export const PLANS: PlanDef[] = [
-  { id: "Starter", label: "Starter", price: 0, period: "14-day free trial", description: "Finance basics for a new small business.", modules: ["customers", "invoices", "quotes", "payments", "compliance"] },
-  { id: "Growth", label: "Growth", price: 499, period: "/ month", description: "Finance plus operations modules for growing businesses.", modules: ["customers", "invoices", "quotes", "payments", "compliance", "crm", "leads", "opportunities", "suppliers", "purchase-orders", "items", "projects", "tasks", "support"], highlight: true, badge: "Most Popular" },
+  { id: "Starter", label: "Starter", price: 0, period: "14-day free trial", description: "Finance basics for a new small business.", modules: ["customers", "contacts", "invoices", "quotes", "payments", "compliance"] },
+  { id: "Growth", label: "Growth", price: 499, period: "/ month", description: "Finance plus operations modules for growing businesses.", modules: ["customers", "contacts", "invoices", "quotes", "payments", "compliance", "crm", "leads", "opportunities", "suppliers", "purchase-orders", "items", "projects", "tasks", "support"], highlight: true, badge: "Most Popular" },
   { id: "Business Pro", label: "Business Pro", price: 999, period: "/ month", description: "Full business operations suite with HR and service modules.", modules: ALL_MODULES.map((m) => m.id) },
   { id: "Enterprise", label: "Enterprise", price: 0, period: "Custom pricing", description: "Tailored white-label deployment and custom modules.", modules: ALL_MODULES.map((m) => m.id), badge: "Contact Sales" },
 ];

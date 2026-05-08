@@ -82,12 +82,14 @@ export async function getDashboardData(): Promise<DashboardData> {
 export async function getModuleData(module: string): Promise<Record<string, unknown>[]> {
   switch (module) {
     case "customers": return mapCustomers(await safeList("Customer", { fields: ["name", "customer_name", "customer_type", "customer_group", "territory", "mobile_no", "email_id", "modified"], limit: 100, orderBy: "modified desc" }));
+    case "contacts": return await safeList("Contact", { fields: ["name", "first_name", "last_name", "full_name", "email_id", "mobile_no", "phone", "company_name", "designation", "modified"], limit: 100, orderBy: "modified desc" });
     case "invoices": return mapInvoices(await safeList("Sales Invoice", { fields: ["name", "customer", "posting_date", "due_date", "grand_total", "outstanding_amount", "status", "modified"], limit: 100, orderBy: "modified desc" }));
     case "quotes": return mapQuotes(await safeList("Quotation", { fields: ["name", "party_name", "transaction_date", "valid_till", "grand_total", "status", "modified"], limit: 100, orderBy: "modified desc" }));
     case "payments": return mapPayments(await safeList("Payment Entry", { fields: ["name", "party", "party_type", "posting_date", "paid_amount", "payment_type", "status", "modified"], limit: 100, orderBy: "modified desc" }));
     case "employees": return mapEmployees(await safeList("Employee", { fields: ["name", "employee_name", "department", "designation", "status", "company_email", "modified"], limit: 100, orderBy: "modified desc" }));
     case "items": return mapItems(await safeList("Item", { fields: ["name", "item_name", "item_group", "stock_uom", "disabled", "modified"], limit: 100, orderBy: "modified desc" }));
     case "suppliers": return mapSuppliers(await safeList("Supplier", { fields: ["name", "supplier_name", "supplier_group", "supplier_type", "modified"], limit: 100, orderBy: "modified desc" }));
+    case "documents": return await safeList("File", { fields: ["name", "file_name", "file_url", "attached_to_doctype", "attached_to_name", "is_private", "modified", "owner"], limit: 100, orderBy: "modified desc" });
     case "projects": return mapProjects(await safeList("Project", { fields: ["name", "project_name", "status", "expected_start_date", "expected_end_date", "percent_complete", "modified"], limit: 100, orderBy: "modified desc" }));
     case "tasks": return mapTasks(await safeList("Task", { fields: ["name", "subject", "status", "priority", "exp_start_date", "exp_end_date", "project", "modified"], limit: 100, orderBy: "modified desc" }));
     case "support": return mapSupport(await safeList("Issue", { fields: ["name", "subject", "issue_type", "status", "priority", "customer", "raised_by", "opening_date", "modified"], limit: 100, orderBy: "modified desc" }));

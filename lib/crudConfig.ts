@@ -20,6 +20,14 @@ export const CRUD_MODULES: Record<string, CrudModuleConfig> = {
     formFields: [f("customer_name", "Customer Name", "text", true), s("customer_type", "Customer Type", ["Company", "Individual"], true), l("customer_group", "Customer Group", "Customer Group", true, "All Customer Groups"), l("territory", "Territory", "Territory", true, "All Territories"), f("email_id", "Email", "email"), f("mobile_no", "Mobile", "tel"), f("tax_id", "Tax/VAT Number")],
     defaults: { customer_type: "Company", customer_group: "All Customer Groups", territory: "All Territories" },
   },
+
+  contacts: {
+    id: "contacts", title: "Contacts", subtitle: "People linked to customers, leads, suppliers and deals.", doctype: "Contact", nameField: "first_name",
+    listFields: ["name", "first_name", "last_name", "full_name", "email_id", "mobile_no", "phone", "company_name", "designation", "modified"],
+    tableFields: [f("full_name", "Contact"), f("company_name", "Company"), f("designation", "Role"), f("email_id", "Email", "email"), f("mobile_no", "Mobile", "tel"), f("phone", "Phone", "tel")],
+    formFields: [f("first_name", "First Name", "text", true), f("last_name", "Last Name"), f("email_id", "Email", "email"), f("mobile_no", "Mobile", "tel"), f("phone", "Phone", "tel"), f("company_name", "Company"), f("designation", "Role / Department"), txt("notes", "Notes")],
+    defaults: {},
+  },
   suppliers: {
     id: "suppliers", title: "Suppliers", subtitle: "Supplier records for buying and procurement.", doctype: "Supplier", nameField: "supplier_name",
     listFields: ["name", "supplier_name", "supplier_type", "supplier_group", "country", "tax_id", "modified"],
@@ -65,6 +73,14 @@ export const CRUD_MODULES: Record<string, CrudModuleConfig> = {
     tableFields: [f("subject", "Task"), l("project", "Project", "Project"), f("status", "Status"), f("priority", "Priority"), d("exp_start_date", "Start"), d("exp_end_date", "End")],
     formFields: [f("subject", "Subject", "text", true), l("project", "Project", "Project"), s("status", "Status", ["Open", "Working", "Pending Review", "Overdue", "Template", "Completed", "Cancelled"]), s("priority", "Priority", ["Low", "Medium", "High", "Urgent"]), d("exp_start_date", "Expected Start Date"), d("exp_end_date", "Expected End Date"), txt("description", "Description")],
     defaults: { status: "Open", priority: "Medium" },
+  },
+
+  documents: {
+    id: "documents", title: "Documents", subtitle: "ERPNext files, attachments and business documents.", doctype: "File", nameField: "file_name",
+    listFields: ["name", "file_name", "file_url", "attached_to_doctype", "attached_to_name", "is_private", "modified", "owner"],
+    tableFields: [f("file_name", "File"), f("attached_to_doctype", "Linked To"), f("attached_to_name", "Record"), f("file_url", "URL"), f("is_private", "Private", "checkbox")],
+    formFields: [f("file_name", "File Name", "text", true), f("file_url", "File URL / Drive Link", "text", true), s("attached_to_doctype", "Attach To", ["Customer", "Contact", "Lead", "Opportunity", "Quotation", "Sales Invoice", "Project", "Task"], false), f("attached_to_name", "Record Name"), f("is_private", "Private", "checkbox")],
+    defaults: { is_private: 1 },
   },
   projects: {
     id: "projects", title: "Projects", subtitle: "Project records for customer work and delivery tracking.", doctype: "Project", nameField: "project_name",

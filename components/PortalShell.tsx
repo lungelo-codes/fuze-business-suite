@@ -50,7 +50,7 @@ export default function PortalShell({ children, activeModules, companyName, role
   return (
     <div className={`app portal-shell ${open ? "sidebar-open" : "sidebar-closed"}`}>
       <div className={`main-nav-slot ${open ? "show" : "hide"}`} aria-hidden={!open}>
-        <Sidebar activeModules={activeModules} companyName={companyName} companyLogo={companyLogo} role={role} onCollapse={() => setOpen(false)} />
+        <Sidebar activeModules={activeModules} companyName={companyName} companyLogo={companyLogo} role={role} plan={plan} onCollapse={() => setOpen(false)} />
       </div>
       <main className="main">
         <Topbar plan={plan} companyName={companyName} companyLogo={companyLogo} role={role} />
