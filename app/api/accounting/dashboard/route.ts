@@ -1,53 +1,40 @@
 import { erpList } from "@/lib/server/erpnext";
 
-interface AccountingData {
-  invoices: Record<string, unknown>[];
-  purchaseInvoices: Record<string, unknown>[];
-  payments: Record<string, unknown>[];
-  journalEntries: Record<string, unknown>[];
-  assets: Record<string, unknown>[];
-}
+type Row = Record<string, unknown>;
+
+const empty = (): Row[] => [];
 
 export async function GET(): Promise<Response> {
   try {
-    const fallback = (): Record<string, unknown>[] => [];
-    const [invoices, purchaseInvoices, payments, journalEntries, assets] = await Promise.all([
-      erpList("Sales Invoice", {
+    const [invoices, purchaseInvoices, payments, journalEntries, assets]: Row[][] = await Promise.all([
+      erpList<Row>("Sales Invoice", {
         fields: ["name", "customer", "posting_date", "due_date", "grand_total", "outstanding_amount", "status", "modified"],
         limit: 50,
         orderBy: "modified desc"
-      }).catch(fallback),
-      erpList("Purchase Invoice", {
+      }).catch(empty),
+      erpList<Row>("Purchase Invoice", {
         fields: ["name", "supplier", "posting_date", "due_date", "grand_total", "outstanding_amount", "status", "modified"],
         limit: 50,
         orderBy: "modified desc"
-      }).catch(fallback),
-      erpList("Payment Entry", {
+      }).catch(empty),
+      erpList<Row>("Payment Entry", {
         fields: ["name", "party_type", "party", "posting_date", "paid_amount", "received_amount", "status", "modified"],
         limit: 50,
         orderBy: "modified desc"
-      }).catch(fallback),
-      erpList("Journal Entry", {
+      }).catch(empty),
+      erpList<Row>("Journal Entry", {
         fields: ["name", "posting_date", "total_debit", "total_credit", "status", "modified"],
         limit: 50,
         orderBy: "modified desc"
-      }).catch(fallback),
-      erpList("Asset", {
+      }).catch(empty),
+      erpList<Row>("Asset", {
         fields: ["name", "asset_name", "asset_category", "purchase_date", "gross_purchase_amount", "status", "modified"],
         limit: 50,
         orderBy: "modified desc"
-      }).catch(fallback)
+      }).catch(empty),
     ]);
 
-    const data: AccountingData = {
-      invoices,
-      purchaseInvoices,
-      payments,
-      journalEntries,
-      assets
-    };
-
-    return Response.json({ success: true, data });
+    return Response.json({ success: true, data: { invoices, purchaseInvoices, payments, journalEntries, assets } });
   } catch (error) {
     return Response.json(
       { success: false, error: error instanceof Error ? error.message : "Failed to fetch accounting data" },
