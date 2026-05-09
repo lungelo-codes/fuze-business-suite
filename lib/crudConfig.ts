@@ -116,6 +116,20 @@ export const CRUD_MODULES: Record<string, CrudModuleConfig> = {
     formFields: [l("employee", "Employee", "Employee", true), d("start_date", "Start Date", true), d("end_date", "End Date", true), d("posting_date", "Posting Date"), s("payroll_frequency", "Payroll Frequency", ["Monthly", "Fortnightly", "Bimonthly", "Weekly", "Daily"])],
     defaults: { payroll_frequency: "Monthly" },
   },
+  helpdesk: {
+    id: "helpdesk", title: "Helpdesk Tickets", subtitle: "Frappe Helpdesk HD Ticket records with SLA and agent assignment.", doctype: "HD Ticket", nameField: "subject",
+    listFields: ["name", "subject", "status", "priority", "customer", "raised_by", "agent_assigned", "creation", "modified"],
+    tableFields: [f("subject", "Subject"), f("customer", "Customer"), f("raised_by", "Raised By"), f("priority", "Priority"), f("status", "Status"), f("agent_assigned", "Assigned Agent")],
+    formFields: [f("subject", "Ticket Subject", "text", true), l("customer", "Customer", "Customer"), f("raised_by", "Raised By", "email"), s("priority", "Priority", ["Low", "Medium", "High", "Urgent"]), s("status", "Status", ["Open", "Replied", "Resolved", "Closed"]), l("agent_assigned", "Assigned To", "HD Agent"), txt("description", "Description", true)],
+    defaults: { priority: "Medium", status: "Open" },
+  },
+  "journal-entry": {
+    id: "journal-entry", title: "Journal Entries", subtitle: "Manual journal entries posted to the general ledger.", doctype: "Journal Entry", nameField: "name", submitEnabled: true,
+    listFields: ["name", "voucher_type", "posting_date", "total_debit", "total_credit", "remark", "docstatus", "modified"],
+    tableFields: [f("name", "Voucher"), f("voucher_type", "Type"), d("posting_date", "Date"), ro("total_debit", "Debit", "number"), ro("total_credit", "Credit", "number"), f("remark", "Remark")],
+    formFields: [s("voucher_type", "Voucher Type", ["Journal Entry", "Bank Entry", "Cash Entry", "Credit Card Entry", "Debit Note", "Credit Note", "Contra Entry", "Excise Entry", "Write Off Entry", "Opening Entry", "Depreciation Entry"], true), d("posting_date", "Posting Date", true), l("company", "Company", "Company", true), txt("remark", "Remark")],
+    defaults: { voucher_type: "Journal Entry" },
+  },
   support: simple("support", "Support Tickets", "Issue", "subject", ["subject", "customer", "raised_by", "priority", "status", "issue_type"], [f("subject", "Subject", "text", true), l("customer", "Customer", "Customer"), f("raised_by", "Raised By", "email"), s("priority", "Priority", ["Low", "Medium", "High", "Urgent"]), s("status", "Status", ["Open", "Replied", "On Hold", "Resolved", "Closed"]), f("issue_type", "Issue Type"), txt("description", "Description", true)], { priority: "Medium", status: "Open" }, "Customer support ticket records."),
   chat: simple("chat", "Communications", "Communication", "subject", ["subject", "sender", "recipients", "communication_type", "sent_or_received", "status"], [f("subject", "Subject", "text", true), f("sender", "Sender", "email"), f("recipients", "Recipients"), s("communication_type", "Communication Type", ["Communication", "Email", "Chat", "Phone", "SMS", "Other"]), s("sent_or_received", "Sent or Received", ["Sent", "Received"]), txt("content", "Content", true), s("status", "Status", ["Open", "Replied", "Closed", "Linked"])], { communication_type: "Communication", sent_or_received: "Sent", status: "Open" }, "Communication records."),
   compliance: simple("compliance", "Compliance Calendar", "Fuze Compliance Calendar", "title", ["title", "category", "sub_category", "priority", "due_date", "status", "completed_by"], [f("title", "Title", "text", true), s("category", "Category", ["SARS", "CIPC", "UIF", "Department of Labour", "Other"], true), s("sub_category", "Sub-Category", ["EMP201", "VAT201", "EMP501", "ITR14", "Annual Return", "UI-19", "Other"]), s("priority", "Priority", ["High", "Medium", "Low"]), d("due_date", "Due Date", true), s("status", "Status", ["Pending", "In Progress", "Completed", "Overdue", "Not Applicable"]), f("reference_url", "Reference URL"), txt("description", "Description"), d("completed_date", "Completed Date"), l("completed_by", "Completed By", "User"), txt("notes", "Notes")], { status: "Pending", priority: "Medium" }, "SARS, CIPC, UIF and labour compliance calendar."),
@@ -140,10 +154,170 @@ export const CRUD_MODULES: Record<string, CrudModuleConfig> = {
 
   "helpdesk-articles": simple("helpdesk-articles", "Knowledge Base", "HD Article", "title", ["title", "category", "status"], [f("title", "Article Title", "text", true), f("category", "Category", "text"), txt("content", "Content", true), s("status", "Status", ["Draft", "Published", "Archived"])], { status: "Draft" }, "Frappe Helpdesk knowledge base articles."),
 
+  // Payroll Setup — must be configured per tenant before salary slips can be generated
+  "salary-component": {
+    id: "salary-component", title: "Salary Components", subtitle: "Define earnings and deductions used in salary structures (e.g. Basic Salary, PAYE, UIF, Travel Allowance).", doctype: "Salary Component", nameField: "salary_component",
+    listFields: ["name", "salary_component", "salary_component_abbr", "type", "is_tax_applicable", "modified"],
+    tableFields: [f("salary_component", "Component"), f("salary_component_abbr", "Abbr"), f("type", "Type"), f("is_tax_applicable", "Taxable", "checkbox")],
+    formFields: [
+      f("salary_component", "Component Name", "text", true),
+      f("salary_component_abbr", "Abbreviation", "text", true),
+      s("type", "Type", ["Earning", "Deduction"], true),
+      f("is_tax_applicable", "Tax Applicable", "checkbox"),
+      f("depends_on_payment_days", "Pro-rate on Working Days", "checkbox"),
+      s("statistical_component", "Statistical Only (no pay impact)", "checkbox" as FieldType),
+      txt("description", "Description"),
+    ],
+    defaults: { type: "Earning", is_tax_applicable: 0, depends_on_payment_days: 1 },
+  },
+
+  "salary-structure": {
+    id: "salary-structure", title: "Salary Structures", subtitle: "Group salary components into a reusable structure. Assign employees to a structure before generating salary slips.", doctype: "Salary Structure", nameField: "name",
+    listFields: ["name", "payroll_frequency", "company", "is_active", "modified"],
+    tableFields: [f("name", "Structure"), f("payroll_frequency", "Frequency"), f("company", "Company"), f("is_active", "Active", "checkbox")],
+    formFields: [
+      f("name", "Structure Name", "text", true),
+      s("payroll_frequency", "Payroll Frequency", ["Monthly", "Fortnightly", "Bimonthly", "Weekly", "Daily"], true),
+      l("company", "Company", "Company", true),
+      f("is_active", "Active", "checkbox"),
+      txt("description", "Description"),
+    ],
+    defaults: { payroll_frequency: "Monthly", is_active: 1 },
+  },
+
+  "salary-structure-assignment": {
+    id: "salary-structure-assignment", title: "Salary Structure Assignments", subtitle: "Link each employee to a salary structure with a base amount. Required before salary slips can be generated.", doctype: "Salary Structure Assignment", nameField: "employee",
+    listFields: ["name", "employee", "employee_name", "salary_structure", "from_date", "base", "modified"],
+    tableFields: [f("employee_name", "Employee"), f("salary_structure", "Structure"), d("from_date", "Effective From"), n("base", "Base Salary")],
+    formFields: [
+      l("employee", "Employee", "Employee", true),
+      l("salary_structure", "Salary Structure", "Salary Structure", true),
+      l("company", "Company", "Company", true),
+      d("from_date", "Effective From Date", true),
+      n("base", "Base / Fixed Pay Amount", true),
+      s("payroll_payable_account", "Payroll Payable Account", [], false),
+    ],
+    defaults: {},
+  },
+
   // Enhanced HR Modules
   "hr-onboarding": simple("hr-onboarding", "Employee Onboarding", "Employee Onboarding", "employee_name", ["employee", "employee_name", "status", "onboarding_date", "completion_date"], [l("employee", "Employee", "Employee", true), d("onboarding_date", "Onboarding Date", true), d("completion_date", "Completion Date"), s("status", "Status", ["Pending", "In Progress", "Completed"])], { status: "Pending" }, "Employee onboarding workflow records."),
 
   "hr-shifts": simple("hr-shifts", "Shift Assignments", "Shift Assignment", "employee_name", ["employee", "employee_name", "shift", "start_date", "end_date", "status"], [l("employee", "Employee", "Employee", true), l("shift", "Shift", "Shift Type"), d("start_date", "Start Date", true), d("end_date", "End Date"), s("status", "Status", ["Active", "Inactive"])], { status: "Active" }, "Employee shift assignment records."),
+
+  "job-openings": {
+    id: "job-openings", title: "Job Openings", subtitle: "Active job vacancies. Published openings are visible to applicants.", doctype: "Job Opening", nameField: "job_title",
+    listFields: ["name", "job_title", "department", "designation", "status", "no_of_positions", "expected_compensation", "publish", "modified"],
+    tableFields: [f("job_title", "Job Title"), l("department", "Department", "Department"), l("designation", "Designation", "Designation"), f("status", "Status"), n("no_of_positions", "Positions"), f("publish", "Published", "checkbox")],
+    formFields: [
+      f("job_title", "Job Title", "text", true),
+      l("department", "Department", "Department"),
+      l("designation", "Designation", "Designation"),
+      s("status", "Status", ["Open", "Closed"], true),
+      n("no_of_positions", "Number of Positions"),
+      n("expected_compensation", "Expected CTC (R)"),
+      f("publish", "Publish on Website", "checkbox"),
+      txt("description", "Job Description"),
+    ],
+    defaults: { status: "Open", no_of_positions: 1, publish: 0 },
+  },
+
+  "job-applicants": {
+    id: "job-applicants", title: "Job Applicants", subtitle: "Applicants linked to job openings with interview and selection status.", doctype: "Job Applicant", nameField: "applicant_name",
+    listFields: ["name", "applicant_name", "job_title", "status", "email_id", "mobile_no", "source", "modified"],
+    tableFields: [f("applicant_name", "Applicant"), f("job_title", "Job Title"), f("status", "Status"), f("email_id", "Email", "email"), f("mobile_no", "Mobile", "tel"), f("source", "Source")],
+    formFields: [
+      f("applicant_name", "Applicant Name", "text", true),
+      l("job_title", "Job Opening", "Job Opening", true),
+      f("email_id", "Email", "email", true),
+      f("mobile_no", "Mobile No", "tel"),
+      s("status", "Status", ["Open", "Replied", "Rejected", "Hold", "Accepted"]),
+      s("source", "Source", ["Website", "Referral", "LinkedIn", "Indeed", "Recruitment Firm", "Other"]),
+      f("resume_attachment", "Resume Link"),
+      txt("cover_letter", "Cover Letter / Notes"),
+    ],
+    defaults: { status: "Open" },
+  },
+
+  "expense-claims": {
+    id: "expense-claims", title: "Expense Claims", subtitle: "Employee expense claims for reimbursement — travel, accommodation and business costs.", doctype: "Expense Claim", nameField: "employee_name", submitEnabled: true,
+    listFields: ["name", "employee", "employee_name", "expense_approver", "posting_date", "total_claimed_amount", "total_sanctioned_amount", "status", "docstatus", "modified"],
+    tableFields: [f("employee_name", "Employee"), f("expense_approver", "Approver"), d("posting_date", "Date"), ro("total_claimed_amount", "Claimed", "number"), ro("total_sanctioned_amount", "Approved", "number"), f("status", "Status")],
+    formFields: [
+      l("employee", "Employee", "Employee", true),
+      f("expense_approver", "Expense Approver", "email"),
+      d("posting_date", "Posting Date"),
+      l("payable_account", "Payable Account", "Account"),
+      l("cost_center", "Cost Center", "Cost Center"),
+      s("expense_type", "Expense Type", ["Travel", "Accommodation", "Meals", "Communication", "Medical", "Training", "Other"], true),
+      n("claimed_amount", "Claimed Amount (R)", true),
+      txt("remark", "Remark / Description"),
+    ],
+    defaults: { status: "Draft" },
+  },
+
+  "appraisals": {
+    id: "appraisals", title: "Appraisals", subtitle: "Employee performance appraisals with KRA goals, scores and feedback cycles.", doctype: "Appraisal", nameField: "employee_name",
+    listFields: ["name", "employee_name", "appraisal_template", "status", "start_date", "end_date", "total_score", "modified"],
+    tableFields: [f("employee_name", "Employee"), f("appraisal_template", "Template"), f("status", "Status"), d("start_date", "Start"), d("end_date", "End"), ro("total_score", "Score", "number")],
+    formFields: [
+      l("employee", "Employee", "Employee", true),
+      l("appraisal_template", "Appraisal Template", "Appraisal Template"),
+      s("status", "Status", ["Draft", "Submitted", "Completed", "Cancelled"]),
+      d("start_date", "Review Period Start", true),
+      d("end_date", "Review Period End", true),
+      txt("goals", "Key Goals / KRAs"),
+      txt("feedback", "Manager Feedback"),
+    ],
+    defaults: { status: "Draft" },
+  },
+
+  "hr-loans": {
+    id: "hr-loans", title: "Employee Loans", subtitle: "Employee loan records with repayment schedules linked to payroll.", doctype: "Employee Loan", nameField: "employee_name",
+    listFields: ["name", "employee", "employee_name", "loan_type", "loan_amount", "total_payment", "total_principal_paid", "status", "modified"],
+    tableFields: [f("employee_name", "Employee"), f("loan_type", "Loan Type"), ro("loan_amount", "Amount", "number"), ro("total_principal_paid", "Repaid", "number"), f("status", "Status")],
+    formFields: [
+      l("employee", "Employee", "Employee", true),
+      l("loan_type", "Loan Type", "Loan Type", true),
+      n("loan_amount", "Loan Amount (R)", true),
+      d("repayment_start_date", "Repayment Start Date"),
+      n("repayment_periods", "Repayment Months"),
+      l("mode_of_payment", "Mode of Payment", "Mode of Payment"),
+      txt("description", "Purpose / Notes"),
+    ],
+    defaults: {},
+  },
+
+  "hr-transfers": {
+    id: "hr-transfers", title: "Employee Transfers", subtitle: "Internal transfer records — department changes, designations and reporting moves.", doctype: "Employee Transfer", nameField: "employee_name",
+    listFields: ["name", "employee", "employee_name", "transfer_date", "new_department", "new_designation", "modified"],
+    tableFields: [f("employee_name", "Employee"), d("transfer_date", "Transfer Date"), f("new_department", "New Department"), f("new_designation", "New Designation")],
+    formFields: [
+      l("employee", "Employee", "Employee", true),
+      d("transfer_date", "Transfer Date", true),
+      l("new_department", "New Department", "Department"),
+      l("new_designation", "New Designation", "Designation"),
+      l("new_branch", "New Branch", "Branch"),
+      txt("reason", "Reason for Transfer"),
+    ],
+    defaults: {},
+  },
+
+  "exit-interviews": {
+    id: "exit-interviews", title: "Exit Interviews", subtitle: "Exit interview records and reasons for employee separations.", doctype: "Exit Interview", nameField: "employee_name",
+    listFields: ["name", "employee", "employee_name", "date", "reason", "relieving_date", "status", "modified"],
+    tableFields: [f("employee_name", "Employee"), d("date", "Interview Date"), f("reason", "Reason"), d("relieving_date", "Last Day"), f("status", "Status")],
+    formFields: [
+      l("employee", "Employee", "Employee", true),
+      d("date", "Interview Date", true),
+      d("relieving_date", "Last Working Day"),
+      s("reason", "Reason for Leaving", ["Better opportunity", "Higher studies", "Personal reasons", "Health", "Relocation", "Salary", "Work environment", "Other"], true),
+      s("status", "Status", ["Pending", "In Progress", "Completed", "Cancelled"]),
+      txt("interview_summary", "Interview Summary"),
+      txt("feedback", "Feedback for Company"),
+    ],
+    defaults: { status: "Pending" },
+  },
 
   // Procurement Modules
   "procurement-requests": simple("procurement-requests", "Material Requests", "Material Request", "name", ["name", "material_request_type", "status", "creation"], [s("material_request_type", "Type", ["Purchase", "Material Transfer", "Customer Provided", "Internal Transfer"], true), s("status", "Status", ["Draft", "Submitted", "Stopped", "Cancelled"]), d("required_by_date", "Required By"), txt("description", "Description")], { material_request_type: "Purchase", status: "Draft" }, "Material request records for procurement."),
@@ -193,5 +367,7 @@ export function toERPDoc(module: string, values: Record<string, unknown>): Recor
   if (module === "employees") doc.date_of_joining = doc.date_of_joining || today();
   if (module === "attendance") doc.attendance_date = doc.attendance_date || today();
   if (module === "payroll") doc.posting_date = doc.posting_date || today();
+  if (module === "helpdesk") Object.assign(doc, { status: doc.status || "Open", priority: doc.priority || "Medium" });
+  if (module === "journal-entry") doc.posting_date = doc.posting_date || today();
   return doc;
 }

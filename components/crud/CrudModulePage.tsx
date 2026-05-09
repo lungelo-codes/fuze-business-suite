@@ -296,6 +296,31 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
     }
   }
 
+  async function convertToCustomer(row: Row, e?: MouseEvent) {
+    e?.preventDefault(); e?.stopPropagation()
+    const id = getRowId(row)
+    if (!id) return
+    if (!confirm(`Convert lead "${id}" to a Customer? This will create a new Customer record in ERPNext.`)) return
+    setLoading(true); setError('')
+    try {
+      const res = await fetch('/api/crm/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead: id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Could not convert lead')
+      const customerName = data.customer || data.data?.name || id
+      setRows((prev) => prev.map((r) => (getRowId(r) === id ? { ...r, status: 'Converted' } : r)))
+      setSelected((prev) => (prev ? { ...prev, status: 'Converted' } : prev))
+      setNotice(`Lead converted. Customer "${customerName}" created — go to Customers to invoice.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not convert lead to customer')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function openPrint(row: Row, e?: MouseEvent) {
     e?.preventDefault(); e?.stopPropagation()
     const id = getRowId(row)
@@ -450,7 +475,7 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
       <DetailDrawer open={drawerOpen} title={titleValue || activeConfig.title} subtitle={selected ? getRowId(selected) : ''} onClose={() => setDrawerOpen(false)}>
         {selected ? <div className="crud-drawer-space">
           {detailLoading ? <div className="demo-banner">Loading full record...</div> : null}
-          <div className="demo-panel crud-drawer-actions"><div className="demo-panel-head"><div><h3>Record Actions</h3><p>Work with this record directly from Business Suite.</p></div></div><div className="crud-action-strip"><button type="button" onClick={(e) => openEdit(selected, e)} className="btn btn-teal">Edit</button><button type="button" onClick={(e) => duplicateRecord(selected, e)} className="btn">Duplicate</button>{['Sales Invoice', 'Quotation', 'Payment Entry', 'Purchase Order', 'Sales Order', 'Delivery Note', 'Purchase Receipt', 'Salary Slip', 'Leave Application', 'Attendance', 'Employee', 'HD Ticket', 'Material Request', 'Supplier Quotation', 'Request for Quotation'].includes(activeConfig.doctype) ? <button type="button" onClick={(e) => openPrint(selected, e)} className="btn">Print / PDF</button> : null}<button type="button" onClick={(e) => shareRecord(selected, e)} className="btn">Share</button>{activeConfig.submitEnabled && selectedDocStatus === 0 ? <button type="button" onClick={(e) => performAction('submit', selected, e)} disabled={loading} className="btn btn-teal">Submit</button> : null}{activeConfig.submitEnabled && selectedDocStatus === 1 ? <button type="button" onClick={(e) => performAction('cancel', selected, e)} disabled={loading} className="btn">Cancel</button> : null}<button type="button" onClick={(e) => deleteRecord(selected, e)} disabled={loading || selectedDocStatus === 1} className="btn crud-danger">Delete</button></div></div>
+          <div className="demo-panel crud-drawer-actions"><div className="demo-panel-head"><div><h3>Record Actions</h3><p>Work with this record directly from Business Suite.</p></div></div><div className="crud-action-strip"><button type="button" onClick={(e) => openEdit(selected, e)} className="btn btn-teal">Edit</button><button type="button" onClick={(e) => duplicateRecord(selected, e)} className="btn">Duplicate</button>{activeConfig.doctype === 'Lead' && String(selected?.status || '') !== 'Converted' ? <button type="button" onClick={(e) => convertToCustomer(selected, e)} disabled={loading} className="btn btn-teal">Convert to Customer</button> : null}{['Sales Invoice', 'Quotation', 'Payment Entry', 'Purchase Order', 'Sales Order', 'Delivery Note', 'Purchase Receipt', 'Salary Slip', 'Leave Application', 'Attendance', 'Employee', 'HD Ticket', 'Material Request', 'Supplier Quotation', 'Request for Quotation'].includes(activeConfig.doctype) ? <button type="button" onClick={(e) => openPrint(selected, e)} className="btn">Print / PDF</button> : null}<button type="button" onClick={(e) => shareRecord(selected, e)} className="btn">Share</button>{activeConfig.submitEnabled && selectedDocStatus === 0 ? <button type="button" onClick={(e) => performAction('submit', selected, e)} disabled={loading} className="btn btn-teal">Submit</button> : null}{activeConfig.submitEnabled && selectedDocStatus === 1 ? <button type="button" onClick={(e) => performAction('cancel', selected, e)} disabled={loading} className="btn">Cancel</button> : null}<button type="button" onClick={(e) => deleteRecord(selected, e)} disabled={loading || selectedDocStatus === 1} className="btn crud-danger">Delete</button></div></div>
           <div className="crud-detail-grid">{detailFields.map((field) => <div key={field.name} className="crud-detail-card"><span>{field.label}</span><b>{isStatusField(field.name) ? <StatusChip status={valueToText(selected[field.name])} /> : valueToText(selected[field.name])}</b></div>)}</div>
           {children.map(([key, items]) => <div key={key} className="demo-panel"><div className="demo-panel-head"><div><h3>{key.replace(/_/g, ' ')}</h3><p>Linked child table records</p></div></div><div className="overflow-auto"><table className="demo-table"><tbody>{items.map((item, idx) => <tr key={idx}><td>#{idx + 1}</td><td>{Object.entries(item).filter(([k, v]) => !SYSTEM_FIELDS.has(k) && v !== undefined && v !== null && v !== '').slice(0, 8).map(([k, v]) => <span key={k} className="crud-inline-field"><b>{k.replace(/_/g, ' ')}:</b> {valueToText(v)}</span>)}</td></tr>)}</tbody></table></div></div>)}
         </div> : null}

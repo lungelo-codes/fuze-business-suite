@@ -35,15 +35,18 @@ export const ALL_MODULES: ModuleDef[] = [
   { id: "leave", label: "Leave", icon: "🏖️", description: "Leave requests and approval workflow", path: "/portal/leave", group: "People", addonPrice: 99, doctype: "Leave Application", active: true, includedIn: ["Business Pro"] },
   { id: "attendance", label: "Attendance", icon: "📋", description: "Track employee attendance and hours", path: "/portal/attendance", group: "People", addonPrice: 99, doctype: "Attendance", active: true, includedIn: ["Business Pro"] },
   { id: "support", label: "Support", icon: "🎧", description: "Customer support ticket management", path: "/portal/support", group: "Service", addonPrice: 99, doctype: "Issue", active: true, includedIn: ["Growth", "Business Pro"] },
+  { id: "helpdesk", label: "Helpdesk", icon: "🎫", description: "Frappe Helpdesk tickets, SLAs and customer portal", path: "/portal/helpdesk", group: "Service", addonPrice: 149, doctype: "HD Ticket", active: true, includedIn: ["Business Pro"] },
   { id: "appointments", label: "Appointments", icon: "📅", description: "Schedule events and appointments", path: "/portal/appointments", group: "Service", addonPrice: 79, doctype: "Event", active: true, includedIn: ["Business Pro"] },
   { id: "chat", label: "Messages", icon: "💬", description: "Customer communications log", path: "/portal/chat", group: "Service", addonPrice: 79, doctype: "Communication", active: true, includedIn: ["Business Pro"] },
+  { id: "insights", label: "Insights", icon: "📊", description: "Business intelligence dashboards and analytics", path: "/portal/insights", group: "Finance", addonPrice: 199, doctype: "Insights Query", active: true, includedIn: ["Business Pro"] },
+  { id: "accounting", label: "Accounting", icon: "🏦", description: "Full general ledger, journal entries and financial reports", path: "/portal/accounting", group: "Finance", addonPrice: 199, doctype: "Journal Entry", active: true, includedIn: ["Growth", "Business Pro"] },
 ];
 
 export interface PlanDef { id: string; label: string; price: number; period: string; description: string; modules: string[]; highlight?: boolean; badge?: string; }
 export const PLANS: PlanDef[] = [
   { id: "Starter", label: "Starter", price: 0, period: "14-day free trial", description: "Finance basics for a new small business.", modules: ["customers", "invoices", "quotes", "payments", "compliance"] },
   { id: "Growth", label: "Growth", price: 499, period: "/ month", description: "Finance plus operations modules for growing businesses.", modules: ["customers", "invoices", "quotes", "payments", "compliance", "crm", "leads", "opportunities", "suppliers", "purchase-orders", "items", "projects", "tasks", "support"], highlight: true, badge: "Most Popular" },
-  { id: "Business Pro", label: "Business Pro", price: 999, period: "/ month", description: "Full business operations suite with HR and service modules.", modules: ALL_MODULES.map((m) => m.id) },
+  { id: "Business Pro", label: "Business Pro", price: 999, period: "/ month", description: "Full business operations suite with HR, helpdesk, insights and accounting.", modules: ALL_MODULES.map((m) => m.id) },
   { id: "Enterprise", label: "Enterprise", price: 0, period: "Custom pricing", description: "Tailored white-label deployment and custom modules.", modules: ALL_MODULES.map((m) => m.id), badge: "Contact Sales" },
 ];
 export function getModulesForPlan(planId: string): string[] { return PLANS.find((p) => p.id === planId)?.modules ?? []; }

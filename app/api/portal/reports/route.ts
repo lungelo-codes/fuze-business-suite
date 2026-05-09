@@ -29,6 +29,12 @@ interface Issue {
   [key: string]: unknown;
 }
 
+interface Customer {
+  name: string;
+  customer_group?: string;
+  [key: string]: unknown;
+}
+
 function getMonthKey(dateStr?: string): string {
   if (!dateStr) return "Unknown";
   try {
@@ -40,7 +46,7 @@ function getMonthKey(dateStr?: string): string {
 
 export async function GET() {
   try {
-    const [invoices, payments, tasks, issues] = await Promise.all([
+    const [invoices, payments, tasks, issues, customers] = await Promise.all([
       erpList<Invoice>("Sales Invoice", {
         fields: ["name", "posting_date", "grand_total", "customer", "status"],
         limit: 500,
@@ -57,6 +63,10 @@ export async function GET() {
       }),
       erpList<Issue>("Issue", {
         fields: ["name", "status"],
+        limit: 500,
+      }),
+      erpList<Customer>("Customer", {
+        fields: ["name", "customer_group"],
         limit: 500,
       }),
     ]);
@@ -101,7 +111,7 @@ export async function GET() {
     }
     const supportByStatus = Object.entries(issueStatusMap).map(([status, count]) => ({ status, count }));
 
-    // Top customers
+    // Top customers by invoice value
     const customerMap: Record<string, number> = {};
     for (const inv of invoices) {
       if (inv.customer) {
@@ -113,8 +123,15 @@ export async function GET() {
       .slice(0, 10)
       .map(([name, total]) => ({ name, total }));
 
-    // Customers by group (placeholder — use customer_group if available)
-    const customersByGroup: { group: string; count: number }[] = [];
+    // Customers by group — now actually populated from Customer doctype
+    const groupMap: Record<string, number> = {};
+    for (const c of customers) {
+      const g = c.customer_group || "Ungrouped";
+      groupMap[g] = (groupMap[g] ?? 0) + 1;
+    }
+    const customersByGroup = Object.entries(groupMap)
+      .sort((a, b) => b[1] - a[1])
+      .map(([group, count]) => ({ group, count }));
 
     return NextResponse.json({
       invoicesByMonth,
