@@ -3,7 +3,7 @@ import { erpList } from "@/lib/server/erpnext";
 
 export async function GET() {
   try {
-    const data = await erpList("Leave Allocation", {
+    const data = await erpList<Record<string, unknown>>("Leave Allocation", {
       fields: [
         "name", "employee", "employee_name", "leave_type",
         "from_date", "to_date", "new_leaves_allocated",

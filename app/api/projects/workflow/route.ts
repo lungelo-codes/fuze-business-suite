@@ -14,18 +14,18 @@ export async function GET(request: Request): Promise<Response> {
     const filters = projectId ? [["Task", "project", "=", projectId]] : [];
 
     const [projects, tasks, timesheets] = await Promise.all([
-      erpList("Project", {
+      erpList<Record<string, unknown>>("Project", {
         fields: ["name", "project_name", "customer", "status", "expected_start_date", "expected_end_date", "percent_complete", "modified"],
         limit: 50,
         orderBy: "modified desc"
       }).catch((): Record<string, unknown>[] => []),
-      erpList("Task", {
+      erpList<Record<string, unknown>>("Task", {
         fields: ["name", "subject", "project", "status", "priority", "exp_start_date", "exp_end_date", "modified"],
         filters,
         limit: 100,
         orderBy: "exp_start_date asc"
       }).catch((): Record<string, unknown>[] => []),
-      erpList("Timesheet", {
+      erpList<Record<string, unknown>>("Timesheet", {
         fields: ["name", "employee", "employee_name", "project", "total_hours", "status", "modified"],
         limit: 50,
         orderBy: "modified desc"

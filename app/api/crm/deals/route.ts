@@ -2,7 +2,7 @@ import { erpList, erpPatch } from "@/lib/server/erpnext";
 
 export async function GET() {
   try {
-    const deals = await erpList("CRM Deal", {
+    const deals = await erpList<Record<string, unknown>>("CRM Deal", {
       fields: ["name", "deal_owner", "party_name", "status", "stage", "amount", "expected_closing", "probability", "modified"],
       limit: 100,
       orderBy: "modified desc"

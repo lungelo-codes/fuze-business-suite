@@ -3,7 +3,7 @@ import { erpList } from "@/lib/server/erpnext";
 
 export async function GET() {
   try {
-    const data = await erpList("Attendance", {
+    const data = await erpList<Record<string, unknown>>("Attendance", {
       fields: [
         "name", "employee", "employee_name", "attendance_date",
         "status", "in_time", "out_time", "working_hours",

@@ -7,7 +7,7 @@ export async function GET(request: Request) {
 
     const filters = status ? [["HD Ticket", "status", "=", status]] : [];
 
-    const tickets = await erpList("HD Ticket", {
+    const tickets = await erpList<Record<string, unknown>>("HD Ticket", {
       fields: ["name", "title", "status", "priority", "customer", "raised_by", "agent_assigned", "sla", "creation", "modified"],
       filters,
       limit: 100,

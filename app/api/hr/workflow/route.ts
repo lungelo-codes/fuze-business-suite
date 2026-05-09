@@ -12,32 +12,32 @@ interface HRData {
 export async function GET(): Promise<Response> {
   try {
     const [employees, attendance, leaves, onboarding, shifts, salarySlips] = await Promise.all([
-      erpList("Employee", {
+      erpList<Record<string, unknown>>("Employee", {
         fields: ["name", "employee_name", "department", "designation", "status", "company_email", "date_of_joining", "modified"],
         limit: 50,
         orderBy: "modified desc"
       }).catch((): Record<string, unknown>[] => []),
-      erpList("Attendance", {
+      erpList<Record<string, unknown>>("Attendance", {
         fields: ["name", "employee", "employee_name", "attendance_date", "status", "working_hours", "modified"],
         limit: 50,
         orderBy: "attendance_date desc"
       }).catch((): Record<string, unknown>[] => []),
-      erpList("Leave Application", {
+      erpList<Record<string, unknown>>("Leave Application", {
         fields: ["name", "employee", "employee_name", "leave_type", "from_date", "to_date", "total_leave_days", "status", "modified"],
         limit: 50,
         orderBy: "from_date desc"
       }).catch((): Record<string, unknown>[] => []),
-      erpList("Employee Onboarding", {
+      erpList<Record<string, unknown>>("Employee Onboarding", {
         fields: ["name", "employee", "employee_name", "status", "onboarding_date", "completion_date", "modified"],
         limit: 50,
         orderBy: "modified desc"
       }).catch((): Record<string, unknown>[] => []),
-      erpList("Shift Assignment", {
+      erpList<Record<string, unknown>>("Shift Assignment", {
         fields: ["name", "employee", "employee_name", "shift", "start_date", "end_date", "status", "modified"],
         limit: 50,
         orderBy: "start_date desc"
       }).catch((): Record<string, unknown>[] => []),
-      erpList("Salary Slip", {
+      erpList<Record<string, unknown>>("Salary Slip", {
         fields: ["name", "employee", "employee_name", "start_date", "end_date", "gross_pay", "net_pay", "status", "modified"],
         limit: 50,
         orderBy: "modified desc"

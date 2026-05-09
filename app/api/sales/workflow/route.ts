@@ -11,27 +11,27 @@ interface SalesData {
 export async function GET(): Promise<Response> {
   try {
     const [quotations, salesOrders, deliveryNotes, invoices, payments] = await Promise.all([
-      erpList("Quotation", {
+      erpList<Record<string, unknown>>("Quotation", {
         fields: ["name", "party_name", "transaction_date", "valid_till", "grand_total", "status", "modified"],
         limit: 50,
         orderBy: "modified desc"
       }).catch((): Record<string, unknown>[] => []),
-      erpList("Sales Order", {
+      erpList<Record<string, unknown>>("Sales Order", {
         fields: ["name", "customer", "transaction_date", "delivery_date", "grand_total", "status", "modified"],
         limit: 50,
         orderBy: "modified desc"
       }).catch((): Record<string, unknown>[] => []),
-      erpList("Delivery Note", {
+      erpList<Record<string, unknown>>("Delivery Note", {
         fields: ["name", "customer", "posting_date", "status", "grand_total", "modified"],
         limit: 50,
         orderBy: "modified desc"
       }).catch((): Record<string, unknown>[] => []),
-      erpList("Sales Invoice", {
+      erpList<Record<string, unknown>>("Sales Invoice", {
         fields: ["name", "customer", "posting_date", "due_date", "grand_total", "outstanding_amount", "status", "modified"],
         limit: 50,
         orderBy: "modified desc"
       }).catch((): Record<string, unknown>[] => []),
-      erpList("Payment Entry", {
+      erpList<Record<string, unknown>>("Payment Entry", {
         fields: ["name", "party_type", "party", "posting_date", "paid_amount", "status", "modified"],
         filters: [["Payment Entry", "party_type", "=", "Customer"]],
         limit: 50,
