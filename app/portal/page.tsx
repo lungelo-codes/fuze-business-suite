@@ -127,7 +127,7 @@ export default async function DashboardPage() {
               <thead><tr><th>Module</th><th>Record</th><th>Status</th><th>Owner</th><th>Value</th></tr></thead>
               <tbody>
                 {records.length ? records.map((record) => (
-                  <tr key={`${record.module}-${record.title}`} onClick={() => {}}>
+                  <tr key={`${record.module}-${record.title}`}>
                     <td><a href={record.href} className="text-[#28a486] font-black">{record.module}</a></td>
                     <td><a href={record.href}><b>{record.title}</b><div className="demo-record-sub">Click to open {record.module}</div></a></td>
                     <td><StatusPill status={record.status} /></td>
