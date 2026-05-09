@@ -1,3 +1,5 @@
-import { NextResponse } from "next/server";
-import { getVATDashboard } from "@/lib/server/finance";
-export async function GET() { try { return NextResponse.json(await getVATDashboard()); } catch (e) { return NextResponse.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 500 }); } }
+import { fuzeData } from "@/lib/server/fuzeApi";
+export async function GET() {
+  const data = await fuzeData("fuze_suite.api.compliance.get_compliance_dashboard", {}, {});
+  return Response.json({ success: true, data });
+}

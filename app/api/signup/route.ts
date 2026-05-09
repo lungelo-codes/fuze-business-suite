@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { erpMethod } from "@/lib/server/erpnext";
 import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, TENANT_COOKIE, calculateSubscriptionTotal } from "@/lib/modules";
+import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/server/rateLimit";
 
 interface CreateDemoTenantResponse {
   ok?: boolean;
@@ -19,6 +20,11 @@ function cleanModules(value: unknown): string[] {
 }
 
 export async function POST(req: Request) {
+  // Rate limit: 5 signups per IP per hour
+  const ip = getClientIp(req);
+  const rl = rateLimit(`signup:${ip}`, 5, 60 * 60 * 1000);
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt);
+
   try {
     const body = (await req.json()) as Record<string, unknown>;
     const required = ["full_name", "company_name", "email", "phone", "plan"];

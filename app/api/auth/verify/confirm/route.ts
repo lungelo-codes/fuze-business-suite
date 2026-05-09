@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
     // Set a short-lived verified flag cookie for the signup flow
     response.cookies.set("fuze_email_verified", email.toLowerCase(), {
-      httpOnly: false,
+      httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",

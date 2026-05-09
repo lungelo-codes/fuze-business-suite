@@ -27,6 +27,7 @@ function LoginForm() {
         body: JSON.stringify({ email, password, site: tenantSite || undefined }),
       });
       const json = await res.json();
+      if (res.status === 429) throw new Error("Too many login attempts. Please wait a few minutes and try again.");
       if (!res.ok) throw new Error(json.error || "Login failed. Check your email and password.");
       router.push(json.redirect || "/portal");
       router.refresh();
@@ -71,8 +72,9 @@ function LoginForm() {
 
           {message && <div className="auth-error">{message}</div>}
 
-          <div className="auth-footnote">
-            New to Business Suite? <Link href="/signup">Start a free trial</Link>
+          <div className="auth-footnote" style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 4 }}>
+            <span>New to Business Suite? <Link href="/signup">Start a free trial</Link></span>
+            <Link href="/forgot-password" style={{ opacity: 0.7 }}>Forgot password?</Link>
           </div>
         </section>
       </main>

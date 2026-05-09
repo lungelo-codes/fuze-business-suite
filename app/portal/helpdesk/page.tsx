@@ -1,43 +1,34 @@
 import ModernModuleDashboard from "@/components/modules/ModernModuleDashboard";
-import { erpList } from "@/lib/server/erpnext";
+import { fuzeData, rowsFrom } from "@/lib/server/fuzeApi";
 
 type Row = Record<string, unknown>;
-async function safeList(doctype: string, fields: string[]): Promise<Row[]> {
-  try { return await erpList<Row>(doctype, { fields, limit: 100, orderBy: "modified desc" }); } catch { return []; }
-}
 
 export default async function HelpdeskPage() {
-  const [tickets, teams, sla] = await Promise.all([
-    safeList("HD Ticket", ["name", "subject", "status", "priority", "customer", "raised_by", "agent_assigned", "sla", "response_by", "resolution_by", "creation", "modified"]),
-    safeList("HD Team", ["name", "team_name", "modified"]),
-    safeList("HD Service Level Agreement", ["name", "sla_name", "modified"]),
+  const [dashboard, ticketsData] = await Promise.all([
+    fuzeData<Row>("fuze_suite.api.helpdesk.get_dashboard", {}, {}),
+    fuzeData<Row>("fuze_suite.api.helpdesk.get_tickets", {}, {}),
   ]);
 
-  const open = tickets.filter((t) => ["Open", "Replied"].includes(String(t.status || "")));
-  const resolved = tickets.filter((t) => ["Resolved", "Closed"].includes(String(t.status || "")));
-  const overdue = tickets.filter((t) => {
-    if (!t.resolution_by) return false;
-    return new Date(String(t.resolution_by)) < new Date();
-  });
+  const cards = (dashboard.cards || {}) as Row;
+  const tickets = rowsFrom(ticketsData, ["tickets", "issues", "rows", "data"]);
 
   return (
     <ModernModuleDashboard
       title="Helpdesk"
       eyebrow="Service Workspace"
-      description="Manage customer support tickets with SLA tracking, agent assignment, and escalation — powered by Frappe Helpdesk. No per-agent pricing."
+      description="Customer support tickets are now returned through the simplified Fuze Helpdesk API."
       rows={tickets}
-      tabs={["Helpdesk Dashboard", "All Tickets", "Open", "Resolved", "SLA", "Teams"]}
+      tabs={["Helpdesk Dashboard", "Tickets", "Open", "Closed", "SLA"]}
       metrics={[
-        { label: "Total Tickets", value: tickets.length, hint: "HD Ticket records" },
-        { label: "Open", value: open.length, hint: "Awaiting resolution" },
-        { label: "Resolved", value: resolved.length, hint: "Closed tickets" },
-        { label: "Overdue", value: overdue.length, hint: "Past SLA deadline" },
+        { label: "Open", value: Number(cards.open || 0), hint: "Needs attention" },
+        { label: "Closed", value: Number(cards.closed || 0), hint: "Resolved tickets" },
+        { label: "High Priority", value: Number(cards.high_priority || 0), hint: "Urgent issues" },
+        { label: "Tickets", value: tickets.length, hint: "Loaded records" },
       ]}
       actions={[
         { label: "New Ticket", href: "/portal/support", description: "Log a customer issue" },
-        { label: "View Open Tickets", href: "/portal/support", description: "Review and action open tickets" },
-        { label: "SLA Rules", href: "/portal/helpdesk", description: "Review service level agreements" },
-        { label: "Team Chat", href: "/portal/chat", description: "Discuss with your team" },
+        { label: "Open Tickets", href: "/portal/support", description: "Review open tickets" },
+        { label: "Team Chat", href: "/portal/chat", description: "Discuss internally" },
       ]}
       primaryField="subject"
       secondaryField="customer"

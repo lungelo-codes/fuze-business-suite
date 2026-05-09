@@ -1,59 +1,42 @@
-import InsightsDashboard from "./InsightsDashboard";
-import { erpList } from "@/lib/server/erpnext";
+import ModernModuleDashboard from "@/components/modules/ModernModuleDashboard";
+import { fuzeData, money, rowsFrom } from "@/lib/server/fuzeApi";
 
 type Row = Record<string, unknown>;
-async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
-  try { return await fn(); } catch { return fallback; }
-}
 
 export default async function InsightsPage() {
-  const [
-    invoices, payments, customers, salesOrders,
-    purchaseOrders, employees, salarySlips,
-    tasks, issues, leads, opportunities,
-    expenseClaims, jobApplicants,
-    // Frappe Insights app doctypes (gracefully fail if not installed)
-    insightsQueries, insightsDashboards, insightsSources, insightsCharts,
-  ] = await Promise.all([
-    safe(() => erpList<Row>("Sales Invoice",   { fields: ["name","posting_date","grand_total","outstanding_amount","status","customer"], limit: 500, orderBy: "posting_date desc" }), []),
-    safe(() => erpList<Row>("Payment Entry",   { fields: ["name","posting_date","paid_amount","payment_type","party"], limit: 500, orderBy: "posting_date desc" }), []),
-    safe(() => erpList<Row>("Customer",        { fields: ["name","customer_group","territory"], limit: 500 }), []),
-    safe(() => erpList<Row>("Sales Order",     { fields: ["name","posting_date","grand_total","status"], limit: 200, orderBy: "posting_date desc" }), []),
-    safe(() => erpList<Row>("Purchase Order",  { fields: ["name","transaction_date","grand_total","status"], limit: 200, orderBy: "transaction_date desc" }), []),
-    safe(() => erpList<Row>("Employee",        { fields: ["name","department","status"], limit: 500 }), []),
-    safe(() => erpList<Row>("Salary Slip",     { fields: ["name","net_pay","gross_pay","docstatus"], limit: 200 }), []),
-    safe(() => erpList<Row>("Task",            { fields: ["name","status","priority"], limit: 500 }), []),
-    safe(() => erpList<Row>("Issue",           { fields: ["name","status","priority"], limit: 300 }), []),
-    safe(() => erpList<Row>("Lead",            { fields: ["name","status","lead_name"], limit: 200 }), []),
-    safe(() => erpList<Row>("Opportunity",     { fields: ["name","status","opportunity_amount"], limit: 200 }), []),
-    safe(() => erpList<Row>("Expense Claim",   { fields: ["name","total_claimed_amount","status"], limit: 200 }), []),
-    safe(() => erpList<Row>("Job Applicant",   { fields: ["name","status"], limit: 200 }), []),
-    // Frappe Insights app
-    safe(() => erpList<Row>("Insights Query",       { fields: ["name","title","status","modified"], limit: 50, orderBy: "modified desc" }), []),
-    safe(() => erpList<Row>("Insights Dashboard",   { fields: ["name","title","modified"], limit: 20, orderBy: "modified desc" }), []),
-    safe(() => erpList<Row>("Insights Data Source", { fields: ["name","title","database_type","status"], limit: 20 }), []),
-    safe(() => erpList<Row>("Insights Chart",       { fields: ["name","title","chart_type","modified"], limit: 50, orderBy: "modified desc" }), []),
+  const [overview, chartData] = await Promise.all([
+    fuzeData<Row>("fuze_suite.api.insights.get_business_overview", {}, {}),
+    fuzeData<Row>("fuze_suite.api.insights.get_revenue_chart", {}, {}),
   ]);
 
+  const cards = (overview.cards || {}) as Row;
+  const chart = rowsFrom(chartData, ["chart", "rows", "data"]);
+
   return (
-    <InsightsDashboard
-      invoices={invoices}
-      payments={payments}
-      customers={customers}
-      salesOrders={salesOrders}
-      purchaseOrders={purchaseOrders}
-      employees={employees}
-      salarySlips={salarySlips}
-      tasks={tasks}
-      issues={issues}
-      leads={leads}
-      opportunities={opportunities}
-      expenseClaims={expenseClaims}
-      jobApplicants={jobApplicants}
-      insightsQueries={insightsQueries}
-      insightsDashboards={insightsDashboards}
-      insightsSources={insightsSources}
-      insightsCharts={insightsCharts}
+    <ModernModuleDashboard
+      title="Business Insights"
+      eyebrow="Executive Dashboard"
+      description="A clean business overview from your Fuze Insights API, not scattered raw ERPNext reports."
+      rows={chart}
+      tabs={["Overview", "Revenue", "Customers", "Projects", "Tasks"]}
+      metrics={[
+        { label: "Revenue", value: money(cards.revenue), hint: "Confirmed income" },
+        { label: "Expenses", value: money(cards.expenses), hint: "Confirmed spend" },
+        { label: "Profit", value: money(cards.profit), hint: "Revenue less expenses" },
+        { label: "Customers", value: Number(cards.customers || 0), hint: "Customer base" },
+        { label: "Employees", value: Number(cards.employees || 0), hint: "Team size" },
+        { label: "Open Tasks", value: Number(cards.open_tasks || 0), hint: "Work needing action" },
+      ]}
+      actions={[
+        { label: "CRM", href: "/portal/crm", description: "Review pipeline" },
+        { label: "Accounting", href: "/portal/accounting", description: "Review revenue" },
+        { label: "Projects", href: "/portal/projects", description: "Track delivery" },
+        { label: "Compliance", href: "/portal/compliance", description: "SA compliance" },
+      ]}
+      primaryField="month"
+      secondaryField="revenue"
+      valueField="revenue"
+      mode="standard"
     />
   );
 }

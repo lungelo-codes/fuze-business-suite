@@ -1,26 +1,32 @@
 import ModernModuleDashboard from "@/components/modules/ModernModuleDashboard";
-import { erpList } from "@/lib/server/erpnext";
+import { fuzeData, money, rowsFrom } from "@/lib/server/fuzeApi";
 
 type Row = Record<string, unknown>;
-async function safeList(doctype: string, fields: string[]): Promise<Row[]> { try { return await erpList<Row>(doctype, { fields, limit: 100, orderBy: "modified desc" }); } catch { return []; } }
 
 export default async function FinancePage() {
-  const [invoices, payments, quotes, vat] = await Promise.all([
-    safeList("Sales Invoice", ["name", "customer", "status", "grand_total", "outstanding_amount", "due_date", "modified"]),
-    safeList("Payment Entry", ["name", "party", "payment_type", "paid_amount", "received_amount", "posting_date", "modified"]),
-    safeList("Quotation", ["name", "party_name", "status", "grand_total", "transaction_date", "modified"]),
-    safeList("Fuze VAT Return", ["name", "company", "status", "vat_payable", "to_date", "modified"]),
+  const [accounting, sales, compliance, invoicesData, quotesData] = await Promise.all([
+    fuzeData<Row>("fuze_suite.api.accounting.get_dashboard", {}, {}),
+    fuzeData<Row>("fuze_suite.api.sales.get_dashboard", {}, {}),
+    fuzeData<Row>("fuze_suite.api.compliance.get_compliance_dashboard", {}, {}),
+    fuzeData<Row>("fuze_suite.api.accounting.get_invoices", {}, {}),
+    fuzeData<Row>("fuze_suite.api.sales.get_quotations", {}, {}),
   ]);
-  const rows = [...invoices, ...payments, ...quotes, ...vat];
-  const revenue = invoices.reduce((sum, row) => sum + Number(row.grand_total || 0), 0);
-  const outstanding = invoices.reduce((sum, row) => sum + Number(row.outstanding_amount || 0), 0);
+  const cards = (accounting.cards || {}) as Row;
+  const salesCards = (sales.cards || {}) as Row;
+  const invoices = rowsFrom(invoicesData, ["invoices", "rows", "data"]);
+  const quotes = rowsFrom(quotesData, ["quotations", "quotes", "rows", "data"]);
   return <ModernModuleDashboard
     title="Finance & Compliance"
     eyebrow="Finance Workspace"
-    description="Create invoices and quotes, track payments, monitor VAT and keep compliance records simple for South African businesses."
-    rows={rows}
-    tabs={["Finance Dashboard", "Invoices", "Quotes", "Payments", "Expenses", "VAT", "Compliance"]}
-    metrics={[{ label: "Revenue", value: `R${revenue.toLocaleString()}`, hint: "Sales invoice total" }, { label: "Outstanding", value: `R${outstanding.toLocaleString()}`, hint: "Awaiting payment" }, { label: "Payments", value: payments.length, hint: "Payment entries" }, { label: "VAT", value: vat.length, hint: "VAT return records" }]}
+    description="Invoices, quotes, VAT and SA compliance are loaded from controlled Fuze APIs."
+    rows={[...invoices, ...quotes]}
+    tabs={["Finance Dashboard", "Invoices", "Quotes", "Payments", "VAT", "Compliance"]}
+    metrics={[
+      { label: "Revenue", value: money(cards.monthly_revenue || salesCards.revenue), hint: "Current month" },
+      { label: "Outstanding", value: money(cards.receivables), hint: "Awaiting payment" },
+      { label: "Quotes", value: Number(salesCards.quotations || quotes.length), hint: "Sales proposals" },
+      { label: "Compliance Tasks", value: Number(compliance.open_tasks || 0), hint: "SA compliance" },
+    ]}
     actions={[{ label: "Create Invoice", href: "/portal/invoices", description: "Bill your customer" }, { label: "Create Quote", href: "/portal/quotes", description: "Send a proposal" }, { label: "Record Payment", href: "/portal/payments", description: "Capture customer payment" }, { label: "Review VAT", href: "/portal/vat", description: "Open VAT records" }]}
     primaryField="name"
     secondaryField="customer"

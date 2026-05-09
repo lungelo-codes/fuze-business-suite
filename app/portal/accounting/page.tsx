@@ -1,48 +1,43 @@
 import ModernModuleDashboard from "@/components/modules/ModernModuleDashboard";
-import { erpList } from "@/lib/server/erpnext";
+import { fuzeData, money, rowsFrom } from "@/lib/server/fuzeApi";
 
 type Row = Record<string, unknown>;
-async function safeList(doctype: string, fields: string[]): Promise<Row[]> {
-  try { return await erpList<Row>(doctype, { fields, limit: 100, orderBy: "modified desc" }); } catch { return []; }
-}
 
 export default async function AccountingPage() {
-  const [journals, accounts, costCentres, budgets] = await Promise.all([
-    safeList("Journal Entry", ["name", "voucher_type", "posting_date", "total_debit", "total_credit", "remark", "docstatus", "modified"]),
-    safeList("Account", ["name", "account_name", "account_type", "root_type", "is_group", "modified"]),
-    safeList("Cost Center", ["name", "cost_center_name", "is_group", "modified"]),
-    safeList("Budget", ["name", "budget_against", "fiscal_year", "modified"]),
+  const [dashboard, invoicesData, billsData] = await Promise.all([
+    fuzeData<Row>("fuze_suite.api.accounting.get_dashboard", {}, {}),
+    fuzeData<Row>("fuze_suite.api.accounting.get_invoices", {}, {}),
+    fuzeData<Row>("fuze_suite.api.accounting.get_bills", {}, {}),
   ]);
 
-  const totalDebit = journals.reduce((sum, j) => sum + Number(j.total_debit || 0), 0);
-  const submitted = journals.filter((j) => Number(j.docstatus) === 1).length;
-  const rows = [...journals, ...accounts];
+  const cards = (dashboard.cards || {}) as Row;
+  const invoices = rowsFrom(invoicesData, ["invoices", "rows", "data"]);
+  const bills = rowsFrom(billsData, ["bills", "purchase_invoices", "rows", "data"]);
 
   return (
     <ModernModuleDashboard
       title="Accounting"
       eyebrow="Finance Workspace"
-      description="Full general ledger, journal entries, chart of accounts, cost centres and budgets. Powered by ERPNext v16 — open source and SARS-compliant."
-      rows={rows}
-      tabs={["Accounting Dashboard", "Journal Entries", "Chart of Accounts", "Cost Centres", "Budgets"]}
+      description="Income, expenses, receivables, payables and profit are now loaded through your simplified Fuze accounting API."
+      rows={[...invoices, ...bills]}
+      tabs={["Accounting Dashboard", "Sales Invoices", "Supplier Bills", "Profit & Loss", "VAT"]}
       metrics={[
-        { label: "Journals", value: journals.length, hint: `${submitted} submitted` },
-        { label: "Total Debit", value: `R${totalDebit.toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`, hint: "All journal entries" },
-        { label: "Accounts", value: accounts.length, hint: "Chart of accounts" },
-        { label: "Cost Centres", value: costCentres.length, hint: "Active cost centres" },
+        { label: "Receivables", value: money(cards.receivables), hint: "Customer amounts due" },
+        { label: "Payables", value: money(cards.payables), hint: "Supplier amounts due" },
+        { label: "Revenue", value: money(cards.monthly_revenue), hint: "Current month" },
+        { label: "Profit", value: money(cards.monthly_profit), hint: "Revenue less expenses" },
       ]}
       actions={[
-        { label: "New Journal", href: "/portal/accounting", description: "Post a manual journal entry" },
-        { label: "Bank Reconciliation", href: "/portal/bank-reconciliation", description: "Match bank statements" },
-        { label: "VAT Return", href: "/portal/vat", description: "Review VAT periods" },
-        { label: "Reports", href: "/portal/reports", description: "P&L, Balance Sheet, Trial Balance" },
+        { label: "Create Invoice", href: "/portal/invoices", description: "Bill your customer" },
+        { label: "Record Payment", href: "/portal/payments", description: "Capture money received" },
+        { label: "VAT", href: "/portal/vat", description: "Review VAT compliance" },
+        { label: "Reports", href: "/portal/reports", description: "P&L and balance reports" },
       ]}
-      primaryField="voucher_type"
-      secondaryField="remark"
-      statusField="docstatus"
-      valueField="total_debit"
+      primaryField="customer"
+      secondaryField="posting_date"
+      statusField="status"
+      valueField="grand_total"
       mode="finance"
     />
   );
 }
-

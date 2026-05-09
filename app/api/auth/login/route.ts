@@ -8,6 +8,8 @@ import {
   TENANT_COOKIE,
   getModulesForPlan,
 } from "@/lib/modules";
+import { signValue } from "@/lib/server/signedCookie";
+import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/server/rateLimit";
 
 const MASTER_ERPNEXT_URL =
   process.env.ERPNEXT_URL ||
@@ -221,6 +223,11 @@ async function fetchTenantContext(site?: string, email?: string): Promise<Tenant
 }
 
 export async function POST(req: Request) {
+  // Rate limit: 10 attempts per IP per 15 minutes
+  const ip = getClientIp(req);
+  const rl = rateLimit(`login:${ip}`, 10, 15 * 60 * 1000);
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt);
+
   try {
     const { email, password, site } = (await req.json()) as LoginBody;
     const backendUrl = normalizeBackendUrl(site);
@@ -283,7 +290,7 @@ export async function POST(req: Request) {
     });
 
     const secure = process.env.NODE_ENV === "production";
-    const common = { httpOnly: false, sameSite: "lax" as const, secure, path: "/", maxAge: 60 * 60 * 24 };
+    const common = { httpOnly: true, sameSite: "lax" as const, secure, path: "/", maxAge: 60 * 60 * 24 };
     const long = { ...common, maxAge: 365 * 86400 };
 
     response.cookies.set("sid", sid, common);
@@ -295,7 +302,7 @@ export async function POST(req: Request) {
     response.cookies.set(ROLE_COOKIE, isAdmin ? "admin" : "customer", common);
     response.cookies.set(PLAN_COOKIE, tenant.plan, common);
     response.cookies.set(COMPANY_COOKIE, encodeURIComponent(tenant.companyName), common);
-    response.cookies.set(MODULE_COOKIE, encodeURIComponent(JSON.stringify(tenant.modules)), common);
+    response.cookies.set(MODULE_COOKIE, signValue(encodeURIComponent(JSON.stringify(tenant.modules))), common);
 
     return response;
   } catch (error) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getModulesForPlan } from "@/lib/modules";
+import { unsignValue } from "@/lib/server/signedCookie";
 
 const PUBLIC_PATHS = [
   "/",
@@ -78,13 +79,19 @@ function pathMatches(pathname: string, path: string) {
 
 function parseActiveModules(request: NextRequest): string[] {
   const plan = request.cookies.get("fuze_plan")?.value || "Starter";
-  const modulesCookie = request.cookies.get("fuze_modules")?.value;
+  const signedModules = request.cookies.get("fuze_modules")?.value;
 
-  if (modulesCookie) {
-    try {
-      const parsed = JSON.parse(decodeURIComponent(modulesCookie));
-      if (Array.isArray(parsed) && parsed.length) return parsed.map(String);
-    } catch {}
+  if (signedModules) {
+    // Reject the cookie if it has been tampered with
+    const verified = unsignValue(signedModules);
+    if (verified) {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(verified));
+        if (Array.isArray(parsed) && parsed.length) return parsed.map(String);
+      } catch {}
+    }
+    // Cookie present but signature invalid — deny all modules, force re-login
+    return [];
   }
 
   return getModulesForPlan(plan);

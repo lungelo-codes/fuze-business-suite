@@ -1,56 +1,44 @@
 import ModernModuleDashboard from "@/components/modules/ModernModuleDashboard";
-import { erpList } from "@/lib/server/erpnext";
+import { fuzeData, money, rowsFrom } from "@/lib/server/fuzeApi";
 
 type Row = Record<string, unknown>;
-async function safeList(doctype: string, fields: string[]): Promise<Row[]> {
-  try { return await erpList<Row>(doctype, { fields, limit: 100, orderBy: "modified desc" }); } catch { return []; }
-}
 
 export default async function CRMPage() {
-  // Try Frappe CRM app doctypes first, fall back to ERPNext CRM doctypes
-  const [frappeDeals, leads, opportunities, quotes, crmNotes, crmActivities] = await Promise.all([
-    safeList("CRM Deal", ["name", "party_name", "status", "stage", "amount", "deal_owner", "expected_closing", "probability", "modified"]),
-    safeList("Lead", ["name", "lead_name", "company_name", "status", "email_id", "mobile_no", "lead_owner", "territory", "modified"]),
-    safeList("Opportunity", ["name", "party_name", "status", "opportunity_amount", "expected_closing", "probability", "sales_stage", "modified"]),
-    safeList("Quotation", ["name", "party_name", "status", "grand_total", "transaction_date", "modified"]),
-    safeList("CRM Note", ["name", "title", "modified"]),
-    safeList("CRM Activity", ["name", "type", "modified"]),
+  const [dashboard, pipelineData, leadsData] = await Promise.all([
+    fuzeData<Row>("fuze_suite.api.crm.get_dashboard", {}, {}),
+    fuzeData<Row>("fuze_suite.api.crm.get_pipeline", {}, {}),
+    fuzeData<Row>("fuze_suite.api.crm.get_leads", {}, {}),
   ]);
 
-  // Prefer Frappe CRM deals, fall back to ERPNext Opportunities for pipeline value
-  const pipelineSource = frappeDeals.length ? frappeDeals : opportunities;
-  const pipelineValue = pipelineSource.reduce((sum, row) =>
-    sum + Number(row.amount || row.opportunity_amount || 0), 0);
-
-  const rows = [...(frappeDeals.length ? frappeDeals : opportunities), ...leads, ...quotes];
-  const wonDeals = pipelineSource.filter((r) =>
-    ["Won", "Converted"].includes(String(r.status || r.stage || "")));
+  const cards = (dashboard.cards || {}) as Row;
+  const pipeline = rowsFrom(pipelineData, ["pipeline", "deals", "opportunities", "rows", "data"]);
+  const leads = rowsFrom(leadsData, ["leads", "rows", "data"]);
+  const rows = [...pipeline, ...leads];
 
   return (
     <ModernModuleDashboard
       title="CRM Workspace"
       eyebrow="CRM & Sales"
-      description="Manage leads, deals, contacts and pipeline stages. Uses Frappe CRM app when installed; falls back to ERPNext CRM doctypes automatically."
+      description="A simplified sales workspace powered by your controlled Fuze Business Suite CRM API, not raw ERPNext fields."
       rows={rows}
-      tabs={["CRM Dashboard", "Pipeline", "Leads", "Opportunities", "Contacts", "Quotes", "Activities"]}
+      tabs={["CRM Dashboard", "Pipeline", "Leads", "Customers", "Activities"]}
       metrics={[
-        { label: "Open Leads", value: leads.length, hint: "Lead records" },
-        { label: "Pipeline", value: `R${pipelineValue.toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`, hint: frappeDeals.length ? "Frappe CRM deals" : "ERPNext opportunities" },
-        { label: "Quotes", value: quotes.length, hint: "Quotation records" },
-        { label: "Won", value: wonDeals.length, hint: "Closed won deals" },
+        { label: "Leads", value: Number(cards.leads || leads.length), hint: "Controlled lead records" },
+        { label: "Deals", value: Number(cards.deals || pipeline.length), hint: "Pipeline opportunities" },
+        { label: "Customers", value: Number(cards.customers || 0), hint: "Active customer base" },
+        { label: "Pipeline", value: money(cards.pipeline_value), hint: "Expected deal value" },
       ]}
       actions={[
-        { label: "Create Lead", href: "/portal/leads", description: "Capture a new sales prospect" },
-        { label: "Add Contact", href: "/portal/contacts", description: "Save decision makers and contacts" },
-        { label: "Create Quote", href: "/portal/quotes", description: "Send a customer proposal" },
-        { label: "View Pipeline", href: "/portal/opportunities", description: "Review active opportunities" },
+        { label: "Create Lead", href: "/portal/leads", description: "Capture a new prospect" },
+        { label: "Pipeline", href: "/portal/opportunities", description: "Review active deals" },
+        { label: "Create Quote", href: "/portal/quotes", description: "Send a proposal" },
+        { label: "Customers", href: "/portal/customers", description: "View customer records" },
       ]}
-      primaryField="lead_name"
-      secondaryField="company_name"
-      statusField="status"
-      valueField="opportunity_amount"
+      primaryField="title"
+      secondaryField="customer"
+      statusField="stage"
+      valueField="value"
       mode="crm"
     />
   );
 }
-
