@@ -165,7 +165,7 @@ export const CRUD_MODULES: Record<string, CrudModuleConfig> = {
       s("type", "Type", ["Earning", "Deduction"], true),
       f("is_tax_applicable", "Tax Applicable", "checkbox"),
       f("depends_on_payment_days", "Pro-rate on Working Days", "checkbox"),
-      s("statistical_component", "Statistical Only (no pay impact)", "checkbox" as FieldType),
+      f("statistical_component", "Statistical Only (no pay impact)", "checkbox"),
       txt("description", "Description"),
     ],
     defaults: { type: "Earning", is_tax_applicable: 0, depends_on_payment_days: 1 },
