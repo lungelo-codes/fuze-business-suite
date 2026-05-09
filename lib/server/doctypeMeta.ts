@@ -27,7 +27,29 @@ const PREF: Record<string,string[]> = {
  'Fuze CIPC Annual Return':['company','return_year','registration_number','anniversary_date','due_date','status','submission_date','annual_turnover','cipc_fee','payment_reference','cipc_reference','filed_by','notes'],
  'Fuze Audit Log':['user','action','timestamp','reference_doctype','reference_name','ip_address','details'],
  'Fuze Business Profile':['company','trading_name','registration_number','industry','financial_year_end','base_currency','vat_registered','vat_registration_date','phone','email','website','street_address','suburb','city','province','postal_code','bank_name','account_number','branch_code'],
- Attendance:['employee','employee_name','attendance_date','status','working_hours','company'], 'Leave Application':['employee','employee_name','leave_type','from_date','to_date','total_leave_days','status','description'], 'Salary Slip':['employee','employee_name','start_date','end_date','posting_date','payroll_frequency','gross_pay','net_pay','status'], ToDo:['description','reference_type','reference_name','date','allocated_to','assigned_by','priority','status']
+ Attendance:['employee','employee_name','attendance_date','status','working_hours','company'], 'Leave Application':['employee','employee_name','leave_type','from_date','to_date','total_leave_days','status','description'], 'Salary Slip':['employee','employee_name','start_date','end_date','posting_date','payroll_frequency','gross_pay','net_pay','status'], ToDo:['description','reference_type','reference_name','date','allocated_to','assigned_by','priority','status'],
+ // Frappe CRM Doctypes
+ 'CRM Lead':['lead_name','company_name','status','email','mobile_no','phone','territory','website','city','country'],
+ 'CRM Deal':['deal_owner','party_name','status','stage','amount','expected_closing','probability','contact_person','description'],
+ 'CRM Note':['deal','title','content','creation','owner'],
+ 'CRM Activity':['deal','activity_type','subject','due_date','status','owner'],
+ // Frappe Helpdesk Doctypes
+ 'HD Ticket':['title','description','status','priority','customer','raised_by','agent_assigned','sla','creation','modified'],
+ 'HD SLA':['name','response_time','resolution_time','priority'],
+ 'HD Agent':['agent_name','email','status','team'],
+ 'HD Team':['team_name','description','members'],
+ 'HD Article':['title','content','category','status','creation','modified'],
+ // Enhanced HR Doctypes
+ 'Employee Onboarding':['employee','employee_name','status','onboarding_date','completion_date','owner'],
+ 'Shift Assignment':['employee','employee_name','shift','start_date','end_date','status'],
+ // Procurement Doctypes
+ 'Material Request':['name','material_request_type','status','creation','modified'],
+ 'Request for Quotation':['name','status','supplier_count','creation','modified'],
+ 'Supplier Quotation':['name','supplier','rfq_no','status','total','creation','modified'],
+ 'Purchase Receipt':['name','supplier','posting_date','status','total_qty','total','creation','modified'],
+ // Additional Sales Doctypes
+ 'Delivery Note':['name','customer','posting_date','status','total_qty','grand_total','creation','modified'],
+ 'Pricing Rule':['name','title','applicable_for','selling','buying','status','creation','modified']
 }
 function title(n:string){return n.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}
 function mapType(t?:string):FieldType{ if(['Int','Float','Currency','Percent'].includes(t||''))return'number'; if(t==='Date')return'date'; if(t==='Datetime')return'datetime-local'; if(t==='Select')return'select'; if(['Small Text','Text','Text Editor','Long Text','Code'].includes(t||''))return'textarea'; if(t==='Check')return'checkbox'; if(t==='Phone')return'tel'; if(t==='Email')return'email'; return'text'}
