@@ -160,11 +160,30 @@ async function parseResponse<T>(res: Response, fallbackMessage: string): Promise
   return json as T;
 }
 
+function unwrapMethodData<T>(value: unknown): T | null {
+  const outer = value as { message?: unknown; data?: unknown };
+  const payload = outer?.message ?? outer?.data ?? outer;
+  if (payload && typeof payload === "object") {
+    const body = payload as { success?: boolean; data?: T; message?: string };
+    if (body.success === false) throw new BusinessSuiteError(body.message || "Business Suite API failed");
+    if ("data" in body) return body.data as T;
+  }
+  return payload as T;
+}
+
 export function getERPNextBaseUrl(): string {
   return getRuntimeBackendUrl();
 }
 
 export async function erpGet<T>(path: string): Promise<T> {
+  const resource = path.match(/^\/api\/resource\/([^/?]+)\/([^?]+)$/);
+  if (resource && decodeURIComponent(resource[1]) !== "DocType") {
+    const doctype = decodeURIComponent(resource[1]);
+    const name = decodeURIComponent(resource[2]);
+    const doc = await erpMethod<T>("fuze_suite.api.business_crud.get_doctype", { doctype, name });
+    return doc as T;
+  }
+
   const baseUrl = getRuntimeBackendUrl();
   const res = await fetch(`${baseUrl}${path}`, {
     headers: authHeaders(),
@@ -190,36 +209,17 @@ export async function erpPost<T>(path: string, body: Record<string, unknown>): P
 }
 
 export async function erpPatch<T>(doctype: string, name: string, body: Record<string, unknown>): Promise<T> {
-  const baseUrl = getRuntimeBackendUrl();
-  const res = await fetch(
-    `${baseUrl}/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(),
-      },
-      body: JSON.stringify(body),
-      cache: "no-store",
-    }
-  );
-
-  const response = await parseResponse<ERPDocumentResponse<T>>(res, "Could not update record");
-  return (response.data ?? response.message) as T;
+  const result = await erpMethod<T>("fuze_suite.api.business_crud.update_doctype", {
+    doctype,
+    name,
+    values: body,
+  });
+  if (!result) throw new BusinessSuiteError(`Could not update ${doctype}`);
+  return result;
 }
 
 export async function erpDelete(doctype: string, name: string): Promise<boolean> {
-  const baseUrl = getRuntimeBackendUrl();
-  const res = await fetch(
-    `${baseUrl}/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`,
-    {
-      method: "DELETE",
-      headers: authHeaders(),
-      cache: "no-store",
-    }
-  );
-
-  await parseResponse<unknown>(res, "Could not delete record");
+  await erpMethod("fuze_suite.api.business_crud.delete_doctype", { doctype, name });
   return true;
 }
 
@@ -227,24 +227,28 @@ export async function erpList<T>(
   doctype: string,
   options: { fields?: string[]; filters?: unknown[]; limit?: number; orderBy?: string } = {}
 ): Promise<T[]> {
-  const response = await erpGet<ERPListResponse<T>>(resourceListPath(doctype, options));
-  return response.data ?? response.message ?? [];
+  const rows = await erpMethod<T[]>("fuze_suite.api.business_crud.list_doctype", {
+    doctype,
+    fields: options.fields || ["name", "modified"],
+    filters: options.filters || [],
+    limit: options.limit ?? 100,
+    order_by: options.orderBy || "modified desc",
+  });
+  return Array.isArray(rows) ? rows : [];
 }
 
 export async function erpCreate<T>(doctype: string, doc: Record<string, unknown>): Promise<T> {
-  const response = await erpPost<ERPDocumentResponse<T>>(
-    `/api/resource/${encodeURIComponent(doctype)}`,
-    doc
-  );
-
-  const created = response.data ?? response.message;
+  const created = await erpMethod<T>("fuze_suite.api.business_crud.create_doctype", {
+    doctype,
+    values: doc,
+  });
   if (!created) throw new BusinessSuiteError(`Could not create ${doctype}`);
   return created;
 }
 
 export async function erpExists(doctype: string, name: string): Promise<boolean> {
   try {
-    await erpGet(`/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`);
+    await erpMethod("fuze_suite.api.business_crud.get_doctype", { doctype, name });
     return true;
   } catch {
     return false;
@@ -252,6 +256,6 @@ export async function erpExists(doctype: string, name: string): Promise<boolean>
 }
 
 export async function erpMethod<T>(method: string, body: Record<string, unknown>): Promise<T | null> {
-  const response = await erpPost<ERPDocumentResponse<T>>(`/api/method/${method}`, body);
-  return response.data ?? response.message ?? null;
+  const response = await erpPost<ERPDocumentResponse<T> | { message?: unknown; data?: unknown }>(`/api/method/${method}`, body);
+  return unwrapMethodData<T>(response);
 }

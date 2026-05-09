@@ -1,62 +1,43 @@
-import type { CrudField, CrudModuleConfig, FieldType } from '@/lib/crudConfig'
-import { erpGet } from '@/lib/server/erpnext'
+import type { CrudField, CrudModuleConfig } from '@/lib/crudConfig'
 
 type Any = Record<string, any>
 export type DocFieldMeta = { fieldname: string; label?: string; fieldtype?: string; options?: string; reqd?: 0 | 1; read_only?: 0 | 1; hidden?: 0 | 1; default?: unknown }
 export type ModuleMeta = { doctype: string; title: string; fields: CrudField[]; tableFields: CrudField[]; listFields: string[]; defaults: Record<string, unknown>; allowedFieldnames: string[]; rawFields: DocFieldMeta[]; fromERPNext: boolean }
-const SKIP = new Set(['Section Break','Column Break','Tab Break','HTML','Button','Fold','Heading','Table','Table MultiSelect'])
 const SYSTEM = new Set(['name','owner','creation','modified','modified_by','idx','docstatus','parent','parentfield','parenttype'])
-const PREF: Record<string,string[]> = {
- Customer:['customer_name','customer_type','customer_group','territory','email_id','mobile_no','tax_id','customer_primary_contact','customer_primary_address'],
- Supplier:['supplier_name','supplier_type','supplier_group','country','tax_id','website','supplier_primary_contact','supplier_primary_address','default_currency','default_price_list','payment_terms','supplier_details'],
- Lead:['lead_name','company_name','status','email_id','mobile_no','phone','territory','website','city','country'],
- Opportunity:['opportunity_from','party_name','status','sales_stage','opportunity_amount','expected_closing','probability','contact_person','customer_name','description'],
- Employee:['first_name','middle_name','last_name','employee_name','company','department','designation','branch','status','date_of_joining','cell_number','personal_email','company_email','gender','date_of_birth','reports_to'],
- Department:['department_name','company','parent_department','disabled'], Designation:['designation_name'],
- Item:['item_code','item_name','item_group','stock_uom','is_stock_item','disabled','description'], Project:['project_name','customer','status','expected_start_date','expected_end_date','percent_complete'], Task:['subject','project','status','priority','exp_start_date','exp_end_date','description'],
- 'Sales Invoice':['customer','posting_date','due_date','currency','grand_total','outstanding_amount','status'], Quotation:['quotation_to','party_name','customer_name','transaction_date','valid_till','order_type','status'], 'Sales Order':['customer','transaction_date','delivery_date','status','grand_total'], 'Purchase Order':['supplier','transaction_date','schedule_date','status','grand_total'], 'Payment Entry':['payment_type','party_type','party','posting_date','paid_amount','received_amount','mode_of_payment','reference_no','reference_date'],
 
- 'Fuze VAT Return':['company','status','from_date','to_date','submission_date','total_sales','output_vat','total_purchases','input_vat','net_vat','vat_payable','vat_refundable','efiling_reference','payment_reference','filing_notes'],
- 'Fuze PAYE Return':['company','month','year','status','employee_count','due_date','submission_date','total_gross','total_paye','total_uif_employee','total_uif_employer','total_sdl','total_emp201','payment_reference','notes'],
- 'Fuze UIF Declaration':['company','declaration_month','declaration_year','uif_reference','status','submission_date','due_date','employee_count','total_uif_employee','total_uif_employer','total_uif','declaration_notes'],
- 'Fuze SDL Declaration':['company','declaration_month','declaration_year','sdl_reference','status','submission_date','total_leviable_amount','sdl_rate','total_sdl','notes'],
- 'Fuze SARS Profile':['company','income_tax_ref','vat_number','paye_ref','uif_ref','sdl_ref','efiling_username','efiling_notes'],
- 'Fuze Company Compliance':['company','overall_status','last_reviewed','vat_compliant','paye_compliant','income_tax_compliant','annual_return_compliant','beneficial_ownership_filed','uif_registered','uif_declarations_current','compliance_notes'],
- 'Fuze Compliance Calendar':['title','category','sub_category','priority','due_date','status','reference_url','description','completed_date','completed_by','notes'],
- 'Fuze Compliance Reminder':['compliance_item','title','reminder_date','days_before_due','sent','sent_at','sent_to'],
- 'Fuze CIPC Annual Return':['company','return_year','registration_number','anniversary_date','due_date','status','submission_date','annual_turnover','cipc_fee','payment_reference','cipc_reference','filed_by','notes'],
- 'Fuze Audit Log':['user','action','timestamp','reference_doctype','reference_name','ip_address','details'],
- 'Fuze Business Profile':['company','trading_name','registration_number','industry','financial_year_end','base_currency','vat_registered','vat_registration_date','phone','email','website','street_address','suburb','city','province','postal_code','bank_name','account_number','branch_code'],
- Attendance:['employee','employee_name','attendance_date','status','working_hours','company'], 'Leave Application':['employee','employee_name','leave_type','from_date','to_date','total_leave_days','status','description'], 'Salary Slip':['employee','employee_name','start_date','end_date','posting_date','payroll_frequency','gross_pay','net_pay','status'], ToDo:['description','reference_type','reference_name','date','allocated_to','assigned_by','priority','status'],
- // Frappe CRM Doctypes
- 'CRM Lead':['lead_name','company_name','status','email','mobile_no','phone','territory','website','city','country'],
- 'CRM Deal':['deal_owner','party_name','status','stage','amount','expected_closing','probability','contact_person','description'],
- 'CRM Note':['deal','title','content','creation','owner'],
- 'CRM Activity':['deal','activity_type','subject','due_date','status','owner'],
- // Frappe Helpdesk Doctypes
- 'HD Ticket':['title','description','status','priority','customer','raised_by','agent_assigned','sla','creation','modified'],
- 'HD SLA':['name','response_time','resolution_time','priority'],
- 'HD Agent':['agent_name','email','status','team'],
- 'HD Team':['team_name','description','members'],
- 'HD Article':['title','content','category','status','creation','modified'],
- // Enhanced HR Doctypes
- 'Employee Onboarding':['employee','employee_name','status','onboarding_date','completion_date','owner'],
- 'Shift Assignment':['employee','employee_name','shift','start_date','end_date','status'],
- // Procurement Doctypes
- 'Material Request':['name','material_request_type','status','creation','modified'],
- 'Request for Quotation':['name','status','supplier_count','creation','modified'],
- 'Supplier Quotation':['name','supplier','rfq_no','status','total','creation','modified'],
- 'Purchase Receipt':['name','supplier','posting_date','status','total_qty','total','creation','modified'],
- // Additional Sales Doctypes
- 'Delivery Note':['name','customer','posting_date','status','total_qty','grand_total','creation','modified'],
- 'Pricing Rule':['name','title','applicable_for','selling','buying','status','creation','modified']
+// IMPORTANT:
+// This file intentionally no longer calls ERPNext DocType metadata endpoints.
+// The SaaS frontend must not depend on raw ERPNext permissions/fields.
+// Module contracts come from lib/crudConfig.ts and data flows through
+// fuze_suite.api.business_crud.* on the backend.
+
+export async function loadDocTypeFields(_doctype:string):Promise<DocFieldMeta[]> { return [] }
+
+export async function getModuleMeta(config:CrudModuleConfig):Promise<ModuleMeta>{
+  const allowed = new Set<string>(['name','modified','docstatus'])
+  for (const field of [...config.listFields, ...config.tableFields.map(f=>f.name), ...config.formFields.map(f=>f.name)]) {
+    if (field && !SYSTEM.has(field)) allowed.add(field)
+  }
+  const listFields = Array.from(new Set(['name', ...config.listFields, 'modified'].filter(Boolean)))
+  return {
+    doctype: config.doctype,
+    title: config.title,
+    fields: config.formFields,
+    tableFields: config.tableFields,
+    listFields,
+    defaults: config.defaults || {},
+    allowedFieldnames: Array.from(allowed),
+    rawFields: [],
+    fromERPNext: false,
+  }
 }
-function title(n:string){return n.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}
-function mapType(t?:string):FieldType{ if(['Int','Float','Currency','Percent'].includes(t||''))return'number'; if(t==='Date')return'date'; if(t==='Datetime')return'datetime-local'; if(t==='Select')return'select'; if(['Small Text','Text','Text Editor','Long Text','Code'].includes(t||''))return'textarea'; if(t==='Check')return'checkbox'; if(t==='Phone')return'tel'; if(t==='Email')return'email'; return'text'}
-function opts(f:DocFieldMeta){return f.fieldtype==='Select'&&f.options?String(f.options).split('\n').map(x=>x.trim()).filter(Boolean):undefined}
-export function crudFieldFromDocField(f:DocFieldMeta):CrudField|null{ if(!f.fieldname||f.hidden||SKIP.has(f.fieldtype||''))return null; const isLink=f.fieldtype==='Link'; return {name:f.fieldname,label:f.label||title(f.fieldname),type:mapType(f.fieldtype),required:!!f.reqd,readOnly:!!f.read_only||SYSTEM.has(f.fieldname),options:opts(f),linkTo:isLink?f.options:undefined,placeholder:f.default?String(f.default):undefined} }
-function normalize(r:Any, doctype:string):Any|null{ const m=r?.message??r; if(Array.isArray(m?.docs)) return m.docs.find((d:Any)=>d.doctype==='DocType'&&d.name===doctype)||m.docs[0]; if(m?.doctype==='DocType')return m; if(r?.data?.fields)return r.data; return null }
-export async function loadDocTypeFields(doctype:string):Promise<DocFieldMeta[]>{ try{ const r=await erpGet<Any>(`/api/method/frappe.desk.form.load.getdoctype?doctype=${encodeURIComponent(doctype)}&with_parent=1`); const d=normalize(r,doctype); if(Array.isArray(d?.fields))return d.fields }catch{} try{ const r=await erpGet<Any>(`/api/resource/DocType/${encodeURIComponent(doctype)}`); const d=r?.data??r?.message??r; if(Array.isArray(d?.fields))return d.fields }catch{} return [] }
-function order(fields:CrudField[],doctype:string){const pref=PREF[doctype]||[], map=new Map(fields.map(f=>[f.name,f])), out:CrudField[]=[]; for(const n of pref){const f=map.get(n); if(f){out.push(f); map.delete(n)}} for(const f of fields)if(map.has(f.name)){out.push(f); map.delete(f.name)} return out}
-export async function getModuleMeta(config:CrudModuleConfig):Promise<ModuleMeta>{ const raw=await loadDocTypeFields(config.doctype); const allowed=new Set(raw.map(f=>f.fieldname).filter(Boolean)); const allowedFieldnames=['name','modified','docstatus',...Array.from(allowed)]; if(!raw.length)return{doctype:config.doctype,title:config.title,fields:config.formFields,tableFields:config.tableFields,listFields:config.listFields,defaults:config.defaults||{},allowedFieldnames,rawFields:[],fromERPNext:false}; const mapped=raw.map(crudFieldFromDocField).filter(Boolean) as CrudField[]; const fields=order(mapped.filter(f=>!f.readOnly),config.doctype).slice(0,36); const preferred=PREF[config.doctype]||[]; const tableNames=Array.from(new Set(['name',...preferred.filter(n=>allowed.has(n)),'status','docstatus','modified'])).filter(n=>n==='name'||n==='modified'||n==='docstatus'||allowed.has(n)).slice(0,10); const fmap=new Map(mapped.map(f=>[f.name,f])); const tableFields=tableNames.map(n=>fmap.get(n)||{name:n,label:title(n),readOnly:true}); const defaults:Record<string,unknown>={...(config.defaults||{})}; for(const f of raw) if(f.default!==undefined&&f.default!==null&&f.default!=='') defaults[f.fieldname]=f.default; return{doctype:config.doctype,title:config.title,fields:fields.length?fields:config.formFields,tableFields:tableFields.length?tableFields:config.tableFields,listFields:tableNames.length?tableNames:config.listFields,defaults,allowedFieldnames,rawFields:raw,fromERPNext:true} }
-export function sanitizeDocFromMeta(values:Record<string,unknown>,meta:ModuleMeta){ const doc:Record<string,unknown>={}, fmap=new Map(meta.rawFields.map(f=>[f.fieldname,f])); for(const [key,value] of Object.entries(values||{})){ if(SYSTEM.has(key)||!fmap.has(key))continue; const f=fmap.get(key)!; if(f.read_only||f.hidden||value===undefined||value==='')continue; if(f.fieldtype==='Table'){ if(Array.isArray(value))doc[key]=value; continue } if(f.fieldtype==='Check')doc[key]=value===true||value===1||value==='1'||value==='true'?1:0; else if(['Int','Float','Currency','Percent'].includes(f.fieldtype||''))doc[key]=Number(value||0); else doc[key]=value } return doc }
+
+export function sanitizeDocFromMeta(values:Record<string,unknown>, meta:ModuleMeta){
+  const allowed = new Set(meta.allowedFieldnames)
+  const doc:Record<string,unknown> = {}
+  for (const [key,value] of Object.entries(values || {})) {
+    if (SYSTEM.has(key) || !allowed.has(key) || value === undefined || value === '') continue
+    doc[key] = value
+  }
+  return doc
+}

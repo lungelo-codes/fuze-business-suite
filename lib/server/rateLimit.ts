@@ -15,11 +15,8 @@ const store = new Map<string, Window>();
 if (typeof setInterval !== "undefined") {
   setInterval(() => {
     const now = Date.now();
-
     store.forEach((win, key) => {
-      if (now > win.resetAt) {
-        store.delete(key);
-      }
+      if (now > win.resetAt) store.delete(key);
     });
   }, 5 * 60 * 1000);
 }
