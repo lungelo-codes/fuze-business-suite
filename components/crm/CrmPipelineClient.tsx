@@ -72,6 +72,7 @@ interface Props {
   initialPipelineSummary: AnyRecord;
   initialLeads: AnyRecord[];
   initialCustomers: AnyRecord[];
+  hideHeader?: boolean;
 }
 
 export default function CrmPipelineClient({
@@ -79,6 +80,7 @@ export default function CrmPipelineClient({
   initialPipelineSummary,
   initialLeads,
   initialCustomers,
+  hideHeader = false,
 }: Props) {
   const [leads, setLeads] = useState<AnyRecord[]>(initialLeads);
   const [customers, setCustomers] = useState<AnyRecord[]>(initialCustomers);
@@ -206,18 +208,20 @@ export default function CrmPipelineClient({
   return (
     <div className="crm-root">
       {/* Header */}
-      <div className="page-head">
-        <div>
-          <h1 className="page-title">CRM Pipeline</h1>
-          <div className="page-sub">Full customer lifecycle — New Lead to paying Customer</div>
+      {!hideHeader && (
+        <div className="page-head">
+          <div>
+            <h1 className="page-title">CRM Pipeline</h1>
+            <div className="page-sub">Full customer lifecycle — New Lead to paying Customer</div>
+          </div>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn" onClick={() => setModal({ type: "new_lead" })}>+ New Lead</button>
+            <button className="btn btn-primary" onClick={refresh} disabled={loading}>
+              {loading ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
         </div>
-        <div className="row" style={{ gap: 8 }}>
-          <button className="btn" onClick={() => setModal({ type: "new_lead" })}>+ New Lead</button>
-          <button className="btn btn-primary" onClick={refresh} disabled={loading}>
-            {loading ? "Refreshing…" : "Refresh"}
-          </button>
-        </div>
-      </div>
+      )}
 
       {message && (
         <div className={`banner ${message.toLowerCase().includes("business rule") || message.toLowerCase().includes("error") ? "warn" : "info"}`}>

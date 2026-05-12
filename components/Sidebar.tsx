@@ -45,8 +45,7 @@ const GROUPS: NavGroup[] = [
   { title: "Home", items: [{ label: "Dashboard", href: "/portal", icon: "dashboard" }] },
   { title: "CRM & Sales", items: [
     { label: "CRM Workspace", href: "/portal/crm", icon: "crm", module: "crm" },
-    { label: "Leads", href: "/portal/leads", icon: "target", module: "leads" },
-    { label: "Opportunities", href: "/portal/opportunities", icon: "target", module: "opportunities" },
+
     { label: "Customers", href: "/portal/customers", icon: "users", module: "customers" },
     { label: "Contacts", href: "/portal/contacts", icon: "users", module: "customers" },
     { label: "Quotes", href: "/portal/quotes", icon: "quote", module: "quotes" },
