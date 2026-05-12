@@ -14,18 +14,6 @@ interface ReportData {
   supportByStatus: { status: string; count: number }[];
 }
 
-type AnyRecord = Record<string, unknown>;
-
-interface InsightsData {
-  overview: AnyRecord;
-  revenueChart: AnyRecord;
-  customerGrowth: AnyRecord;
-  topCustomers: AnyRecord;
-  pipelineSummary: AnyRecord;
-  insightsQueries: AnyRecord;
-  insightsDashboards: AnyRecord;
-}
-
 const COLORS = ["#28A486", "#242048", "#F59E0B", "#EF4444", "#6366F1", "#EC4899"];
 
 function money(v: number) {
@@ -51,18 +39,15 @@ const skeletonStyle: React.CSSProperties = { background: "var(--demo-soft)", bor
 
 export default function ReportsPage() {
   const [data, setData] = useState<ReportData | null>(null);
-  const [insights, setInsights] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "finance" | "customers" | "operations" | "insights">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "finance" | "customers" | "operations">("overview");
 
   useEffect(() => {
-    Promise.allSettled([
-      fetch("/api/portal/reports").then((r) => (r.ok ? r.json() : null)),
-      fetch("/api/insights").then((r) => (r.ok ? r.json() : null)),
-    ]).then(([reportsRes, insightsRes]) => {
-      if (reportsRes.status === "fulfilled") setData(reportsRes.value as ReportData);
-      if (insightsRes.status === "fulfilled") setInsights(insightsRes.value as InsightsData);
-    }).catch(() => {}).finally(() => setLoading(false));
+    fetch("/api/portal/reports")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setData(d))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
@@ -152,13 +137,13 @@ export default function ReportsPage() {
         {/* Tab bar */}
         <div style={{ padding: "14px 18px 0", borderBottom: "1px solid var(--demo-line)" }}>
           <div className="demo-tabbar" style={{ padding: 0, marginBottom: -1 }}>
-            {(["overview","finance","customers","operations","insights"] as const).map((tab) => (
+            {(["overview","finance","customers","operations"] as const).map((tab) => (
               <button
                 key={tab}
                 className={activeTab === tab ? "active" : ""}
                 onClick={() => setActiveTab(tab)}
               >
-                {tab === "overview" ? "📊 Overview" : tab === "finance" ? "💰 Finance" : tab === "customers" ? "👥 Customers" : tab === "operations" ? "⚙️ Operations" : "🔍 Insights"}
+                {tab === "overview" ? "📊 Overview" : tab === "finance" ? "💰 Finance" : tab === "customers" ? "👥 Customers" : "⚙️ Operations"}
               </button>
             ))}
           </div>
@@ -259,103 +244,6 @@ export default function ReportsPage() {
               <div className="crud-empty" style={{ padding: 40 }}>
                 <b>No customer data yet</b>
                 <span>Add customers and invoices to see their analytics here.</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Insights (fuze_suite.api.insights) */}
-        {activeTab === "insights" && (
-          <div style={{ padding: 20 }}>
-            {!insights ? (
-              <div className="crud-empty" style={{ padding: 40 }}>
-                <b>Insights API not connected</b>
-                <span>Configure the fuze_suite.api.insights endpoint to see live insights here.</span>
-              </div>
-            ) : (
-              <div style={{ display: "grid", gap: 20 }}>
-                {/* Business Overview */}
-                {insights.overview && Object.keys(insights.overview).length > 0 && (
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 900, color: "var(--demo-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>Business Overview</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
-                      {Object.entries(insights.overview).filter(([k]) => k !== "_source").slice(0, 8).map(([key, value]) => (
-                        <div key={key} style={{ padding: "12px 14px", background: "var(--demo-soft)", borderRadius: 10 }}>
-                          <div style={{ fontSize: 11, color: "var(--demo-muted)", fontWeight: 700, marginBottom: 4, textTransform: "capitalize" }}>{key.replace(/_/g, " ")}</div>
-                          <div style={{ fontWeight: 900, fontSize: 18 }}>{String(value ?? "—")}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Revenue Chart from Insights API */}
-                {Array.isArray((insights.revenueChart as AnyRecord)?.chart) && (
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 900, color: "var(--demo-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>Revenue Trend (Insights API)</div>
-                    <div style={{ height: 220 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={(insights.revenueChart as AnyRecord).chart as { month: string; revenue: number }[]}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="var(--demo-line)" vertical={false} />
-                          <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--demo-muted)" }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fontSize: 11, fill: "var(--demo-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `R${(v/1000).toFixed(0)}k`} />
-                          <Tooltip formatter={(v: number) => [`R ${v.toLocaleString("en-ZA")}`, "Revenue"]} />
-                          <Line type="monotone" dataKey="revenue" stroke="#28A486" strokeWidth={2.5} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                )}
-
-                {/* Pipeline Summary */}
-                {insights.pipelineSummary && Object.keys(insights.pipelineSummary).length > 0 && (
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 900, color: "var(--demo-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>Pipeline Summary</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
-                      {Object.entries(insights.pipelineSummary).filter(([k]) => k !== "_source").slice(0, 6).map(([key, value]) => (
-                        <div key={key} style={{ padding: "12px 14px", background: "var(--demo-soft)", borderRadius: 10 }}>
-                          <div style={{ fontSize: 11, color: "var(--demo-muted)", fontWeight: 700, marginBottom: 4, textTransform: "capitalize" }}>{key.replace(/_/g, " ")}</div>
-                          <div style={{ fontWeight: 900, fontSize: 18 }}>{String(value ?? "—")}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Saved Insights Queries */}
-                {Array.isArray((insights.insightsQueries as AnyRecord)?.queries) && (
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 900, color: "var(--demo-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>Saved Insights Queries</div>
-                    <table className="demo-table">
-                      <thead><tr><th>#</th><th>Query Name</th><th>Type</th><th>Last Run</th></tr></thead>
-                      <tbody>
-                        {((insights.insightsQueries as AnyRecord).queries as AnyRecord[]).map((q, i) => (
-                          <tr key={i}>
-                            <td style={{ color: "var(--demo-muted)", fontWeight: 900 }}>{i + 1}</td>
-                            <td style={{ fontWeight: 700 }}>{String(q.title || q.name || "—")}</td>
-                            <td>{String(q.type || q.query_type || "—")}</td>
-                            <td>{String(q.last_run || q.modified || "—")}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* Insights Dashboards */}
-                {Array.isArray((insights.insightsDashboards as AnyRecord)?.dashboards) && (
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 900, color: "var(--demo-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>Insights Dashboards</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
-                      {((insights.insightsDashboards as AnyRecord).dashboards as AnyRecord[]).map((d, i) => (
-                        <div key={i} style={{ padding: "14px 16px", background: "var(--demo-soft)", borderRadius: 10, borderLeft: "3px solid #28A486" }}>
-                          <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 4 }}>{String(d.title || d.name || "Dashboard")}</div>
-                          <div style={{ fontSize: 11, color: "var(--demo-muted)" }}>{String(d.charts_count || 0)} charts</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>
