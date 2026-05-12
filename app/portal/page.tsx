@@ -86,7 +86,7 @@ export default async function DashboardPage() {
             <div className="demo-hero-actions">
               {moduleAllowed(active, "crm") ? <a className="btn btn-teal" href="/portal/crm">Open CRM</a> : null}
               {moduleAllowed(active, "invoices") ? <a className="btn btn-primary" href="/portal/invoices">Create Invoice</a> : null}
-              <a className="btn" href="/portal/reports">View Reports</a>
+              <a className="btn" href="/portal/reports">View Insights</a>
             </div>
           </div>
           <div className="demo-hero-plan">

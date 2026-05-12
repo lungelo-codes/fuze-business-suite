@@ -158,7 +158,7 @@ const NAV: NavGroup[] = [
   },
   {
     id: "reports",
-    label: "Reports",
+    label: "Insights",
     icon: "reports",
     href: "/portal/reports",
     subs: [],

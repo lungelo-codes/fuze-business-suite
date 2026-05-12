@@ -86,7 +86,7 @@ const GROUPS: NavGroup[] = [
     { label: "Appointments", href: "/portal/appointments", icon: "calendar", module: "appointments" },
   ]},
   { title: "Account", items: [
-    { label: "Reports", href: "/portal/reports", icon: "chart" },
+    { label: "Insights", href: "/portal/reports", icon: "chart" },
     { label: "Business Profile", href: "/portal/business-profile", icon: "settings" },
     { label: "Modules", href: "/portal/modules", icon: "box" },
     { label: "Billing", href: "/portal/billing", icon: "card" },

@@ -53,7 +53,7 @@ export default function ReportsPage() {
   if (loading) {
     return (
       <div className="demo-workspace animate-fade-up">
-        <div className="demo-module-titlebar"><div><h1>Reports</h1><p>Loading analytics…</p></div></div>
+        <div className="demo-module-titlebar"><div><h1>Insights</h1><p>Loading analytics…</p></div></div>
         <div className="demo-stat-grid">
           {[1,2,3,4].map((i) => (
             <div key={i} className="demo-stat-card">
@@ -78,7 +78,7 @@ export default function ReportsPage() {
   if (!data) {
     return (
       <div className="demo-workspace animate-fade-up">
-        <div className="demo-module-titlebar"><div><h1>Reports</h1><p>Business analytics and insights</p></div></div>
+        <div className="demo-module-titlebar"><div><h1>Insights</h1><p>Business analytics and insights</p></div></div>
         <div className="demo-panel" style={{ textAlign: "center", padding: "56px 24px" }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
           <h3 style={{ color: "var(--demo-text)", fontSize: 20, fontWeight: 900, margin: "0 0 8px" }}>No report data yet</h3>
@@ -115,7 +115,7 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="demo-module-titlebar">
         <div>
-          <h1>Reports</h1>
+          <h1>Insights</h1>
           <p>Business analytics and financial insights across all modules</p>
         </div>
         <div className="demo-module-actions">
