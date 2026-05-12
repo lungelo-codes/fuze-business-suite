@@ -1,287 +1,169 @@
-"use client";
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { api } from "@/lib/api";
-import { useWorkspace } from "./layout";
+import { cookies } from "next/headers";
+import { getDashboardData } from "@/lib/server/data";
+import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, getModulesForPlan } from "@/lib/modules";
+import { money } from "@/lib/mappers";
 
-function fmt(n: number) {
-  return "R " + Number(n || 0).toLocaleString("en-ZA", { minimumFractionDigits: 0 });
+function isOpenStatus(status?: string): boolean {
+  const value = (status || "").toLowerCase();
+  return value.includes("open") || value.includes("progress") || value.includes("waiting") || value.includes("overdue") || value.includes("pending");
 }
 
-function KPI({ label, value, hint, color = "", icon }: { label: string; value: string | number; hint?: string; color?: string; icon: string }) {
-  return (
-    <div className={`kpi ${color}`}>
-      <div className="ic-wrap">{icon}</div>
-      <div className="label">{label}</div>
-      <div className="val">{value}</div>
-      {hint && <div className="hint">{hint}</div>}
-    </div>
-  );
+function dateOnly(value?: string): string {
+  if (!value) return "-";
+  return value.split(" ")[0]?.split("T")[0] || value;
 }
 
-function MiniChart({ data }: { data: { month: string; revenue: number; expenses: number }[] }) {
-  if (!data.length) return <div className="empty">No chart data</div>;
-  const max = Math.max(...data.map((d) => d.revenue));
-  return (
-    <div className="mini-chart-wrap">
-      {data.map((d) => (
-        <div key={d.month} className="mini-bar-group" title={`${d.month}: R${d.revenue.toLocaleString()}`}>
-          <div className="mini-bar rev" style={{ height: `${(d.revenue / max) * 80}px` }} />
-          <div className="mini-bar exp" style={{ height: `${(d.expenses / max) * 80}px` }} />
-          <div className="mini-bar-label">{d.month.slice(5)}</div>
-        </div>
-      ))}
-      <div className="mini-legend">
-        <span><i className="dot-rev" />Revenue</span>
-        <span><i className="dot-exp" />Expenses</span>
-      </div>
-    </div>
-  );
+function moduleAllowed(active: Set<string>, id: string) {
+  return active.has(id);
 }
 
-function ComplianceAlert({ items }: { items: { label: string; due: string; status: string; amount: number }[] }) {
-  return (
-    <div className="list">
-      {items.map((item) => (
-        <div key={item.label} className="list-row">
-          <div className={`chip ${item.status === "overdue" ? "danger" : item.status === "pending" ? "warn" : "ok"}`}>
-            {item.status === "overdue" ? "Overdue" : item.status === "pending" ? "Due Soon" : "Filed"}
-          </div>
-          <div>
-            <div className="t">{item.label}</div>
-            <div className="s">Due {item.due}</div>
-          </div>
-          <div className="r">
-            <div style={{ fontWeight: 700, color: item.status === "overdue" ? "var(--danger)" : "var(--navy-ink)" }}>
-              {fmt(item.amount)}
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+function initials(value?: string): string {
+  const text = value || "BS";
+  return text.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() || "").join("") || "BS";
 }
 
-export default function DashboardPage() {
-  const { hasModule, currency } = useWorkspace();
-  const [overview, setOverview] = useState<Record<string, number>>({});
-  const [chart, setChart] = useState<{ month: string; revenue: number; expenses: number }[]>([]);
-  const [topCustomers, setTopCustomers] = useState<{ name: string; total_revenue: number; invoice_count: number }[]>([]);
-  const [pipeline, setPipeline] = useState<{ stage: string; count: number; value: number }[]>([]);
-  const [loading, setLoading] = useState(true);
+function StatusPill({ status }: { status?: string }) {
+  const s = status || "Active";
+  const key = s.toLowerCase();
+  const cls = key.includes("overdue") || key.includes("urgent") ? "chip danger" : key.includes("pending") || key.includes("waiting") ? "chip warn" : "chip ok";
+  return <span className={cls}>{s}</span>;
+}
 
-  const COMPLIANCE_ALERTS = [
-    { label: "PAYE (Apr 2025)", due: "7 May 2025", status: "overdue", amount: 38400 },
-    { label: "UIF (Apr 2025)", due: "7 May 2025", status: "overdue", amount: 9100 },
-    { label: "VAT (Apr 2025)", due: "30 May 2025", status: "pending", amount: 84200 },
-    { label: "SDL (Apr 2025)", due: "7 May 2025", status: "pending", amount: 4800 },
-    { label: "CIPC Annual", due: "14 Sep 2025", status: "ok", amount: 1500 },
-  ];
-
-  useEffect(() => {
-    (async () => {
-      const [ovRes, chartRes, custRes, pipeRes] = await Promise.allSettled([
-        api.getBusinessOverview(),
-        api.getRevenueChart(undefined, 6),
-        api.getTopCustomers(undefined, 5),
-        api.getPipelineSummary(),
-      ]);
-
-      if (ovRes.status === "fulfilled" && ovRes.value.data) {
-        const d = ovRes.value.data as { cards: Record<string, number> };
-        setOverview(d.cards ?? {});
-      }
-      if (chartRes.status === "fulfilled" && chartRes.value.data) {
-        const d = chartRes.value.data as { chart: { month: string; revenue: number; expenses: number }[] };
-        setChart(d.chart ?? []);
-      }
-      if (custRes.status === "fulfilled" && custRes.value.data) {
-        const d = custRes.value.data as { customers: { name: string; total_revenue: number; invoice_count: number }[] };
-        setTopCustomers(d.customers ?? []);
-      }
-      if (pipeRes.status === "fulfilled" && pipeRes.value.data) {
-        const d = pipeRes.value.data as { stages: { stage: string; count: number; value: number }[] };
-        setPipeline(d.stages ?? []);
-      }
-      setLoading(false);
-    })();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="page-loading">
-        <div className="loading-spinner" />
-        <p>Loading your business overview…</p>
-      </div>
-    );
-  }
-
+function StatCard({ label, value, hint, href, icon }: { label: string; value: string | number; hint: string; href: string; icon: string }) {
   return (
-    <div>
-      <div className="page-head">
+    <a href={href} className="demo-stat-card">
+      <div className="demo-stat-top">
         <div>
-          <h1 className="page-title">Good morning 👋</h1>
-          <p className="page-sub">Here&apos;s what needs your attention today — {new Date().toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long" })}</p>
+          <div className="demo-stat-label">{label}</div>
+          <div className="demo-stat-value">{value}</div>
+          <div className="demo-stat-hint">{hint}</div>
         </div>
+        <div className="demo-stat-icon">{icon}</div>
       </div>
+    </a>
+  );
+}
 
-      {/* ── Priority alerts ── */}
-      {(overview.overdue_invoices > 0 || COMPLIANCE_ALERTS.some((a) => a.status === "overdue")) && (
-        <div className="alert-banner">
-          <span className="alert-icon">⚠</span>
+export default async function DashboardPage() {
+  const cookieStore = await cookies();
+  const plan = cookieStore.get(PLAN_COOKIE)?.value || "Starter";
+  const companyName = cookieStore.get(COMPANY_COOKIE)?.value ? decodeURIComponent(cookieStore.get(COMPANY_COOKIE)?.value || "") : "your business";
+  let activeModules: string[] = [];
+  try { activeModules = JSON.parse(decodeURIComponent(cookieStore.get(MODULE_COOKIE)?.value || "[]")); } catch { activeModules = []; }
+  if (!activeModules.length) activeModules = getModulesForPlan(plan);
+  const active = new Set(activeModules);
+  const data = await getDashboardData();
+
+  const totalRevenue = data.invoices.reduce((sum, invoice) => sum + (invoice.grand_total ?? 0), 0);
+  const outstanding = data.invoices.reduce((sum, invoice) => sum + (invoice.outstanding_amount ?? 0), 0);
+  const openSupport = data.support.filter((ticket) => isOpenStatus(ticket.status)).length;
+  const openWork = data.tasks.filter((task) => isOpenStatus(task.status)).length + data.support.filter((ticket) => isOpenStatus(ticket.status)).length;
+  const totalPaid = data.payments.reduce((sum, p) => sum + (p.paid_amount ?? 0), 0);
+  const openQuotes = data.quotes.filter((q) => isOpenStatus(q.status) || (q.status || "").toLowerCase() === "open").length;
+
+  const records = [
+    ...data.invoices.slice(0, 2).map((row) => ({ module: "Finance", title: `${row.name} awaiting ${money(row.outstanding_amount || row.grand_total || 0)}`, status: row.status || "Invoice", owner: row.customer || "Customer", value: money(row.grand_total || 0), href: "/portal/invoices" })),
+    ...data.tasks.slice(0, 2).map((row) => ({ module: "Projects", title: row.subject || row.name, status: row.status || row.priority || "Open", owner: row.project || "Task", value: dateOnly(row.exp_end_date || row.modified), href: "/portal/tasks" })),
+    ...data.support.slice(0, 2).map((row) => ({ module: "Support", title: row.subject || row.name, status: row.status || row.priority || "Open", owner: row.customer || row.raised_by || "Customer", value: row.priority || "Normal", href: "/portal/support" })),
+    ...data.compliance.slice(0, 2).map((row) => ({ module: "Compliance", title: `${row.kind} • ${row.name}`, status: row.status || "Open", owner: row.company || "Company", value: dateOnly(row.due_date), href: "/portal/compliance" })),
+  ].slice(0, 7);
+
+  const alerts = [
+    { title: `${data.compliance.length} compliance records available`, module: "Finance & Compliance", href: "/portal/compliance", show: moduleAllowed(active, "compliance") },
+    { title: `${data.quotes.length} quotations in the sales workspace`, module: "CRM & Sales", href: "/portal/quotes", show: moduleAllowed(active, "quotes") },
+    { title: `${openWork} open tasks, tickets or support items`, module: "Operations", href: moduleAllowed(active, "tasks") ? "/portal/tasks" : "/portal/support", show: moduleAllowed(active, "tasks") || moduleAllowed(active, "support") },
+    { title: `${data.payments.length} payments captured`, module: "Finance", href: "/portal/payments", show: moduleAllowed(active, "payments") },
+  ].filter((a) => a.show);
+
+  return (
+    <div className="demo-workspace animate-fade-up">
+      <section className="demo-hero">
+        <div className="demo-hero-grid">
           <div>
-            <strong>Attention required:</strong>{" "}
-            {overview.overdue_invoices > 0 && `${overview.overdue_invoices} overdue invoices totalling approx. R 486,200. `}
-            {COMPLIANCE_ALERTS.filter((a) => a.status === "overdue").length > 0 &&
-              `${COMPLIANCE_ALERTS.filter((a) => a.status === "overdue").length} compliance submissions overdue.`}
-          </div>
-          <Link href="/portal/compliance" className="btn" style={{ marginLeft: "auto", flexShrink: 0 }}>
-            View compliance →
-          </Link>
-        </div>
-      )}
-
-      {/* ── Finance KPIs ── */}
-      {hasModule("accounting") && (
-        <>
-          <div className="section-label">Finance — this month</div>
-          <div className="kpi-grid">
-            <KPI icon="◇" label="Month Revenue" value={fmt(overview.month_revenue)} hint="May 2025" color="teal" />
-            <KPI icon="◈" label="Month Profit" value={fmt(overview.month_profit)} hint={`${overview.month_expenses ? Math.round((overview.month_profit / overview.month_revenue) * 100) : 0}% margin`} color="" />
-            <KPI icon="◎" label="Receivables" value={fmt(overview.receivables)} hint={`${overview.overdue_invoices ?? 0} overdue`} color="warn" />
-            <KPI icon="◯" label="Cash Position" value={fmt(overview.receivables - overview.payables)} hint="Estimated" color="" />
-          </div>
-        </>
-      )}
-
-      {/* ── CRM + Finance chart ── */}
-      <div className="two-col">
-        {hasModule("accounting") && (
-          <div className="card">
-            <div className="card-head">
-              <h3>Revenue vs Expenses — Last 6 months</h3>
-              <Link href="/portal/accounting" className="btn" style={{ fontSize: 12 }}>View finance →</Link>
-            </div>
-            <div className="card-body">
-              <MiniChart data={chart} />
+            <div className="demo-eyebrow">Welcome back</div>
+            <h1 className="demo-hero-title">{companyName}</h1>
+            <p className="demo-hero-copy">A live view of revenue, customers, open work, alerts, subscriptions and important records across every module you selected.</p>
+            <div className="demo-hero-actions">
+              {moduleAllowed(active, "crm") ? <a className="btn btn-teal" href="/portal/crm">Open CRM</a> : null}
+              {moduleAllowed(active, "invoices") ? <a className="btn btn-primary" href="/portal/invoices">Create Invoice</a> : null}
+              <a className="btn" href="/portal/reports">View Reports</a>
             </div>
           </div>
-        )}
-
-        {hasModule("crm") && (
-          <div className="card">
-            <div className="card-head">
-              <h3>Sales Pipeline</h3>
-              <Link href="/portal/crm" className="btn" style={{ fontSize: 12 }}>Open CRM →</Link>
+          <div className="demo-hero-plan">
+            <div className="demo-eyebrow">Subscription plan</div>
+            <h3>{plan}</h3>
+            <p className="demo-hero-copy">{activeModules.length} modules enabled for this tenant.</p>
+            <div className="demo-pill-row">
+              <div className="demo-pill-box"><span>Modules</span><b>{activeModules.length} active</b></div>
+              <div className="demo-pill-box"><span>Status</span><b>Active</b></div>
             </div>
-            <div className="card-body">
-              {pipeline.map((s) => (
-                <div key={s.stage} className="pipeline-mini-row">
-                  <div className="pipeline-mini-stage">{s.stage}</div>
-                  <div className="pipeline-mini-bar-wrap">
-                    <div
-                      className="pipeline-mini-bar"
-                      style={{ width: `${Math.min(100, (s.value / 600000) * 100)}%` }}
-                    />
-                  </div>
-                  <div className="pipeline-mini-val">{fmt(s.value)}</div>
-                  <div className="chip info" style={{ fontSize: 10 }}>{s.count}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Bottom row ── */}
-      <div className="three-col" style={{ marginTop: 18 }}>
-        {/* Top customers */}
-        {hasModule("accounting") && (
-          <div className="card">
-            <div className="card-head"><h3>Top Customers</h3></div>
-            <div className="list">
-              {topCustomers.map((c, i) => (
-                <div key={c.name} className="list-row">
-                  <div className="rank-num">{i + 1}</div>
-                  <div>
-                    <div className="t">{c.name}</div>
-                    <div className="s">{c.invoice_count} invoices</div>
-                  </div>
-                  <div className="r" style={{ fontWeight: 700 }}>{fmt(c.total_revenue)}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Compliance */}
-        {hasModule("compliance") && (
-          <div className="card">
-            <div className="card-head">
-              <h3>Compliance Deadlines</h3>
-              <Link href="/portal/compliance" className="btn" style={{ fontSize: 12 }}>All →</Link>
-            </div>
-            <ComplianceAlert items={COMPLIANCE_ALERTS.slice(0, 4)} />
-          </div>
-        )}
-
-        {/* HR quick stats */}
-        {hasModule("hr") && (
-          <div className="card">
-            <div className="card-head">
-              <h3>People</h3>
-              <Link href="/portal/hr" className="btn" style={{ fontSize: 12 }}>HR →</Link>
-            </div>
-            <div className="card-body">
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div className="stat-mini"><div className="stat-val">{overview.active_employees ?? 24}</div><div className="stat-lbl">Active staff</div></div>
-                <div className="stat-mini"><div className="stat-val">{overview.open_projects ?? 11}</div><div className="stat-lbl">Open projects</div></div>
-                <div className="stat-mini"><div className="stat-val">{overview.open_tasks ?? 43}</div><div className="stat-lbl">Open tasks</div></div>
-                <div className="stat-mini"><div className="stat-val">{overview.customers ?? 142}</div><div className="stat-lbl">Customers</div></div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Module upsells for locked modules ── */}
-      {(!hasModule("hr") || !hasModule("helpdesk") || !hasModule("insights")) && (
-        <div style={{ marginTop: 24 }}>
-          <div className="section-label">Unlock more modules</div>
-          <div className="upsell-grid">
-            {!hasModule("hr") && (
-              <div className="upsell-card">
-                <div className="upsell-icon">◎</div>
-                <div>
-                  <div style={{ fontWeight: 700 }}>People & HR</div>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>Employees, leave, payroll, attendance</div>
-                </div>
-                <Link href="/portal/settings" className="btn btn-teal" style={{ marginLeft: "auto", fontSize: 12 }}>Upgrade</Link>
-              </div>
-            )}
-            {!hasModule("helpdesk") && (
-              <div className="upsell-card">
-                <div className="upsell-icon">◬</div>
-                <div>
-                  <div style={{ fontWeight: 700 }}>Helpdesk</div>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>Customer support ticket management</div>
-                </div>
-                <Link href="/portal/settings" className="btn btn-teal" style={{ marginLeft: "auto", fontSize: 12 }}>Upgrade</Link>
-              </div>
-            )}
-            {!hasModule("insights") && (
-              <div className="upsell-card">
-                <div className="upsell-icon">◯</div>
-                <div>
-                  <div style={{ fontWeight: 700 }}>Insights & BI</div>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>Executive dashboards and reports</div>
-                </div>
-                <Link href="/portal/settings" className="btn btn-teal" style={{ marginLeft: "auto", fontSize: 12 }}>Upgrade</Link>
-              </div>
-            )}
           </div>
         </div>
-      )}
+      </section>
+
+      <section className="demo-stat-grid">
+        {moduleAllowed(active, "invoices") ? <StatCard label="Total Revenue" value={money(totalRevenue)} hint="Sales invoices" href="/portal/invoices" icon="₊" /> : null}
+        {moduleAllowed(active, "invoices") ? <StatCard label="Outstanding" value={money(outstanding)} hint="Unpaid balance" href="/portal/invoices" icon="!" /> : null}
+        {moduleAllowed(active, "customers")
+          ? <StatCard label="Customers" value={data.customers.length} hint="Customer records" href="/portal/customers" icon="★" />
+          : moduleAllowed(active, "employees")
+            ? <StatCard label="Employees" value={data.employees.length} hint="Staff records" href="/portal/employees" icon="👤" />
+            : <StatCard label="Active Modules" value={activeModules.length} hint="Enabled features" href="/portal/modules" icon="⚙" />}
+        {(moduleAllowed(active, "support") || moduleAllowed(active, "tasks"))
+          ? <StatCard label="Open Work" value={openWork} hint="Tasks and tickets" href={moduleAllowed(active, "tasks") ? "/portal/tasks" : "/portal/support"} icon="⚡" />
+          : null}
+        {moduleAllowed(active, "quotes")
+          ? <StatCard label="Quotations" value={data.quotes.length} hint={`${openQuotes} open`} href="/portal/quotes" icon="📋" />
+          : moduleAllowed(active, "payments")
+            ? <StatCard label="Total Paid" value={money(totalPaid)} hint="Payment entries" href="/portal/payments" icon="✓" />
+            : null}
+      </section>
+
+      <section className="demo-grid">
+        <div className="demo-panel">
+          <div className="demo-panel-head"><div><h3>Live Business Records</h3><p>Important records from your enabled modules.</p></div><a className="btn btn-sm" href="/portal/reports">View All</a></div>
+          <div className="overflow-auto">
+            <table className="demo-table">
+              <thead><tr><th>Module</th><th>Record</th><th>Status</th><th>Owner</th><th>Value</th></tr></thead>
+              <tbody>
+                {records.length ? records.map((record) => (
+                  <tr key={`${record.module}-${record.title}`} onClick={() => {}}>
+                    <td><a href={record.href} className="text-[#28a486] font-black">{record.module}</a></td>
+                    <td><a href={record.href}><b>{record.title}</b><div className="demo-record-sub">Click to open {record.module}</div></a></td>
+                    <td><StatusPill status={record.status} /></td>
+                    <td>{record.owner}</td>
+                    <td><b>{record.value}</b></td>
+                  </tr>
+                )) : <tr><td colSpan={5}>No records yet. Start by creating your first customer, invoice or task.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="demo-panel">
+          <div className="demo-panel-head"><div><h3>Action Required</h3><p>Click an item to open its module.</p></div></div>
+          <div className="demo-alert-list">
+            {alerts.length ? alerts.map((alert) => <a key={alert.title} href={alert.href} className="demo-alert">{alert.title}<span>{alert.module}</span></a>) : <div className="demo-alert">No urgent alerts<span>Your workspace is clear.</span></div>}
+          </div>
+        </div>
+      </section>
+
+      <section className="demo-section-grid">
+        <div className="demo-panel">
+          <div className="demo-panel-head"><div><h3>Recent Activity</h3><p>Latest business movement across your system.</p></div></div>
+          <div className="p-3 grid gap-2">
+            {[...data.chat.slice(0, 3).map((row) => ({ title: row.subject || row.communication_type || row.name, sub: row.sender || "System", href: "/portal/chat" })), ...data.appointments.slice(0, 2).map((row) => ({ title: row.subject || row.name, sub: dateOnly(row.starts_on), href: "/portal/appointments" }))].slice(0, 5).map((item) => <a key={`${item.href}-${item.title}`} href={item.href} className="demo-record-card"><span className="demo-record-avatar">{initials(item.title)}</span><span><span className="demo-record-title">{item.title}</span><span className="demo-record-sub">{item.sub}</span></span></a>)}
+          </div>
+        </div>
+        <div className="demo-panel">
+          <div className="demo-panel-head"><div><h3>Quick Actions</h3><p>Daily business shortcuts.</p></div></div>
+          <div className="p-4 demo-quick-actions">
+            {moduleAllowed(active, "customers") ? <a href="/portal/customers">Add Customer<span className="demo-record-sub">Open customer module</span></a> : null}
+            {moduleAllowed(active, "quotes") ? <a href="/portal/quotes">Create Quote<span className="demo-record-sub">Prepare proposal</span></a> : null}
+            {moduleAllowed(active, "invoices") ? <a href="/portal/invoices">Create Invoice<span className="demo-record-sub">Bill your client</span></a> : null}
+            {moduleAllowed(active, "documents") ? <a href="/portal/documents">Upload Document<span className="demo-record-sub">Attach files</span></a> : null}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

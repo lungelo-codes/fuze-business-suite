@@ -1,196 +1,61 @@
-// lib/modules.ts – Central module registry for Fuze Business Suite
-
-export type ModuleId =
-  | "dashboard" | "crm" | "accounting" | "compliance" | "hr"
-  | "projects" | "procurement" | "helpdesk" | "insights" | "settings";
-
-export interface Module {
-  id: ModuleId;
+export interface ModuleDef {
+  id: string;
   label: string;
   icon: string;
   description: string;
   path: string;
-  group: string;
-  color: string;
-  apiModules: string[]; // which backend python modules this uses
+  group: "Finance" | "CRM" | "Operations" | "People" | "Service";
+  addonPrice: number;
+  doctype?: string;
+  active?: boolean;
+  includedIn?: string[];
 }
 
-export const ALL_MODULES: Module[] = [
-  {
-    id: "dashboard",
-    label: "Dashboard",
-    icon: "⬡",
-    description: "Business overview and daily priorities",
-    path: "/portal",
-    group: "core",
-    color: "navy",
-    apiModules: ["insights"],
-  },
-  {
-    id: "crm",
-    label: "CRM & Sales",
-    icon: "◈",
-    description: "Pipeline, leads, opportunities, quotes",
-    path: "/portal/crm",
-    group: "sales",
-    color: "violet",
-    apiModules: ["crm", "sales"],
-  },
-  {
-    id: "accounting",
-    label: "Finance",
-    icon: "◇",
-    description: "Invoices, bills, payments, P&L",
-    path: "/portal/accounting",
-    group: "finance",
-    color: "teal",
-    apiModules: ["accounting"],
-  },
-  {
-    id: "compliance",
-    label: "Compliance",
-    icon: "◉",
-    description: "VAT, PAYE, UIF, SDL, CIPC",
-    path: "/portal/compliance",
-    group: "finance",
-    color: "orange",
-    apiModules: ["compliance"],
-  },
-  {
-    id: "hr",
-    label: "People & HR",
-    icon: "◎",
-    description: "Employees, leave, payroll, attendance",
-    path: "/portal/hr",
-    group: "people",
-    color: "green",
-    apiModules: ["hr"],
-  },
-  {
-    id: "projects",
-    label: "Projects",
-    icon: "◫",
-    description: "Projects, tasks, timesheets",
-    path: "/portal/projects",
-    group: "operations",
-    color: "blue",
-    apiModules: ["projects"],
-  },
-  {
-    id: "procurement",
-    label: "Procurement",
-    icon: "◭",
-    description: "Suppliers, purchase orders, inventory",
-    path: "/portal/procurement",
-    group: "operations",
-    color: "amber",
-    apiModules: ["procurement"],
-  },
-  {
-    id: "helpdesk",
-    label: "Helpdesk",
-    icon: "◬",
-    description: "Support tickets and SLA management",
-    path: "/portal/helpdesk",
-    group: "people",
-    color: "red",
-    apiModules: ["helpdesk"],
-  },
-  {
-    id: "insights",
-    label: "Reports",
-    icon: "◯",
-    description: "Operations reports, SaaS member company reports, BI dashboards",
-    path: "/portal/insights",
-    group: "core",
-    color: "indigo",
-    apiModules: ["insights"],
-  },
-  {
-    id: "settings",
-    label: "Settings",
-    icon: "◌",
-    description: "Workspace, users, modules",
-    path: "/portal/settings",
-    group: "core",
-    color: "grey",
-    apiModules: [],
-  },
+export const ALL_MODULES: ModuleDef[] = [
+  { id: "customers", label: "Customers", icon: "👥", description: "Manage your customer database", path: "/portal/customers", group: "Finance", addonPrice: 99, doctype: "Customer", active: true, includedIn: ["Starter", "Growth", "Business Pro"] },
+  { id: "invoices", label: "Invoices", icon: "📄", description: "Create and manage sales invoices", path: "/portal/invoices", group: "Finance", addonPrice: 149, doctype: "Sales Invoice", active: true, includedIn: ["Starter", "Growth", "Business Pro"] },
+  { id: "quotes", label: "Quotes", icon: "💬", description: "Generate and track quotations", path: "/portal/quotes", group: "Finance", addonPrice: 99, doctype: "Quotation", active: true, includedIn: ["Starter", "Growth", "Business Pro"] },
+
+  { id: "crm", label: "CRM Pipeline", icon: "📌", description: "Lead and opportunity pipeline with sales stages", path: "/portal/crm", group: "CRM", addonPrice: 149, doctype: "Opportunity", active: true, includedIn: ["Growth", "Business Pro"] },
+  { id: "leads", label: "Leads", icon: "🧲", description: "Capture and qualify new leads", path: "/portal/leads", group: "CRM", addonPrice: 99, doctype: "Lead", active: true, includedIn: ["Growth", "Business Pro"] },
+  { id: "opportunities", label: "Opportunities", icon: "🎯", description: "Manage deals and sales opportunities", path: "/portal/opportunities", group: "CRM", addonPrice: 99, doctype: "Opportunity", active: true, includedIn: ["Growth", "Business Pro"] },
+  { id: "sales-orders", label: "Sales Orders", icon: "🧾", description: "Convert won sales into confirmed orders", path: "/portal/sales-orders", group: "CRM", addonPrice: 149, doctype: "Sales Order", active: true, includedIn: ["Business Pro"] },
+  { id: "contracts", label: "Contracts", icon: "📑", description: "Track customer agreements and contract dates", path: "/portal/contracts", group: "CRM", addonPrice: 129, doctype: "Contract", active: true, includedIn: ["Business Pro"] },
+  { id: "campaigns", label: "Campaigns", icon: "📣", description: "Plan and monitor sales and marketing campaigns", path: "/portal/campaigns", group: "CRM", addonPrice: 79, doctype: "Campaign", active: true, includedIn: ["Business Pro"] },
+  { id: "payments", label: "Payments", icon: "💳", description: "Record and reconcile payments", path: "/portal/payments", group: "Finance", addonPrice: 99, doctype: "Payment Entry", active: true, includedIn: ["Starter", "Growth", "Business Pro"] },
+  { id: "compliance", label: "Compliance", icon: "⚖️", description: "VAT, PAYE, UIF, SDL & CIPC tracking", path: "/portal/compliance", group: "Finance", addonPrice: 129, doctype: "ToDo", active: true, includedIn: ["Starter", "Growth", "Business Pro"] },
+  { id: "suppliers", label: "Suppliers", icon: "🚚", description: "Manage supplier relationships", path: "/portal/suppliers", group: "Operations", addonPrice: 99, doctype: "Supplier", active: true, includedIn: ["Growth", "Business Pro"] },
+  { id: "purchase-orders", label: "Purchase Orders", icon: "🛒", description: "Create and track purchase orders", path: "/portal/purchase-orders", group: "Operations", addonPrice: 149, doctype: "Purchase Order", active: true, includedIn: ["Growth", "Business Pro"] },
+  { id: "items", label: "Inventory", icon: "📦", description: "Track stock, products and services", path: "/portal/items", group: "Operations", addonPrice: 149, doctype: "Item", active: true, includedIn: ["Growth", "Business Pro"] },
+  { id: "projects", label: "Projects", icon: "📊", description: "Plan and track projects", path: "/portal/projects", group: "Operations", addonPrice: 149, doctype: "Project", active: true, includedIn: ["Growth", "Business Pro"] },
+  { id: "tasks", label: "Tasks", icon: "✅", description: "Assign and manage team tasks", path: "/portal/tasks", group: "Operations", addonPrice: 79, doctype: "Task", active: true, includedIn: ["Growth", "Business Pro"] },
+  { id: "documents", label: "Documents", icon: "📁", description: "Google Drive, Dropbox and ERPNext files", path: "/portal/documents", group: "Operations", addonPrice: 129, doctype: "File", active: true, includedIn: ["Business Pro"] },
+  { id: "employees", label: "Employees", icon: "👤", description: "HR records and employee management", path: "/portal/employees", group: "People", addonPrice: 149, doctype: "Employee", active: true, includedIn: ["Business Pro"] },
+  { id: "payroll", label: "Payroll", icon: "💰", description: "Payroll and salary processing", path: "/portal/payroll", group: "People", addonPrice: 249, doctype: "Salary Slip", active: true, includedIn: ["Business Pro"] },
+  { id: "leave", label: "Leave", icon: "🏖️", description: "Leave requests and approval workflow", path: "/portal/leave", group: "People", addonPrice: 99, doctype: "Leave Application", active: true, includedIn: ["Business Pro"] },
+  { id: "attendance", label: "Attendance", icon: "📋", description: "Track employee attendance and hours", path: "/portal/attendance", group: "People", addonPrice: 99, doctype: "Attendance", active: true, includedIn: ["Business Pro"] },
+  { id: "support", label: "Support", icon: "🎧", description: "Customer support ticket management", path: "/portal/support", group: "Service", addonPrice: 99, doctype: "Issue", active: true, includedIn: ["Growth", "Business Pro"] },
+  { id: "appointments", label: "Appointments", icon: "📅", description: "Schedule events and appointments", path: "/portal/appointments", group: "Service", addonPrice: 79, doctype: "Event", active: true, includedIn: ["Business Pro"] },
+  { id: "chat", label: "Messages", icon: "💬", description: "Customer communications log", path: "/portal/chat", group: "Service", addonPrice: 79, doctype: "Communication", active: true, includedIn: ["Business Pro"] },
 ];
 
-export type PlanId = "Starter" | "Growth" | "Professional" | "Enterprise";
-
-export interface Plan {
-  id: PlanId;
-  label: string;
-  price?: number;
-  period: string;
-  description: string;
-  highlight?: boolean;
-  badge?: string;
-  modules: ModuleId[];
-}
-
-export const PLANS: Plan[] = [
-  {
-    id: "Starter",
-    label: "Starter",
-    period: "Free, no credit card",
-    description: "For sole traders and micro businesses getting organised.",
-    modules: ["dashboard", "accounting", "settings"],
-  },
-  {
-    id: "Growth",
-    label: "Growth",
-    price: 499,
-    period: "per month · billed monthly",
-    description: "For growing teams that need CRM, compliance and projects.",
-    modules: ["dashboard", "crm", "accounting", "compliance", "projects", "settings"],
-    highlight: true,
-    badge: "Most popular",
-  },
-  {
-    id: "Professional",
-    label: "Professional",
-    price: 1299,
-    period: "per month · billed monthly",
-    description: "Full suite with HR, helpdesk, procurement and insights.",
-    modules: [
-      "dashboard", "crm", "accounting", "compliance", "hr",
-      "projects", "procurement", "helpdesk", "insights", "settings",
-    ],
-  },
-  {
-    id: "Enterprise",
-    label: "Enterprise",
-    period: "Custom · contact sales",
-    description: "Custom tenants, white-label, dedicated support.",
-    modules: [
-      "dashboard", "crm", "accounting", "compliance", "hr",
-      "projects", "procurement", "helpdesk", "insights", "settings",
-    ],
-  },
+export interface PlanDef { id: string; label: string; price: number; period: string; description: string; modules: string[]; highlight?: boolean; badge?: string; }
+export const PLANS: PlanDef[] = [
+  { id: "Starter", label: "Starter", price: 0, period: "14-day free trial", description: "Finance basics for a new small business.", modules: ["customers", "invoices", "quotes", "payments", "compliance"] },
+  { id: "Growth", label: "Growth", price: 499, period: "/ month", description: "Finance plus operations modules for growing businesses.", modules: ["customers", "invoices", "quotes", "payments", "compliance", "crm", "leads", "opportunities", "suppliers", "purchase-orders", "items", "projects", "tasks", "support"], highlight: true, badge: "Most Popular" },
+  { id: "Business Pro", label: "Business Pro", price: 999, period: "/ month", description: "Full business operations suite with HR and service modules.", modules: ALL_MODULES.map((m) => m.id) },
+  { id: "Enterprise", label: "Enterprise", price: 0, period: "Custom pricing", description: "Tailored white-label deployment and custom modules.", modules: ALL_MODULES.map((m) => m.id), badge: "Contact Sales" },
 ];
-
-// Helper: get modules for a plan
-export function getPlanModules(planId: PlanId): ModuleId[] {
-  return PLANS.find((p) => p.id === planId)?.modules ?? ["dashboard", "settings"];
+export function getModulesForPlan(planId: string): string[] { return PLANS.find((p) => p.id === planId)?.modules ?? []; }
+export function getPlanPrice(planId: string): number { return PLANS.find((p) => p.id === planId)?.price ?? 0; }
+export function getModuleDef(id: string): ModuleDef | undefined { return ALL_MODULES.find((m) => m.id === id); }
+export function getAddonPrice(moduleId: string): number { return getModuleDef(moduleId)?.addonPrice ?? 0; }
+export function calculateSubscriptionTotal(planId: string, selectedModules: string[]): number {
+  const planModules = new Set(getModulesForPlan(planId));
+  return getPlanPrice(planId) + selectedModules.filter((id) => !planModules.has(id)).reduce((sum, id) => sum + getAddonPrice(id), 0);
 }
-
-// Helper: group modules for sidebar display
-export function groupModules(modules: Module[]) {
-  const groups: Record<string, Module[]> = {};
-  for (const m of modules) {
-    if (!groups[m.group]) groups[m.group] = [];
-    groups[m.group].push(m);
-  }
-  return groups;
-}
-
-export const GROUP_LABELS: Record<string, string> = {
-  core: "Workspace",
-  sales: "Sales",
-  finance: "Finance",
-  operations: "Operations",
-  people: "People",
-};
+export const MODULE_COOKIE = "fuze_modules";
+export const PLAN_COOKIE = "fuze_plan";
+export const COMPANY_COOKIE = "fuze_company";
+export const ROLE_COOKIE = "fuze_role";
+export const TENANT_COOKIE = "fuze_tenant";
