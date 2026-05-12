@@ -1,82 +1,83 @@
 import { NextResponse } from "next/server";
-import { erpMethod } from "@/lib/server/erpnext";
-import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, TENANT_COOKIE, calculateSubscriptionTotal } from "@/lib/modules";
-import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/server/rateLimit";
 
-interface CreateDemoTenantResponse {
-  ok?: boolean;
-  message?: string;
-  tenant?: string | number;
-  provisioning_job?: string | number;
-  site_name?: string;
-  login_url?: string;
+const ERPNEXT_URL =
+  process.env.NEXT_PUBLIC_FUZE_API_URL ||
+  process.env.ERPNEXT_URL ||
+  "";
+
+interface SignupBody {
   email?: string;
-  status?: string;
+  first_name?: string;
+  last_name?: string;
+  company?: string;
+  phone?: string;
 }
 
-function cleanModules(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return Array.from(new Set(value.map(String).map((v) => v.trim()).filter(Boolean)));
+function jsonError(message: string, status = 400) {
+  return NextResponse.json({ success: false, error: message }, { status });
 }
 
 export async function POST(req: Request) {
-  // Rate limit: 5 signups per IP per hour
-  const ip = getClientIp(req);
-  const rl = rateLimit(`signup:${ip}`, 5, 60 * 60 * 1000);
-  if (!rl.allowed) return rateLimitResponse(rl.resetAt);
-
   try {
-    const body = (await req.json()) as Record<string, unknown>;
-    const required = ["full_name", "company_name", "email", "phone", "plan"];
-    const missing = required.filter((field) => !body[field]);
+    const body = (await req.json()) as SignupBody;
+    const { email, first_name, last_name, company, phone } = body;
 
-    if (missing.length) {
-      return NextResponse.json({ success: false, error: `Missing required fields: ${missing.join(", ")}` }, { status: 400 });
+    if (!ERPNEXT_URL) return jsonError("ERPNext URL is not configured.", 500);
+    if (!email || !first_name) return jsonError("Email and first name are required.", 400);
+
+    const full_name = [first_name, last_name].filter(Boolean).join(" ");
+
+    // Call ERPNext's built-in user registration endpoint — server-side
+    const res = await fetch(
+      `${ERPNEXT_URL}/api/method/frappe.core.doctype.user.user.sign_up`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          full_name,
+          redirect_to: "/portal",
+        }),
+        cache: "no-store",
+      }
+    );
+
+    const json = (await res.json()) as { message?: unknown };
+
+    // Frappe returns [flag, message]: 0=exists, 1=success, 2=disabled
+    const [flag, msg] = Array.isArray(json.message)
+      ? json.message
+      : [res.ok ? 1 : 0, json.message];
+
+    if (flag === 0) {
+      return jsonError("An account with this email already exists.", 409);
+    }
+    if (flag === 2) {
+      return jsonError(
+        "User registration is currently disabled. Please contact support.",
+        403
+      );
+    }
+    if (!res.ok || flag === undefined) {
+      return jsonError(
+        typeof msg === "string" ? msg : "Registration failed. Please try again.",
+        500
+      );
     }
 
-    const modules = cleanModules(body.modules);
-
-    const backend = await erpMethod<CreateDemoTenantResponse>("fuze_suite.api.saas.create_demo_tenant", {
-      full_name: String(body.full_name || ""),
-      company_name: String(body.company_name || ""),
-      email: String(body.email || ""),
-      phone: String(body.phone || ""),
-      preferred_site_name: String(body.preferred_site_name || ""),
-      plan: String(body.plan || "Starter"),
-      requested_module: JSON.stringify(modules),
-      trial_days: 14,
-    });
-
-    if (!backend?.ok) {
-      return NextResponse.json({ success: false, error: backend?.message || "Could not create SaaS tenant" }, { status: 500 });
-    }
-
-    const tenantId = backend.tenant ? String(backend.tenant) : "";
-    const loginUrl = backend.login_url || (backend.site_name ? `/login?site=${encodeURIComponent(backend.site_name)}` : "/login");
-
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
-      message: backend.message || "Your workspace is being prepared. Login details will be emailed when ready.",
-      tenant: backend.tenant,
-      provisioning_job: backend.provisioning_job,
-      site_name: backend.site_name,
-      site_url: loginUrl,
-      login_url: loginUrl,
-      modules,
-      total: calculateSubscriptionTotal(String(body.plan || "Starter"), modules),
-      status: backend.status || "Provisioning",
-      backend,
+      message:
+        typeof msg === "string"
+          ? msg
+          : "Account created! Check your email to verify your account.",
     });
-
-    response.cookies.set(MODULE_COOKIE, JSON.stringify(modules), { path: "/", maxAge: 365 * 86400 });
-    response.cookies.set(PLAN_COOKIE, String(body.plan || "Starter"), { path: "/", maxAge: 365 * 86400 });
-    response.cookies.set(COMPANY_COOKIE, String(body.company_name || ""), { path: "/", maxAge: 365 * 86400 });
-    if (tenantId) response.cookies.set(TENANT_COOKIE, tenantId, { path: "/", maxAge: 365 * 86400 });
-
-    return response;
   } catch (error) {
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Signup failed" },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Signup failed",
+      },
       { status: 500 }
     );
   }

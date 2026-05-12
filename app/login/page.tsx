@@ -1,87 +1,131 @@
 "use client";
-
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import PublicHeader from "@/components/PublicHeader";
 
 function LoginForm() {
   const router = useRouter();
   const search = useSearchParams();
-  const tenantSite = search?.get("site") || "";
   const reason = search?.get("reason") || "";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
-  async function login(e: React.FormEvent) {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMessage("");
+    setError("");
+
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email, password, site: tenantSite || undefined }),
+        body: JSON.stringify({ email, password }),
       });
+
       const json = await res.json();
-      if (res.status === 429) throw new Error("Too many login attempts. Please wait a few minutes and try again.");
-      if (!res.ok) throw new Error(json.error || "Login failed. Check your email and password.");
+
+      if (!res.ok) {
+        throw new Error(json.error || "Login failed. Check your email and password.");
+      }
+
       router.push(json.redirect || "/portal");
       router.refresh();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Login failed. Check your email and password.");
+      setError(err instanceof Error ? err.message : "Login failed. Check your email and password.");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="public-root premium-website auth-page">
-      <PublicHeader />
-      <main className="auth-shell">
-        <section className="auth-story-card">
-          <div className="auth-badge">Secure business workspace</div>
-          <h1>Welcome back to your operating system.</h1>
-          <p>Sign in to manage your customers, sales, invoices, documents, projects, HR and support from one modern portal.</p>
-          <div className="auth-preview-stack">
-            <div><b>Today</b><span>6 alerts, 11 tickets, 4 quotes waiting</span></div>
-            <div><b>Finance</b><span>Invoices, VAT, payments and compliance</span></div>
-            <div><b>CRM</b><span>Pipeline, leads, contacts and follow-ups</span></div>
+    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "var(--bg)" }}>
+      <div className="form-card" style={{ width: "100%", maxWidth: 400 }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div className="brand-mark" style={{ margin: "0 auto 12px", width: 44, height: 44, fontSize: 16 }}>FS</div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: "var(--navy-ink)" }}>Business Suite</h1>
+          <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>Sign in to your workspace</p>
+        </div>
+
+        {reason === "admin_required" && (
+          <div style={{
+            background: "#fff8e6",
+            border: "1px solid #f0b429",
+            borderRadius: 8,
+            padding: "10px 14px",
+            fontSize: 13,
+            color: "#856404",
+            marginBottom: 16,
+          }}>
+            Admin access required. Please log in with a System Manager account.
           </div>
-        </section>
+        )}
 
-        <section className="auth-card">
-          <div className="auth-card-head">
-            <span className="suite-kicker">Login</span>
-            <h2>Access your portal</h2>
-            <p>{tenantSite ? `Signing into ${tenantSite}` : "Use your Business Suite credentials."}</p>
-          </div>
+        <form onSubmit={handleLogin}>
+          <label className="label">Email address</label>
+          <input
+            className="inp"
+            type="email"
+            placeholder="you@company.co.za"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+            disabled={loading}
+          />
+          <label className="label">Password</label>
+          <input
+            className="inp"
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+            disabled={loading}
+          />
 
-          {reason === "admin_required" && <div className="auth-alert">Admin access required. Please log in with a System Manager account.</div>}
+          {error && (
+            <div style={{
+              background: "#fff0f0",
+              border: "1px solid #e74c3c",
+              borderRadius: 8,
+              padding: "10px 14px",
+              fontSize: 13,
+              color: "#e74c3c",
+              marginBottom: 12,
+            }}>
+              {error}
+            </div>
+          )}
 
-          <form onSubmit={login} className="auth-form">
-            <label>Email address</label>
-            <input type="email" placeholder="jane@company.co.za" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" disabled={loading} required />
-            <label>Password</label>
-            <input type="password" placeholder="Your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" disabled={loading} required />
-            <button className="modern-primary auth-submit" type="submit" disabled={loading}>{loading ? "Signing in…" : "Sign in →"}</button>
-          </form>
+          <button
+            type="submit"
+            className="btn btn-teal"
+            style={{ width: "100%", justifyContent: "center", padding: "10px", marginTop: 8, fontSize: 14 }}
+            disabled={loading}
+          >
+            {loading ? "Signing in…" : "Sign In →"}
+          </button>
+        </form>
 
-          {message && <div className="auth-error">{message}</div>}
-
-          <div className="auth-footnote" style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 4 }}>
-            <span>New to Business Suite? <Link href="/signup">Start a free trial</Link></span>
-            <Link href="/forgot-password" style={{ opacity: 0.7 }}>Forgot password?</Link>
-          </div>
-        </section>
-      </main>
+        <div style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "var(--muted)" }}>
+          <Link href="/forgot-password" style={{ color: "var(--teal)" }}>Forgot password?</Link>
+          {" · "}
+          <Link href="/signup" style={{ color: "var(--teal)" }}>Create account</Link>
+        </div>
+      </div>
     </div>
   );
 }
 
 export default function LoginPage() {
-  return <Suspense><LoginForm /></Suspense>;
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
 }

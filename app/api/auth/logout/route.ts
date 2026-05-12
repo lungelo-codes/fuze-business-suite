@@ -1,19 +1,49 @@
 import { NextResponse } from "next/server";
-import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, ROLE_COOKIE } from "@/lib/modules";
 
+const ERPNEXT_URL =
+  process.env.NEXT_PUBLIC_FUZE_API_URL ||
+  process.env.ERPNEXT_URL ||
+  "";
+
+export async function POST(req: Request) {
+  // Best-effort: tell ERPNext to invalidate the session
+  try {
+    const sid = req.headers.get("cookie")?.match(/sid=([^;]+)/)?.[1];
+    if (ERPNEXT_URL && sid) {
+      await fetch(`${ERPNEXT_URL}/api/method/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `sid=${sid}`,
+        },
+        body: JSON.stringify({}),
+        cache: "no-store",
+      });
+    }
+  } catch {
+    // Ignore — we always clear cookies regardless
+  }
+
+  const response = NextResponse.json({ success: true });
+
+  // Clear all session cookies
+  const clear = { path: "/", maxAge: 0 };
+  response.cookies.set("sid", "", clear);
+  response.cookies.set("user_id", "", clear);
+  response.cookies.set("full_name", "", clear);
+
+  return response;
+}
+
+// Also support GET for direct link logout
 export async function GET() {
-  const response = NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_BASE_URL || "https://fuze-business-suite.vercel.app/"));
-  
-  // Clear all portal cookies
-  [MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, ROLE_COOKIE].forEach((name) => {
-    response.cookies.set(name, "", { path: "/", maxAge: 0 });
-  });
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+  const response = NextResponse.redirect(new URL("/login", baseUrl));
 
-  // Clear Business Suite backend session cookie
-  response.cookies.set("sid", "", { path: "/", maxAge: 0 });
-  response.cookies.set("system_user", "", { path: "/", maxAge: 0 });
-  response.cookies.set("user_id", "", { path: "/", maxAge: 0 });
-  response.cookies.set("user_image", "", { path: "/", maxAge: 0 });
-  
+  const clear = { path: "/", maxAge: 0 };
+  response.cookies.set("sid", "", clear);
+  response.cookies.set("user_id", "", clear);
+  response.cookies.set("full_name", "", clear);
+
   return response;
 }
