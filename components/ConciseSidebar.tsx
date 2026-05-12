@@ -205,7 +205,7 @@ export default function ConciseSidebar({
 
   /* Keep current group expanded on route change */
   useEffect(() => {
-    setOpenGroups((prev) => new Set([...prev, currentGroup]));
+    setOpenGroups((prev) => new Set(Array.from(prev).concat(currentGroup)));
   }, [currentGroup]);
 
   function toggleGroup(id: string) {
