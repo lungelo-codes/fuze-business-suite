@@ -19,11 +19,14 @@ type NavGroup = {
 interface SidebarProps {
   activeModules?: string[];
   companyName?: string;
+  companyLogo?: string;
   role?: string;
   plan?: string;
   fullName?: string;
   isOpen?: boolean;
   onClose?: () => void;
+  onCollapse?: () => void;
+  theme?: "dark" | "light";
 }
 
 const ICONS: Record<string, string> = {
@@ -159,11 +162,14 @@ function initials(name?: string) {
 export default function Sidebar({
   activeModules = [],
   companyName = "Fuze Business Suite",
+  companyLogo,
   role,
   plan = "Growth",
   fullName,
   isOpen = false,
   onClose,
+  onCollapse,
+  theme = "light",
 }: SidebarProps) {
   const pathname = usePathname();
   const visibleGroups = GROUPS.map((group) => ({
@@ -172,9 +178,14 @@ export default function Sidebar({
   })).filter((group) => group.items.length > 0);
 
   const sidebar = (
-    <aside className="demo-sidebar">
+    <aside className="demo-sidebar" data-theme={theme}>
       <div className="demo-sidebar-brand">
-        <div className="demo-brand-mark">FD</div>
+        {companyLogo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="demo-brand-mark" src={companyLogo} alt={`${companyName} logo`} />
+        ) : (
+          <div className="demo-brand-mark">FD</div>
+        )}
         <div>
           <div className="demo-brand-title">Business Suite</div>
           <div className="demo-brand-subtitle">{companyName}</div>
@@ -220,6 +231,11 @@ export default function Sidebar({
       </nav>
 
       <div className="demo-sidebar-footer">
+        {onCollapse && (
+          <button type="button" className="demo-plan-link" onClick={onCollapse}>
+            Collapse menu
+          </button>
+        )}
         <div>
           <div className="demo-plan-label">{plan} Plan</div>
           <Link href="/portal/billing" onClick={onClose} className="demo-plan-link">
