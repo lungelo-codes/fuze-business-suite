@@ -54,18 +54,17 @@ const GROUPS: NavGroup[] = [
     { label: "Contracts", href: "/portal/contracts", icon: "invoice", module: "contracts" },
     { label: "Campaigns", href: "/portal/campaigns", icon: "mail", module: "campaigns" },
   ]},
-  { title: "Finance", items: [
-    { label: "Finance Dashboard", href: "/portal/finance", icon: "chart", module: "payments" },
-    { label: "Invoices", href: "/portal/invoices", icon: "invoice", module: "invoices" },
-    { label: "Payments", href: "/portal/payments", icon: "card", module: "payments" },
-    { label: "Banking", href: "/portal/bank-reconciliation", icon: "bank", module: "payments" },
-    { label: "Compliance", href: "/portal/compliance", icon: "shield", module: "compliance" },
-    { label: "VAT", href: "/portal/vat", icon: "invoice", module: "compliance" },
-    { label: "PAYE", href: "/portal/paye", icon: "card", module: "compliance" },
-    { label: "UIF", href: "/portal/uif", icon: "card", module: "compliance" },
-    { label: "SDL", href: "/portal/sdl", icon: "card", module: "compliance" },
-    { label: "CIPC", href: "/portal/cipc", icon: "shield", module: "compliance" },
-  ]},
+  {
+    title: "Finance",
+    items: [
+      { label: "Finance Dashboard", href: "/portal/finance", icon: "chart", module: "payments" },
+      { label: "Invoices", href: "/portal/invoices", icon: "invoice", module: "invoices" },
+      { label: "Payments", href: "/portal/payments", icon: "card", module: "payments" },
+      { label: "Banking", href: "/portal/bank-reconciliation", icon: "bank", module: "payments" },
+      // Consolidate all statutory obligations (VAT, PAYE, UIF, SDL, CIPC) into a single Compliance dashboard.
+      { label: "Compliance", href: "/portal/compliance", icon: "shield", module: "compliance" },
+    ],
+  },
   { title: "Operations", items: [
     { label: "Documents", href: "/portal/documents", icon: "folder", module: "documents", badge: "Paid" },
     { label: "Suppliers", href: "/portal/suppliers", icon: "truck", module: "suppliers" },
@@ -74,12 +73,13 @@ const GROUPS: NavGroup[] = [
     { label: "Projects", href: "/portal/projects", icon: "project", module: "projects" },
     { label: "Tasks", href: "/portal/tasks", icon: "task", module: "tasks" },
   ]},
-  { title: "People", items: [
-    { label: "Employees", href: "/portal/employees", icon: "person", module: "employees" },
-    { label: "Payroll", href: "/portal/payroll", icon: "card", module: "payroll" },
-    { label: "Leave", href: "/portal/leave", icon: "calendar", module: "leave" },
-    { label: "Attendance", href: "/portal/attendance", icon: "task", module: "attendance" },
-  ]},
+  {
+    title: "People",
+    items: [
+      // Group all HR‑related modules (employees, payroll, leave, attendance) into a single HR workspace.
+      { label: "HR", href: "/portal/hr", icon: "person", module: "employees" },
+    ],
+  },
   { title: "Service", items: [
     { label: "Support", href: "/portal/support", icon: "support", module: "support" },
     { label: "Team Chat", href: "/portal/chat", icon: "mail", module: "chat" },
