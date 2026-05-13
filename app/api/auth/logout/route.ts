@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, ROLE_COOKIE } from "@/lib/modules";
+import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, ROLE_COOKIE } from "@/lib/appModules";
 
 export async function GET() {
   const response = NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_BASE_URL || "https://fuze-business-suite.vercel.app/"));

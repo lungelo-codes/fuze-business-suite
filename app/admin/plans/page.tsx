@@ -1,4 +1,4 @@
-import { PLANS, ALL_MODULES } from "@/lib/modules";
+import { PLANS, ALL_MODULES } from "@/lib/appModules";
 
 export default function AdminPlansPage() {
   return (

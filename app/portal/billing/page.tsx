@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { COMPANY_COOKIE, MODULE_COOKIE, PLAN_COOKIE, TENANT_COOKIE, getModulesForPlan } from "@/lib/modules";
+import { COMPANY_COOKIE, MODULE_COOKIE, PLAN_COOKIE, TENANT_COOKIE, getModulesForPlan } from "@/lib/appModules";
 import BillingManager from "@/components/billing/BillingManager";
 import { erpMethod } from "@/lib/server/erpnext";
 function parseModules(raw?: string) { try { return raw ? JSON.parse(decodeURIComponent(raw)) as string[] : []; } catch { return []; } }

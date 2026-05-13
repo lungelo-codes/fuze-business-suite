@@ -1,6 +1,6 @@
 import Link from "next/link";
-import PublicHeader from "@/components/PublicHeader";
-import { ALL_MODULES } from "@/lib/modules";
+import PublicHeader from "@/components/SiteHeader";
+import { ALL_MODULES } from "@/lib/appModules";
 
 const groups = ["Finance", "CRM", "Operations", "People", "Service"] as const;
 const detail: Record<string,string> = {

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import PublicHeader from "@/components/PublicHeader";
-import { PLANS, ALL_MODULES } from "@/lib/modules";
+import PublicHeader from "@/components/SiteHeader";
+import { PLANS, ALL_MODULES } from "@/lib/appModules";
 
 const FAQ = [
   {

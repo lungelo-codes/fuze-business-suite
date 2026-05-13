@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { ALL_MODULES, PLANS, calculateSubscriptionTotal, getModulesForPlan } from "@/lib/modules";
+import { ALL_MODULES, PLANS, calculateSubscriptionTotal, getModulesForPlan } from "@/lib/appModules";
 import { calculatePlanChange } from "@/lib/billingRules";
 function fmt(n: number) { return String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
 export default function BillingManager({ companyName, currentPlan, currentModules, nextDueDate = "", outstandingAmount = 0, pendingPlan = "" }: { companyName: string; currentPlan: string; currentModules: string[]; nextDueDate?: string; outstandingAmount?: number; pendingPlan?: string }) {

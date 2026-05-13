@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { ALL_MODULES, MODULE_COOKIE, PLAN_COOKIE, calculateSubscriptionTotal, getModulesForPlan } from '@/lib/modules'
+import { ALL_MODULES, MODULE_COOKIE, PLAN_COOKIE, calculateSubscriptionTotal, getModulesForPlan } from '@/lib/appModules'
 
 function parseModules(raw?: string): string[] { try { return raw ? JSON.parse(decodeURIComponent(raw)) : [] } catch { return [] } }
 export async function GET() {
