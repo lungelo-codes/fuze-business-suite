@@ -64,10 +64,11 @@ const GROUPS: NavGroup[] = [
     title: "Finance",
     items: [
       // Rename the dashboard to simply “Finance” and include core financial functions.
+      // Finance dashboard consolidates invoices, payments and banking into one place.
       { label: "Finance", href: "/portal/finance", icon: "chart", module: "payments" },
-      { label: "Invoices", href: "/portal/invoices", icon: "invoice", module: "invoices" },
-      { label: "Payments", href: "/portal/payments", icon: "card", module: "payments" },
-      { label: "Banking", href: "/portal/bank-reconciliation", icon: "bank", module: "payments" },
+      // Individual links for Invoices, Payments and Banking have been removed from the sidebar
+      // to keep navigation streamlined. They are accessible within the Finance dashboard via
+      // quick actions or tabs.
       // Consolidate statutory obligations into a single compliance dashboard.
       { label: "Compliance", href: "/portal/compliance", icon: "shield", module: "compliance" },
     ],
