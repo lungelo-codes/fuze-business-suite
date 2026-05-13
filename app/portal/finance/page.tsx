@@ -1,4 +1,3 @@
-export const dynamic = "force-dynamic";
 import ModernModuleDashboard from "@/components/modules/ModernModuleDashboard";
 import { erpList } from "@/lib/server/erpnext";
 

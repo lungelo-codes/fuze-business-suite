@@ -1,5 +1,5 @@
 import Link from "next/link";
-import PublicHeader from "@/components/SiteHeader";
+import PublicHeader from "@/components/PublicHeader";
 
 const contactOptions = [
   ["Sales", "Choose a plan, understand modules and book a walkthrough."],

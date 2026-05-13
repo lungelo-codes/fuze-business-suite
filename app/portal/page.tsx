@@ -1,8 +1,6 @@
-export const dynamic = "force-dynamic";
 import { cookies } from "next/headers";
 import { getDashboardData } from "@/lib/server/data";
-// Import cookies and helper from appModules
-import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, getModulesForPlan } from "@/lib/appModules";
+import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, getModulesForPlan } from "@/lib/modules";
 import { money } from "@/lib/mappers";
 
 function isOpenStatus(status?: string): boolean {
@@ -88,7 +86,7 @@ export default async function DashboardPage() {
             <div className="demo-hero-actions">
               {moduleAllowed(active, "crm") ? <a className="btn btn-teal" href="/portal/crm">Open CRM</a> : null}
               {moduleAllowed(active, "invoices") ? <a className="btn btn-primary" href="/portal/invoices">Create Invoice</a> : null}
-              <a className="btn" href="/portal/reports">View Insights</a>
+              <a className="btn" href="/portal/reports">View Reports</a>
             </div>
           </div>
           <div className="demo-hero-plan">

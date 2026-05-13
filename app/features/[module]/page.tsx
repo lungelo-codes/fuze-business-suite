@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import PublicHeader from "@/components/SiteHeader";
-// Use appModules to ensure module resolution on case-sensitive file systems
-import { ALL_MODULES } from "@/lib/appModules";
+import PublicHeader from "@/components/PublicHeader";
+import { ALL_MODULES } from "@/lib/modules";
 
 export function generateStaticParams() { return ALL_MODULES.map((m) => ({ module: m.id })); }
 

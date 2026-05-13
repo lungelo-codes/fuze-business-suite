@@ -1,5 +1,5 @@
 import Link from "next/link";
-import PublicHeader from "@/components/SiteHeader";
+import PublicHeader from "@/components/PublicHeader";
 
 const resources = [
   ["Implementation guide", "How to move from spreadsheets into Business Suite."],

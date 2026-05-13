@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import ConciseSidebar from "@/components/ConciseSidebar";
+import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 
 type PortalShellProps = {
@@ -61,12 +61,13 @@ export default function PortalShell({ children, activeModules = [], companyName,
   return (
     <div className={shellClass}>
       <div className={`main-nav-slot ${open ? "show" : "hide"}`} aria-hidden={!open}>
-        <ConciseSidebar
+        <Sidebar
           activeModules={activeModules}
           companyName={companyName}
           companyLogo={companyLogo}
           role={role}
           plan={plan}
+          theme={theme}
           onCollapse={() => setOpen(false)}
         />
       </div>

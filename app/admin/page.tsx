@@ -1,4 +1,3 @@
-export const dynamic = "force-dynamic";
 import KPI from "@/components/KPI";
 import SimpleTable, { StatusCell } from "@/components/SimpleTable";
 import { erpList } from "@/lib/server/erpnext";

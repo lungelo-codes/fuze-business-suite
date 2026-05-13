@@ -1,4 +1,3 @@
-export const dynamic = "force-dynamic";
 import { cookies } from "next/headers";
 import DocumentWorkspaceClient from "@/components/documents/DocumentWorkspaceClient";
 import { erpList } from "@/lib/server/erpnext";

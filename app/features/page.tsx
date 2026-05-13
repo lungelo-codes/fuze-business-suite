@@ -1,7 +1,6 @@
 import Link from "next/link";
-import PublicHeader from "@/components/SiteHeader";
-// Use appModules to ensure module resolution on case-sensitive build environments
-import { ALL_MODULES } from "@/lib/appModules";
+import PublicHeader from "@/components/PublicHeader";
+import { ALL_MODULES } from "@/lib/modules";
 
 const groups = ["Finance", "CRM", "Operations", "People", "Service"] as const;
 const detail: Record<string,string> = {

@@ -1,4 +1,3 @@
-export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
 import SimpleTable, { StatusCell } from "@/components/SimpleTable";
 import { erpGet, erpList } from "@/lib/server/erpnext";

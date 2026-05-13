@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildPayFastSignature } from "@/lib/server/payfast";
-// Import plans from appModules for consistent resolution
-import { PLANS } from "@/lib/appModules";
+import { PLANS } from "@/lib/modules";
 
 const PAYFAST_URL = process.env.PAYFAST_SANDBOX === "true"
   ? "https://sandbox.payfast.co.za/eng/process"

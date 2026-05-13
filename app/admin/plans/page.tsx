@@ -1,5 +1,4 @@
-// Import from appModules to avoid path resolution issues
-import { PLANS, ALL_MODULES } from "@/lib/appModules";
+import { PLANS, ALL_MODULES } from "@/lib/modules";
 
 export default function AdminPlansPage() {
   return (

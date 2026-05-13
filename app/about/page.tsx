@@ -1,7 +1,6 @@
 import Link from "next/link";
-import PublicHeader from "@/components/SiteHeader";
-// Import modules from appModules for consistent resolution
-import { ALL_MODULES } from "@/lib/appModules";
+import PublicHeader from "@/components/PublicHeader";
+import { ALL_MODULES } from "@/lib/modules";
 
 const outcomes = [
   "Understand daily business priorities before opening a module",

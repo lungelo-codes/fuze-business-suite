@@ -1,4 +1,3 @@
-export const dynamic = "force-dynamic";
 import SearchTable, { StatusBadge } from "@/components/SearchTable";
 import KPI from "@/components/KPI";
 import { erpList } from "@/lib/server/erpnext";
