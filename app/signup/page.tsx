@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import PublicHeader from "@/components/SiteHeader";
+import PublicHeader from "@/components/PublicHeader";
 import { ALL_MODULES, PLANS, getModulesForPlan, calculateSubscriptionTotal, MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE } from "@/lib/appModules";
 
 type Step = 1 | 2 | 3 | 4 | 5;
