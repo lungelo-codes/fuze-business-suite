@@ -41,57 +41,74 @@ function Icon({ name }: { name: string }) {
   return <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={paths[name] || paths.default} /></svg>;
 }
 
+// Define the navigation structure. The menu has been simplified so that related modules
+// live together under a single workspace. Leads, Opportunities and Campaigns are now
+// managed inside the CRM workspace, while Finance groups invoices, payments and
+// banking. Documents no longer shows a “Paid” badge – all tenants can access it.
 const GROUPS: NavGroup[] = [
   { title: "Home", items: [{ label: "Dashboard", href: "/portal", icon: "dashboard" }] },
-  { title: "CRM & Sales", items: [
-    { label: "CRM Workspace", href: "/portal/crm", icon: "crm", module: "crm" },
-    { label: "Leads", href: "/portal/leads", icon: "target", module: "leads" },
-    { label: "Opportunities", href: "/portal/opportunities", icon: "target", module: "opportunities" },
-    { label: "Customers", href: "/portal/customers", icon: "users", module: "customers" },
-    { label: "Contacts", href: "/portal/contacts", icon: "users", module: "customers" },
-    { label: "Quotes", href: "/portal/quotes", icon: "quote", module: "quotes" },
-    { label: "Sales Orders", href: "/portal/sales-orders", icon: "invoice", module: "sales-orders" },
-    { label: "Contracts", href: "/portal/contracts", icon: "invoice", module: "contracts" },
-    { label: "Campaigns", href: "/portal/campaigns", icon: "mail", module: "campaigns" },
-  ]},
+  {
+    title: "CRM & Sales",
+    items: [
+      // Consolidated workspace for all sales‑related activities. Leads, campaigns
+      // and opportunities are accessed from within this page rather than separate menu items.
+      { label: "CRM Workspace", href: "/portal/crm", icon: "crm", module: "crm" },
+      { label: "Customers", href: "/portal/customers", icon: "users", module: "customers" },
+      { label: "Contacts", href: "/portal/contacts", icon: "users", module: "customers" },
+      { label: "Quotes", href: "/portal/quotes", icon: "quote", module: "quotes" },
+      { label: "Sales Orders", href: "/portal/sales-orders", icon: "invoice", module: "sales-orders" },
+      { label: "Contracts", href: "/portal/contracts", icon: "invoice", module: "contracts" },
+    ],
+  },
   {
     title: "Finance",
     items: [
-      { label: "Finance Dashboard", href: "/portal/finance", icon: "chart", module: "payments" },
+      // Rename the dashboard to simply “Finance” and include core financial functions.
+      { label: "Finance", href: "/portal/finance", icon: "chart", module: "payments" },
       { label: "Invoices", href: "/portal/invoices", icon: "invoice", module: "invoices" },
       { label: "Payments", href: "/portal/payments", icon: "card", module: "payments" },
       { label: "Banking", href: "/portal/bank-reconciliation", icon: "bank", module: "payments" },
-      // Consolidate all statutory obligations (VAT, PAYE, UIF, SDL, CIPC) into a single Compliance dashboard.
+      // Consolidate statutory obligations into a single compliance dashboard.
       { label: "Compliance", href: "/portal/compliance", icon: "shield", module: "compliance" },
     ],
   },
-  { title: "Operations", items: [
-    { label: "Documents", href: "/portal/documents", icon: "folder", module: "documents", badge: "Paid" },
-    { label: "Suppliers", href: "/portal/suppliers", icon: "truck", module: "suppliers" },
-    { label: "Purchase Orders", href: "/portal/purchase-orders", icon: "invoice", module: "purchase-orders" },
-    { label: "Inventory", href: "/portal/items", icon: "box", module: "items" },
-    { label: "Projects", href: "/portal/projects", icon: "project", module: "projects" },
-    { label: "Tasks", href: "/portal/tasks", icon: "task", module: "tasks" },
-  ]},
+  {
+    title: "Operations",
+    items: [
+      // Documents is accessible to all users; remove paid badge.
+      { label: "Documents", href: "/portal/documents", icon: "folder", module: "documents" },
+      { label: "Suppliers", href: "/portal/suppliers", icon: "truck", module: "suppliers" },
+      { label: "Purchase Orders", href: "/portal/purchase-orders", icon: "invoice", module: "purchase-orders" },
+      { label: "Inventory", href: "/portal/items", icon: "box", module: "items" },
+      { label: "Projects", href: "/portal/projects", icon: "project", module: "projects" },
+      { label: "Tasks", href: "/portal/tasks", icon: "task", module: "tasks" },
+    ],
+  },
   {
     title: "People",
     items: [
-      // Group all HR‑related modules (employees, payroll, leave, attendance) into a single HR workspace.
+      // Group employees, payroll, leave and attendance into a single HR workspace.
       { label: "HR", href: "/portal/hr", icon: "person", module: "employees" },
     ],
   },
-  { title: "Service", items: [
-    { label: "Support", href: "/portal/support", icon: "support", module: "support" },
-    { label: "Team Chat", href: "/portal/chat", icon: "mail", module: "chat" },
-    { label: "Appointments", href: "/portal/appointments", icon: "calendar", module: "appointments" },
-  ]},
-  { title: "Account", items: [
-    { label: "Reports", href: "/portal/reports", icon: "chart" },
-    { label: "Business Profile", href: "/portal/business-profile", icon: "settings" },
-    { label: "Modules", href: "/portal/modules", icon: "box" },
-    { label: "Billing", href: "/portal/billing", icon: "card" },
-    { label: "Settings", href: "/portal/settings", icon: "settings" },
-  ]},
+  {
+    title: "Service",
+    items: [
+      { label: "Support", href: "/portal/support", icon: "support", module: "support" },
+      { label: "Team Chat", href: "/portal/chat", icon: "mail", module: "chat" },
+      { label: "Appointments", href: "/portal/appointments", icon: "calendar", module: "appointments" },
+    ],
+  },
+  {
+    title: "Account",
+    items: [
+      { label: "Reports", href: "/portal/reports", icon: "chart" },
+      { label: "Business Profile", href: "/portal/business-profile", icon: "settings" },
+      { label: "Modules", href: "/portal/modules", icon: "box" },
+      { label: "Billing", href: "/portal/billing", icon: "card" },
+      { label: "Settings", href: "/portal/settings", icon: "settings" },
+    ],
+  },
 ];
 
 export default function Sidebar({ activeModules = [], companyName, companyLogo, role, plan, theme = "light", onCollapse }: SidebarProps) {

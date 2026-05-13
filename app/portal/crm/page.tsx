@@ -7,21 +7,37 @@ async function safeList(doctype: string, fields: string[]): Promise<Row[]> {
 }
 
 export default async function CRMPage() {
-  const [leads, opportunities, quotes] = await Promise.all([
+  // Aggregate data from leads, opportunities, quotes and campaigns. The CRM workspace
+  // now owns all sales pipeline objects, so leads, opportunities and campaigns
+  // are displayed together without separate sidebar entries.
+  const [leads, opportunities, quotes, campaigns] = await Promise.all([
     safeList("Lead", ["name", "lead_name", "company_name", "status", "email_id", "mobile_no", "modified"]),
     safeList("Opportunity", ["name", "party_name", "status", "opportunity_amount", "expected_closing", "modified"]),
     safeList("Quotation", ["name", "party_name", "status", "grand_total", "transaction_date", "modified"]),
+    // Fallback to an empty list if Campaign doctype is not available. Fields align with campaign name and status.
+    safeList("Campaign", ["name", "campaign_name", "status", "expected_revenue", "modified"]),
   ]);
-  const rows = [...leads, ...opportunities, ...quotes];
+  const rows = [...leads, ...opportunities, ...quotes, ...campaigns];
   const pipelineValue = opportunities.reduce((sum, row) => sum + Number(row.opportunity_amount || 0), 0);
+  const totalCampaigns = campaigns.length;
   return <ModernModuleDashboard
     title="CRM Workspace"
     eyebrow="CRM & Sales"
-    description="Manage leads, opportunities, contacts, quotes and activities in a clean sales workspace. Pipeline stages help customers run sales daily without ERPNext complexity."
+    description="Manage leads, opportunities, campaigns, contacts, quotes and activities in a clean sales workspace. Pipeline stages help customers run sales daily without ERPNext complexity."
     rows={rows}
-    tabs={["CRM Dashboard", "Pipeline", "Leads", "Opportunities", "Contacts", "Quotes", "Activities"]}
-    metrics={[{ label: "Open Leads", value: leads.length, hint: "Lead records" }, { label: "Opportunities", value: opportunities.length, hint: `R${pipelineValue.toLocaleString()} pipeline` }, { label: "Quotes", value: quotes.length, hint: "Quotation records" }, { label: "Won Deals", value: "Live", hint: "Track conversions" }]}
-    actions={[{ label: "Create Lead", href: "/portal/leads", description: "Capture a new sales prospect" }, { label: "Add Contact", href: "/portal/customers", description: "Save decision makers" }, { label: "Create Quote", href: "/portal/quotes", description: "Send a customer proposal" }, { label: "Open Pipeline", href: "/portal/crm", description: "Review active opportunities" }]}
+    tabs={["Dashboard", "Pipeline", "Leads", "Opportunities", "Campaigns", "Contacts", "Quotes", "Activities"]}
+    metrics={[
+      { label: "Open Leads", value: leads.length, hint: "Lead records" },
+      { label: "Opportunities", value: opportunities.length, hint: `R${pipelineValue.toLocaleString()} pipeline` },
+      { label: "Campaigns", value: totalCampaigns, hint: "Campaign records" },
+      { label: "Quotes", value: quotes.length, hint: "Quotation records" },
+    ]}
+    actions={[
+      { label: "Create Lead", href: "/portal/leads", description: "Capture a new sales prospect" },
+      { label: "Create Opportunity", href: "/portal/opportunities", description: "Start a new opportunity" },
+      { label: "Create Campaign", href: "/portal/campaigns", description: "Launch a marketing campaign" },
+      { label: "Create Quote", href: "/portal/quotes", description: "Send a customer proposal" },
+    ]}
     primaryField="lead_name"
     secondaryField="company_name"
     statusField="status"
