@@ -23,9 +23,11 @@ export default async function CRMPage() {
   return <ModernModuleDashboard
     title="CRM Workspace"
     eyebrow="CRM & Sales"
-    description="Manage leads, opportunities, campaigns, contacts, quotes and activities in a clean sales workspace. Pipeline stages help customers run sales daily without ERPNext complexity."
+    // Updated description: remove ERPNext mention and highlight streamlined sales process.
+    description="Manage leads, opportunities, campaigns, contacts, quotes and invoices in a clean sales workspace. Pipeline stages help your team run sales daily without unnecessary complexity."
     rows={rows}
-    tabs={["Dashboard", "Pipeline", "Leads", "Opportunities", "Campaigns", "Contacts", "Quotes", "Activities"]}
+    // Added an 'Invoices' tab so users can view invoice records directly from the CRM dashboard.
+    tabs={["Dashboard", "Pipeline", "Leads", "Opportunities", "Campaigns", "Contacts", "Quotes", "Invoices", "Activities"]}
     metrics={[
       { label: "Open Leads", value: leads.length, hint: "Lead records" },
       { label: "Opportunities", value: opportunities.length, hint: `R${pipelineValue.toLocaleString()} pipeline` },
@@ -37,6 +39,7 @@ export default async function CRMPage() {
       { label: "Create Opportunity", href: "/portal/opportunities", description: "Start a new opportunity" },
       { label: "Create Campaign", href: "/portal/campaigns", description: "Launch a marketing campaign" },
       { label: "Create Quote", href: "/portal/quotes", description: "Send a customer proposal" },
+      { label: "Create Invoice", href: "/portal/invoices", description: "Bill your customer" },
     ]}
     primaryField="lead_name"
     secondaryField="company_name"
