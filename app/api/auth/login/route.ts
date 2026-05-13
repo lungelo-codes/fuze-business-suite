@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+// Import from appModules for consistent resolution on case-sensitive environments
 import {
   ALL_MODULES,
   COMPANY_COOKIE,
@@ -7,7 +8,7 @@ import {
   ROLE_COOKIE,
   TENANT_COOKIE,
   getModulesForPlan,
-} from "@/lib/modules";
+} from "@/lib/appModules";
 
 const MASTER_ERPNEXT_URL =
   process.env.ERPNEXT_URL ||

@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
-import { PLAN_COOKIE, COMPANY_COOKIE, MODULE_COOKIE, ROLE_COOKIE } from "@/lib/modules";
+// Import cookies from appModules for consistent resolution
+import { PLAN_COOKIE, COMPANY_COOKIE, MODULE_COOKIE, ROLE_COOKIE } from "@/lib/appModules";
 import ProfileEditor from "./ProfileEditor";
 
 export default async function SettingsPage() {

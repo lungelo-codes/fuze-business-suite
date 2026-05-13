@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { COMPANY_COOKIE } from "@/lib/modules";
+// Import cookie constant from appModules for consistent resolution
+import { COMPANY_COOKIE } from "@/lib/appModules";
 import { erpGet, erpList, erpPatch, BusinessSuiteError, getERPNextBaseUrl } from "@/lib/server/erpnext";
 
 type Any = Record<string, unknown>;
