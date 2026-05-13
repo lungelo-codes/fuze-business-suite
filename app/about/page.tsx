@@ -1,6 +1,6 @@
 import Link from "next/link";
 import PublicHeader from "@/components/SiteHeader";
-import { ALL_MODULES } from "@/lib/appModules";
+import { ALL_MODULES } from "@/lib/modules";
 
 const outcomes = [
   "Understand daily business priorities before opening a module",

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PublicHeader from "@/components/PublicHeader";
-import { ALL_MODULES, PLANS, getModulesForPlan, calculateSubscriptionTotal, MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE } from "@/lib/appModules";
+import { ALL_MODULES, PLANS, getModulesForPlan, calculateSubscriptionTotal, MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE } from "@/lib/modules";
 
 type Step = 1 | 2 | 3 | 4 | 5;
 interface FormData { full_name: string; company_name: string; email: string; phone: string; preferred_site_name: string; password: string; confirm_password: string; plan: string; modules: string[]; }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ALL_MODULES } from "@/lib/appModules";
+import { ALL_MODULES } from "@/lib/modules";
 
 const grouped = [
   { label: "Finance", href: "/features#finance", ids: ["invoices", "quotes", "payments", "compliance", "customers"] },

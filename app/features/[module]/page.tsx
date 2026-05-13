@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PublicHeader from "@/components/SiteHeader";
-import { ALL_MODULES } from "@/lib/appModules";
+import { ALL_MODULES } from "@/lib/modules";
 
 export function generateStaticParams() { return ALL_MODULES.map((m) => ({ module: m.id })); }
 

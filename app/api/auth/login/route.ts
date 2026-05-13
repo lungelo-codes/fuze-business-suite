@@ -7,7 +7,7 @@ import {
   ROLE_COOKIE,
   TENANT_COOKIE,
   getModulesForPlan,
-} from "@/lib/appModules";
+} from "@/lib/modules";
 
 const MASTER_ERPNEXT_URL =
   process.env.ERPNEXT_URL ||

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getModulesForPlan } from "@/lib/appModules";
+import { getModulesForPlan } from "@/lib/modules";
 
 const PUBLIC_PATHS = [
   "/",

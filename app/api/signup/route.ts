@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { erpMethod } from "@/lib/server/erpnext";
-import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, TENANT_COOKIE, calculateSubscriptionTotal } from "@/lib/appModules";
+import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, TENANT_COOKIE, calculateSubscriptionTotal } from "@/lib/modules";
 
 interface CreateDemoTenantResponse {
   ok?: boolean;

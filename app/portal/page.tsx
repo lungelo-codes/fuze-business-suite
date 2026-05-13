@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import { cookies } from "next/headers";
 import { getDashboardData } from "@/lib/server/data";
-import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, getModulesForPlan } from "@/lib/appModules";
+import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, getModulesForPlan } from "@/lib/modules";
 import { money } from "@/lib/mappers";
 
 function isOpenStatus(status?: string): boolean {

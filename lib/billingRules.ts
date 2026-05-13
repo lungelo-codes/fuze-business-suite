@@ -1,4 +1,4 @@
-import { PLANS, calculateSubscriptionTotal, getModulesForPlan } from "@/lib/appModules";
+import { PLANS, calculateSubscriptionTotal, getModulesForPlan } from "@/lib/modules";
 
 export type PlanChangeDirection = "same" | "upgrade" | "downgrade";
 export type PlanChangeEffective = "immediate" | "next_cycle" | "blocked";

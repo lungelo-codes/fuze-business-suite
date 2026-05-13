@@ -1,6 +1,6 @@
 import Link from "next/link";
 import PublicHeader from "@/components/SiteHeader";
-import { ALL_MODULES, PLANS } from "@/lib/appModules";
+import { ALL_MODULES, PLANS } from "@/lib/modules";
 
 const storyStats = [
   ["1 workspace", "CRM, finance, documents, HR, support and projects"],

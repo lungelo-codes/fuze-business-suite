@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import PortalShell from "@/components/PortalShell";
-import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, ROLE_COOKIE, getModulesForPlan } from "@/lib/appModules";
+import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, ROLE_COOKIE, getModulesForPlan } from "@/lib/modules";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
