@@ -55,7 +55,7 @@ const GROUPS: NavGroup[] = [
     { label: "Campaigns", href: "/portal/campaigns", icon: "mail", module: "campaigns" },
   ]},
   { title: "Finance", items: [
-    { label: "Finance Dashboard", href: "/portal/finance", icon: "chart", module: "payments" },
+    { label: "Finance", href: "/portal/finance", icon: "chart", module: "payments" },
     { label: "Invoices", href: "/portal/invoices", icon: "invoice", module: "invoices" },
     { label: "Payments", href: "/portal/payments", icon: "card", module: "payments" },
     { label: "Banking", href: "/portal/bank-reconciliation", icon: "bank", module: "payments" },
@@ -67,7 +67,7 @@ const GROUPS: NavGroup[] = [
     { label: "CIPC", href: "/portal/cipc", icon: "shield", module: "compliance" },
   ]},
   { title: "Operations", items: [
-    { label: "Documents", href: "/portal/documents", icon: "folder", module: "documents", badge: "Paid" },
+    { label: "Documents", href: "/portal/documents", icon: "folder", module: "documents" },
     { label: "Suppliers", href: "/portal/suppliers", icon: "truck", module: "suppliers" },
     { label: "Purchase Orders", href: "/portal/purchase-orders", icon: "invoice", module: "purchase-orders" },
     { label: "Inventory", href: "/portal/items", icon: "box", module: "items" },

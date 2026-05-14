@@ -2,8 +2,6 @@ import KPI from "@/components/KPI";
 import SimpleTable, { StatusCell } from "@/components/SimpleTable";
 import { erpList } from "@/lib/server/erpnext";
 
-export const dynamic = "force-dynamic";
-
 interface Tenant {
   name: string;
   customer?: string;
