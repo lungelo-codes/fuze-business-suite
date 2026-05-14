@@ -251,7 +251,46 @@ export async function erpExists(doctype: string, name: string): Promise<boolean>
   }
 }
 
-export async function erpMethod<T>(method: string, body: Record<string, unknown>): Promise<T | null> {
-  const response = await erpPost<ERPDocumentResponse<T>>(`/api/method/${method}`, body);
-  return response.data ?? response.message ?? null;
+function unwrapERPMethodResponse<T>(response: ERPDocumentResponse<T> | T): T | null {
+  const boxed = response as ERPDocumentResponse<T>;
+  return (boxed.data ?? boxed.message ?? (response as T) ?? null) as T | null;
+}
+
+function methodCandidates(method: string): string[] {
+  const clean = String(method || "").trim().replace(/^\/+/, "");
+  const configured = (process.env.ERPNEXT_API_METHOD_PREFIX || process.env.NEXT_PUBLIC_API_METHOD_PREFIX || "fuze_suite.api").trim().replace(/\.$/, "");
+  const prefixes = Array.from(new Set([configured, "fuze_suite.api", "business_suite.api", "frappe"].filter(Boolean)));
+  const candidates: string[] = [];
+
+  // Keep exact method first so existing working endpoints remain untouched.
+  if (clean) candidates.push(clean);
+
+  // API zip files are intended to live in an app api package, for example
+  // fuze_suite.api.crm.get_leads. Older UI routes called crm.get_leads, which
+  // leaves the frontend connected to nothing on a real ERPNext site.
+  if (clean.split(".").length === 2) {
+    for (const prefix of prefixes) {
+      if (prefix === "frappe") continue;
+      candidates.push(`${prefix}.${clean}`);
+    }
+  }
+
+  return Array.from(new Set(candidates));
+}
+
+export async function erpMethod<T>(method: string, body: Record<string, unknown> = {}): Promise<T | null> {
+  let lastError: unknown = null;
+  for (const candidate of methodCandidates(method)) {
+    try {
+      const response = await erpPost<ERPDocumentResponse<T>>(`/api/method/${candidate}`, body);
+      return unwrapERPMethodResponse<T>(response);
+    } catch (error) {
+      lastError = error;
+      const msg = error instanceof Error ? error.message : String(error || "");
+      const missing = /not found|failed to get method|module.*has no attribute|no module named|does not exist/i.test(msg);
+      if (!missing) throw error;
+    }
+  }
+  if (lastError) throw lastError;
+  return null;
 }

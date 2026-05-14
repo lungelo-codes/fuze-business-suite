@@ -47,6 +47,8 @@ const GROUPS: NavGroup[] = [
     // Always visible: do not attach module: "crm" here, otherwise this link can disappear
     // for tenants that have leads/customers/quotes enabled but not the exact crm key.
     { label: "CRM Workspace", href: "/portal/crm", icon: "crm" },
+    { label: "Leads", href: "/portal/leads", icon: "target", module: "leads" },
+    { label: "Opportunities", href: "/portal/opportunities", icon: "chart", module: "opportunities" },
     { label: "Customers", href: "/portal/customers", icon: "users", module: "customers" },
     { label: "Contacts", href: "/portal/contacts", icon: "users", module: "customers" },
     { label: "Quotes", href: "/portal/quotes", icon: "quote", module: "quotes" },
@@ -56,6 +58,9 @@ const GROUPS: NavGroup[] = [
   { title: "Finance", items: [
     // Finance dashboard contains invoices, payments and banking internally as tabs/actions.
     { label: "Finance", href: "/portal/finance", icon: "chart", module: "payments" },
+    { label: "Invoices", href: "/portal/invoices", icon: "invoice", module: "invoices" },
+    { label: "Payments", href: "/portal/payments", icon: "card", module: "payments" },
+    { label: "Banking", href: "/portal/bank-reconciliation", icon: "bank", module: "payments" },
     { label: "Compliance", href: "/portal/compliance", icon: "shield", module: "compliance" },
   ]},
   { title: "Operations", items: [
@@ -68,6 +73,9 @@ const GROUPS: NavGroup[] = [
   ]},
   { title: "People", items: [
     { label: "HR", href: "/portal/hr", icon: "person", module: "employees" },
+    { label: "Employees", href: "/portal/employees", icon: "users", module: "employees" },
+    { label: "Leave", href: "/portal/leave", icon: "calendar", module: "employees" },
+    { label: "Payroll", href: "/portal/payroll", icon: "card", module: "employees" },
   ]},
   { title: "Service", items: [
     { label: "Support", href: "/portal/support", icon: "support", module: "support" },
@@ -89,10 +97,13 @@ function normalizeModule(module?: string): string | undefined {
 
 function moduleAliases(module?: string): string[] {
   switch (module) {
+    case "leads": return ["leads", "crm", "crm-sales", "crm & sales", "sales"];
+    case "opportunities": return ["opportunities", "deals", "crm", "crm-sales", "crm & sales", "sales"];
     case "customers": return ["customers", "crm", "crm-sales", "crm & sales", "sales"];
     case "quotes": return ["quotes", "crm", "crm-sales", "crm & sales", "sales"];
     case "sales-orders": return ["sales-orders", "sales", "crm-sales", "crm & sales"];
     case "contracts": return ["contracts", "crm", "crm-sales", "crm & sales", "sales"];
+    case "invoices": return ["invoices", "finance", "accounting", "accounts", "sales"];
     case "payments": return ["payments", "finance", "accounting", "accounts"];
     case "compliance": return ["compliance", "finance", "accounting", "sa-compliance", "south african compliance"];
     case "documents": return ["documents", "document", "document-management", "operations"];

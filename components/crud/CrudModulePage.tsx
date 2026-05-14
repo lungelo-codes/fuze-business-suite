@@ -5,6 +5,7 @@ import BusinessModal from '@/components/modals/BusinessModal'
 import DetailDrawer from '@/components/drawers/DetailDrawer'
 import DynamicForm from '@/components/forms/DynamicForm'
 import StatusChip from '@/components/StatusChip'
+import { WorkspaceCharts } from '@/components/charts/InteractiveBusinessCharts'
 import type { CrudField, CrudModuleConfig } from '@/lib/crudConfig'
 
 type Row = Record<string, unknown>
@@ -149,6 +150,8 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
 
   const totalValue = useMemo(() => rows.reduce((sum, row) => sum + Number(getLikelyValue(row) || 0), 0), [rows])
   const activeCount = useMemo(() => rows.filter((row) => !String(row[statusField] || '').toLowerCase().match(/closed|cancel|lost|inactive/)).length, [rows, statusField])
+  const chartStatusData = useMemo(() => stageCards.map((card) => ({ label: card.stage, count: card.count })), [stageCards])
+  const chartValueData = useMemo(() => rows.slice(0, 8).reverse().map((row, index) => ({ label: String(row.name || row.title || row.subject || `#${index + 1}`).slice(0, 10), value: Number(getLikelyValue(row) || 0) })), [rows])
 
   useEffect(() => { setStageFilter(''); setTab('Dashboard') }, [moduleId])
 
@@ -373,6 +376,8 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
           </button>
         </section>
       ) : null}
+
+      {tab === 'Dashboard' ? <WorkspaceCharts statusData={chartStatusData} valueData={chartValueData} /> : null}
 
       {tab === 'Dashboard' && stageCards.length > 0 ? (
         <section className="demo-panel">

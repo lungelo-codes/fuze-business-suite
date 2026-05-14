@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { getDashboardData } from "@/lib/server/data";
 import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, getModulesForPlan } from "@/lib/modules";
 import { money } from "@/lib/mappers";
+import { DashboardCharts } from "@/components/charts/InteractiveBusinessCharts";
 
 function isOpenStatus(status?: string): boolean {
   const value = (status || "").toLowerCase();
@@ -75,6 +76,22 @@ export default async function DashboardPage() {
     { title: `${data.payments.length} payments captured`, module: "Finance", href: "/portal/payments", show: moduleAllowed(active, "payments") },
   ].filter((a) => a.show);
 
+  const revenueChart = data.invoices.slice(0, 8).reverse().map((invoice, index) => ({
+    label: String(invoice.name || `Inv ${index + 1}`).slice(0, 10),
+    revenue: Number(invoice.grand_total || 0),
+    outstanding: Number(invoice.outstanding_amount || 0),
+    paid: Math.max(0, Number(invoice.grand_total || 0) - Number(invoice.outstanding_amount || 0)),
+  }));
+  if (!revenueChart.length) revenueChart.push({ label: "No data", revenue: 0, outstanding: 0, paid: 0 });
+  const activityChart = [
+    { label: "Customers", count: data.customers.length },
+    { label: "Quotes", count: data.quotes.length },
+    { label: "Invoices", count: data.invoices.length },
+    { label: "Payments", count: data.payments.length },
+    { label: "Tasks", count: data.tasks.length },
+    { label: "Compliance", count: data.compliance.length },
+  ];
+
   return (
     <div className="demo-workspace animate-fade-up">
       <section className="demo-hero">
@@ -118,6 +135,8 @@ export default async function DashboardPage() {
             ? <StatCard label="Total Paid" value={money(totalPaid)} hint="Payment entries" href="/portal/payments" icon="✓" />
             : null}
       </section>
+
+      <DashboardCharts revenue={revenueChart} activity={activityChart} />
 
       <section className="demo-grid">
         <div className="demo-panel">

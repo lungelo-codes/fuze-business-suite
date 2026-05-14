@@ -1,9 +1,29 @@
 import { NextResponse } from 'next/server'
-import { getCrudConfig, toERPDoc } from '@/lib/crudConfig'
-import { erpCreate, erpList, BusinessSuiteError } from '@/lib/server/erpnext'
-import { getModuleMeta, sanitizeDocFromMeta } from '@/lib/server/doctypeMeta'
-const itemModules = new Set(['quotes', 'sales-orders', 'invoices', 'purchase-orders'])
-function safeFields(configFields: string[], allowedFieldnames: string[]): string[] { const allowed = new Set(allowedFieldnames); const fields = configFields.filter((field) => field === 'name' || field === 'modified' || field === 'docstatus' || allowed.has(field)); return Array.from(new Set(fields.length ? fields : ['name', 'modified'])) }
-async function safeErpList(doctype: string, fields: string[]) { const attempts = [fields, fields.filter((f) => !['source','sales_stage','probability','expected_closing'].includes(f)), ['name','modified'], ['name']].map((x) => Array.from(new Set(x.filter(Boolean)))); for (const attempt of attempts) { try { const rows = await erpList(doctype, { fields: attempt, limit: 200, orderBy: 'modified desc' }); return { rows, fields: attempt }; } catch {} } return { rows: [], fields: ['name'] } }
-export async function GET(_req: Request,{ params }: { params: { module: string } }) { try { const config = getCrudConfig(params.module); if (!config) return NextResponse.json({ error: 'Unknown module' }, { status: 404 }); const meta = await getModuleMeta(config); const fields = safeFields(meta.listFields.length ? meta.listFields : config.listFields, meta.allowedFieldnames); const result = await safeErpList(config.doctype, fields); return NextResponse.json({ data: result.rows, meta: { fields: result.fields, fromERPNext: meta.fromERPNext } }) } catch (e) { return NextResponse.json({ error: e instanceof Error ? e.message : 'Could not load records' }, { status: e instanceof BusinessSuiteError ? e.status : 500 }) } }
-export async function POST(req: Request,{ params }: { params: { module: string } }) { try { const config = getCrudConfig(params.module); if (!config) return NextResponse.json({ error: 'Unknown module' }, { status: 404 }); const body = await req.json(); const meta = await getModuleMeta(config); const metadataDoc = meta.fromERPNext ? sanitizeDocFromMeta(body, meta) : {}; const legacyDoc = toERPDoc(params.module, body); const doc = itemModules.has(params.module) ? { ...metadataDoc, ...legacyDoc } : (meta.fromERPNext ? metadataDoc : legacyDoc); try { const created = await erpCreate(config.doctype, doc); return NextResponse.json({ data: created }) } catch (firstError) { if (params.module === 'leads' && 'source' in doc) { const retryDoc = { ...doc }; delete retryDoc.source; const created = await erpCreate(config.doctype, retryDoc); return NextResponse.json({ data: created, warning: firstError instanceof Error ? firstError.message : 'Source field skipped' }) } throw firstError } } catch (e) { return NextResponse.json({ error: e instanceof Error ? e.message : 'Could not create record. Check permissions and required fields.' }, { status: e instanceof BusinessSuiteError ? e.status : 500 }) } }
+import { getCrudConfig } from '@/lib/crudConfig'
+import { BusinessSuiteError } from '@/lib/server/erpnext'
+import { listModuleRows, createModuleRow } from '@/lib/server/moduleApi'
+
+export async function GET(req: Request,{ params }: { params: { module: string } }) {
+  try {
+    const config = getCrudConfig(params.module)
+    if (!config) return NextResponse.json({ error: 'Unknown module' }, { status: 404 })
+    const { searchParams } = new URL(req.url)
+    const query = Object.fromEntries(searchParams.entries())
+    const rows = await listModuleRows(params.module, query)
+    return NextResponse.json({ data: rows, meta: { fromBusinessApi: true, doctype: config.doctype } })
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Could not load records' }, { status: e instanceof BusinessSuiteError ? e.status : 500 })
+  }
+}
+
+export async function POST(req: Request,{ params }: { params: { module: string } }) {
+  try {
+    const config = getCrudConfig(params.module)
+    if (!config) return NextResponse.json({ error: 'Unknown module' }, { status: 404 })
+    const body = await req.json()
+    const created = await createModuleRow(params.module, body)
+    return NextResponse.json({ data: created }, { status: 201 })
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Could not create record. Check permissions and required fields.' }, { status: e instanceof BusinessSuiteError ? e.status : 500 })
+  }
+}
