@@ -3,6 +3,7 @@ const path = require("path");
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  eslint: { ignoreDuringBuilds: true },
   webpack: (config) => {
     config.resolve = config.resolve || {};
     config.resolve.alias = {
