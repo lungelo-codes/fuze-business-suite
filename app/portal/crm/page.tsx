@@ -1,50 +1,37 @@
-import ModernModuleDashboard from "@/components/modules/ModernModuleDashboard";
-import { erpList } from "@/lib/server/erpnext";
+import CrmWorkspaceClient from "@/components/crm/CrmWorkspaceClient";
 
-type Row = Record<string, unknown>;
-async function safeList(doctype: string, fields: string[]): Promise<Row[]> {
-  try { return await erpList<Row>(doctype, { fields, limit: 100, orderBy: "modified desc" }); } catch { return []; }
-}
-
-export default async function CRMPage() {
-  // Aggregate data from leads, opportunities, quotes and campaigns. The CRM workspace
-  // now owns all sales pipeline objects, so leads, opportunities and campaigns
-  // are displayed together without separate sidebar entries.
-  const [leads, opportunities, quotes, campaigns] = await Promise.all([
-    safeList("Lead", ["name", "lead_name", "company_name", "status", "email_id", "mobile_no", "modified"]),
-    safeList("Opportunity", ["name", "party_name", "status", "opportunity_amount", "expected_closing", "modified"]),
-    safeList("Quotation", ["name", "party_name", "status", "grand_total", "transaction_date", "modified"]),
-    // Fallback to an empty list if Campaign doctype is not available. Fields align with campaign name and status.
-    safeList("Campaign", ["name", "campaign_name", "status", "expected_revenue", "modified"]),
-  ]);
-  const rows = [...leads, ...opportunities, ...quotes, ...campaigns];
-  const pipelineValue = opportunities.reduce((sum, row) => sum + Number(row.opportunity_amount || 0), 0);
-  const totalCampaigns = campaigns.length;
-  return <ModernModuleDashboard
-    title="CRM Workspace"
-    eyebrow="CRM & Sales"
-    // Updated description: remove ERPNext mention and highlight streamlined sales process.
-    description="Manage leads, opportunities, campaigns, contacts, quotes and invoices in a clean sales workspace. Pipeline stages help your team run sales daily without unnecessary complexity."
-    rows={rows}
-    // Added an 'Invoices' tab so users can view invoice records directly from the CRM dashboard.
-    tabs={["Dashboard", "Pipeline", "Leads", "Opportunities", "Campaigns", "Contacts", "Quotes", "Invoices", "Activities"]}
-    metrics={[
-      { label: "Open Leads", value: leads.length, hint: "Lead records" },
-      { label: "Opportunities", value: opportunities.length, hint: `R${pipelineValue.toLocaleString()} pipeline` },
-      { label: "Campaigns", value: totalCampaigns, hint: "Campaign records" },
-      { label: "Quotes", value: quotes.length, hint: "Quotation records" },
-    ]}
-    actions={[
-      { label: "Create Lead", href: "/portal/leads", description: "Capture a new sales prospect" },
-      { label: "Create Opportunity", href: "/portal/opportunities", description: "Start a new opportunity" },
-      { label: "Create Campaign", href: "/portal/campaigns", description: "Launch a marketing campaign" },
-      { label: "Create Quote", href: "/portal/quotes", description: "Send a customer proposal" },
-      { label: "Create Invoice", href: "/portal/invoices", description: "Bill your customer" },
-    ]}
-    primaryField="lead_name"
-    secondaryField="company_name"
-    statusField="status"
-    valueField="opportunity_amount"
-    mode="crm"
-  />;
+/**
+ * CRM Workspace page.
+ *
+ * All data fetching is done client-side in CrmWorkspaceClient via the
+ * API routes that proxy to the crm.py backend module:
+ *
+ *   GET  /api/crm/dashboard          → crm.get_dashboard
+ *   GET  /api/crm/statuses           → crm.get_lead_statuses / crm.get_deal_statuses
+ *   GET  /api/crm/sources            → crm.get_lead_sources
+ *   GET  /api/crm/leads              → crm.get_leads
+ *   POST /api/crm/leads              → crm.create_lead
+ *   GET  /api/crm/leads/[id]         → crm.get_lead  (notes, tasks, comments, comms)
+ *   PUT  /api/crm/leads/[id]         → crm.update_lead
+ *   POST /api/crm/leads/[id]/convert → crm.convert_lead_to_deal
+ *   GET  /api/crm/deals              → crm.get_pipeline
+ *   POST /api/crm/deals              → crm.create_deal
+ *   GET  /api/crm/deals/[id]         → crm.get_deal
+ *   PUT  /api/crm/deals/[id]         → crm.update_deal / crm.mark_deal_lost
+ *   GET  /api/crm/contacts           → crm.get_contacts
+ *   POST /api/crm/contacts           → crm.create_contact
+ *   GET  /api/crm/organizations      → crm.get_organizations
+ *   GET  /api/crm/notes              → crm.get_notes
+ *   POST /api/crm/notes              → crm.create_note
+ *   DELETE /api/crm/notes/[id]       → crm.delete_note
+ *   GET  /api/crm/tasks              → crm.get_tasks
+ *   POST /api/crm/tasks              → crm.create_task
+ *   PUT  /api/crm/tasks/[id]         → crm.update_task
+ *   GET  /api/crm/comments           → crm.get_comments
+ *   POST /api/crm/comments           → crm.add_comment
+ *   GET  /api/crm/emails             → crm.get_communications
+ *   POST /api/crm/emails             → crm.send_email
+ */
+export default function CRMPage() {
+  return <CrmWorkspaceClient />;
 }
