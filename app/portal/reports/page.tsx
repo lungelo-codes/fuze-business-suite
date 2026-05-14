@@ -50,32 +50,6 @@ export default function ReportsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Download a file returned from the export API. Accepts a JSON object with
-  // filename, mime and base64-encoded content fields.
-  async function downloadExport(format: "pdf" | "xlsx") {
-    try {
-      // Choose a sensible default report name. Adjust this value if you have a
-      // specific report configured on your ERPNext instance. Users can modify
-      // the query string or API call as needed.
-      const reportName = encodeURIComponent("Sales Invoice");
-      const res = await fetch(`/api/reports/export?report_name=${reportName}&format=${format}`);
-      const json = await res.json();
-      if (!res.ok || json.error) {
-        alert(json.error || "Unable to export report");
-        return;
-      }
-      const { filename, mime, content } = json as { filename: string; mime: string; content: string };
-      const link = document.createElement("a");
-      link.href = `data:${mime};base64,${content}`;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err: any) {
-      alert(err?.message || "An unexpected error occurred");
-    }
-  }
-
   if (loading) {
     return (
       <div className="demo-workspace animate-fade-up">
@@ -145,10 +119,8 @@ export default function ReportsPage() {
           <p>Business analytics and financial insights across all modules</p>
         </div>
         <div className="demo-module-actions">
-          {/* The Export button downloads an Excel file (.xlsx) */}
-          <button className="btn" onClick={() => downloadExport("xlsx")}>Export</button>
-          {/* The Print button downloads a PDF version of the same report */}
-          <button className="btn btn-teal" onClick={() => downloadExport("pdf")}>Print</button>
+          <button className="btn">Export</button>
+          <button className="btn btn-teal">Print</button>
         </div>
       </div>
 

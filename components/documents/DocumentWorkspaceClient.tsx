@@ -163,7 +163,7 @@ export default function DocumentWorkspaceClient({ initialFiles, googleConnected 
       <section className="demo-hero">
         <div className="demo-hero-grid">
           <div>
-        {/* Removed paid badge from documents – all tenants can now access this module */}
+            <div className="demo-eyebrow">Paid module</div>
             <h1 className="demo-hero-title">Document Management</h1>
             <p className="demo-hero-copy">Connect Google Drive or Dropbox, upload documents into ERPNext, and attach files to customers, invoices, quotations, projects and support tickets.</p>
             <div className="demo-hero-actions">

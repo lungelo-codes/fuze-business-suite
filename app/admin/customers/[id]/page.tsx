@@ -4,6 +4,8 @@ import { erpGet, erpList } from "@/lib/server/erpnext";
 import TenantActions from "./TenantActions";
 import TenantModules from "./TenantModules";
 
+export const dynamic = "force-dynamic";
+
 interface Tenant {
   name: string;
   customer?: string;

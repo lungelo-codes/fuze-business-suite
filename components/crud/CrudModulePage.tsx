@@ -115,6 +115,7 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
   const [mode, setMode] = useState<'create' | 'edit' | 'duplicate'>('create')
   const [loading, setLoading] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [workflowLoading, setWorkflowLoading] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [metaNotice, setMetaNotice] = useState('')
@@ -310,6 +311,34 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
     }
   }
 
+  async function performWorkflow(action: string, row: Row, e?: MouseEvent) {
+    e?.preventDefault(); e?.stopPropagation()
+    const id = getRowId(row)
+    if (!id) return
+    setWorkflowLoading(true); setError('')
+    try {
+      const res = await fetch('/api/portal/workflow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, name: id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `Workflow action failed`)
+      const result = data.data || {}
+      const resultId = String(result.name || result.id || '')
+      const actionLabel = action === 'lead_to_opportunity' ? 'Opportunity' : action === 'opportunity_to_quote' ? 'Quotation' : action === 'quote_to_order' ? 'Sales Order' : action === 'quote_to_invoice' || action === 'order_to_invoice' ? 'Invoice' : 'record'
+      setNotice(`${actionLabel} created${resultId ? `: ${resultId}` : ''}. Refresh to see updated status.`)
+      // Update the row status locally
+      const newStatus = action === 'lead_to_opportunity' ? 'Opportunity' : action === 'opportunity_to_quote' ? 'Quotation' : action === 'quote_to_order' ? 'Order' : 'Invoiced'
+      setRows((prev) => prev.map((r) => getRowId(r) === id ? { ...r, status: newStatus } : r))
+      setSelected((prev) => prev ? { ...prev, status: newStatus } : prev)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Workflow action failed')
+    } finally {
+      setWorkflowLoading(false)
+    }
+  }
+
   function shareRecord(row: Row, e?: MouseEvent) {
     e?.preventDefault(); e?.stopPropagation()
     const id = getRowId(row)
@@ -433,6 +462,9 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
               <button type="button" onClick={openCreate} className="demo-alert">Add {singularTitle(activeConfig.title)}<span>Create a record using ERPNext fields</span></button>
               <button type="button" onClick={reloadRecords} className="demo-alert">Refresh live data<span>Load latest tenant records</span></button>
               <button type="button" onClick={() => setTab('Activity')} className="demo-alert">Open activity<span>Review recent records</span></button>
+              {activeConfig.doctype === 'Lead' && rows.length > 0 ? <button type="button" onClick={(e) => { const r = rows.find((x) => !String(x.status || '').toLowerCase().includes('opportunity') && !String(x.status || '').toLowerCase().includes('convert')); if (r) { openDetails(r, e); } }} className="demo-alert">Convert Lead → Opportunity<span>Promote an open lead to the pipeline</span></button> : null}
+              {activeConfig.doctype === 'Quotation' && rows.length > 0 ? <button type="button" onClick={(e) => { const r = rows.find((x) => Number(x.docstatus) === 1); if (r) { openDetails(r, e); } }} className="demo-alert">Quote → Invoice<span>Create invoice from a submitted quote</span></button> : null}
+              {activeConfig.doctype === 'Sales Order' && rows.length > 0 ? <button type="button" onClick={(e) => { const r = rows.find((x) => Number(x.docstatus) === 1); if (r) { openDetails(r, e); } }} className="demo-alert">Order → Invoice<span>Create invoice from a submitted order</span></button> : null}
               {stageCards.slice(0, 4).map((card) => <button key={card.stage} type="button" onClick={() => { setStageFilter(card.stage); setTab('Records') }} className="demo-alert">{card.stage}<span>{card.count} record{card.count === 1 ? '' : 's'}</span></button>)}
             </div>
           </div>
@@ -447,7 +479,7 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
       <DetailDrawer open={drawerOpen} title={titleValue || activeConfig.title} subtitle={selected ? getRowId(selected) : ''} onClose={() => setDrawerOpen(false)}>
         {selected ? <div className="crud-drawer-space">
           {detailLoading ? <div className="demo-banner">Loading full record...</div> : null}
-          <div className="demo-panel crud-drawer-actions"><div className="demo-panel-head"><div><h3>Record Actions</h3><p>Work with this record directly from Business Suite.</p></div></div><div className="crud-action-strip"><button type="button" onClick={(e) => openEdit(selected, e)} className="btn btn-teal">Edit</button><button type="button" onClick={(e) => duplicateRecord(selected, e)} className="btn">Duplicate</button>{['Sales Invoice', 'Quotation', 'Payment Entry', 'Purchase Order', 'Sales Order'].includes(activeConfig.doctype) ? <button type="button" onClick={(e) => openPrint(selected, e)} className="btn">Print / PDF</button> : null}<button type="button" onClick={(e) => shareRecord(selected, e)} className="btn">Share</button>{activeConfig.submitEnabled && selectedDocStatus === 0 ? <button type="button" onClick={(e) => performAction('submit', selected, e)} disabled={loading} className="btn btn-teal">Submit</button> : null}{activeConfig.submitEnabled && selectedDocStatus === 1 ? <button type="button" onClick={(e) => performAction('cancel', selected, e)} disabled={loading} className="btn">Cancel</button> : null}<button type="button" onClick={(e) => deleteRecord(selected, e)} disabled={loading || selectedDocStatus === 1} className="btn crud-danger">Delete</button></div></div>
+          <div className="demo-panel crud-drawer-actions"><div className="demo-panel-head"><div><h3>Record Actions</h3><p>Work with this record directly from Business Suite.</p></div></div><div className="crud-action-strip"><button type="button" onClick={(e) => openEdit(selected, e)} className="btn btn-teal">Edit</button><button type="button" onClick={(e) => duplicateRecord(selected, e)} className="btn">Duplicate</button>{['Sales Invoice', 'Quotation', 'Payment Entry', 'Purchase Order', 'Sales Order'].includes(activeConfig.doctype) ? <button type="button" onClick={(e) => openPrint(selected, e)} className="btn">Print / PDF</button> : null}<button type="button" onClick={(e) => shareRecord(selected, e)} className="btn">Share</button>{activeConfig.submitEnabled && selectedDocStatus === 0 ? <button type="button" onClick={(e) => performAction('submit', selected, e)} disabled={loading} className="btn btn-teal">Submit</button> : null}{activeConfig.submitEnabled && selectedDocStatus === 1 ? <button type="button" onClick={(e) => performAction('cancel', selected, e)} disabled={loading} className="btn">Cancel</button> : null}{activeConfig.doctype === 'Lead' ? <button type="button" onClick={(e) => performWorkflow('lead_to_opportunity', selected, e)} disabled={workflowLoading} className="btn btn-teal" title="Convert this lead to an Opportunity">{workflowLoading ? '…' : '→ Opportunity'}</button> : null}{activeConfig.doctype === 'Opportunity' ? <button type="button" onClick={(e) => performWorkflow('opportunity_to_quote', selected, e)} disabled={workflowLoading} className="btn btn-teal" title="Create a Quotation from this Opportunity">{workflowLoading ? '…' : '→ Quotation'}</button> : null}{activeConfig.doctype === 'Quotation' ? <><button type="button" onClick={(e) => performWorkflow('quote_to_order', selected, e)} disabled={workflowLoading} className="btn" title="Create a Sales Order from this Quotation">{workflowLoading ? '…' : '→ Sales Order'}</button><button type="button" onClick={(e) => performWorkflow('quote_to_invoice', selected, e)} disabled={workflowLoading} className="btn btn-teal" title="Create an Invoice from this Quotation">{workflowLoading ? '…' : '→ Invoice'}</button></> : null}{activeConfig.doctype === 'Sales Order' ? <button type="button" onClick={(e) => performWorkflow('order_to_invoice', selected, e)} disabled={workflowLoading} className="btn btn-teal" title="Create an Invoice from this Sales Order">{workflowLoading ? '…' : '→ Invoice'}</button> : null}<button type="button" onClick={(e) => deleteRecord(selected, e)} disabled={loading || selectedDocStatus === 1} className="btn crud-danger">Delete</button></div></div>
           <div className="crud-detail-grid">{detailFields.map((field) => <div key={field.name} className="crud-detail-card"><span>{field.label}</span><b>{isStatusField(field.name) ? <StatusChip status={valueToText(selected[field.name])} /> : valueToText(selected[field.name])}</b></div>)}</div>
           {children.map(([key, items]) => <div key={key} className="demo-panel"><div className="demo-panel-head"><div><h3>{key.replace(/_/g, ' ')}</h3><p>Linked child table records</p></div></div><div className="overflow-auto"><table className="demo-table"><tbody>{items.map((item, idx) => <tr key={idx}><td>#{idx + 1}</td><td>{Object.entries(item).filter(([k, v]) => !SYSTEM_FIELDS.has(k) && v !== undefined && v !== null && v !== '').slice(0, 8).map(([k, v]) => <span key={k} className="crud-inline-field"><b>{k.replace(/_/g, ' ')}:</b> {valueToText(v)}</span>)}</td></tr>)}</tbody></table></div></div>)}
         </div> : null}
