@@ -7,7 +7,7 @@ type Params = { params: { id: string } };
 export async function PUT(req: Request, { params }: Params) {
   try {
     const body = await req.json();
-    const result = await erpMethod("crm.update_task", { task: params.id, data: body });
+    const result = await erpMethod("fuze_suite.api.crm.update_task", { task: params.id, data: body });
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(

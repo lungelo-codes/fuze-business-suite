@@ -7,7 +7,7 @@ import { erpMethod } from "@/lib/server/erpnext";
  */
 export async function GET() {
   try {
-    const result = await erpMethod("crm.get_lead_sources", {});
+    const result = await erpMethod("fuze_suite.api.crm.get_lead_sources", {});
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json({

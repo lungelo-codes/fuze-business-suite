@@ -247,7 +247,7 @@ function DetailPanel({
       <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.25)", zIndex: 199 }} onClick={onClose} />
       <div style={panelStyle}>
         {/* Header */}
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>
               {recordDoctype === "lead" ? "Lead" : "Deal"}
@@ -568,7 +568,7 @@ function DashboardTab({ cards, activity, currency }: {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {activity.slice(0, 10).map((a) => (
-              <div key={a.name} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+              <div key={a.name} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "8px 0", borderBottom: "1px solid var(--line)" }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: "50%", background: "#3b82f61a", color: "#3b82f6",
                   display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0,
@@ -1142,7 +1142,7 @@ export default function CrmWorkspaceClient() {
       </div>
 
       {/* Tab navigation */}
-      <div style={{ display: "flex", gap: 0, marginBottom: 20, borderBottom: "1px solid var(--border)" }}>
+      <div style={{ display: "flex", gap: 0, marginBottom: 20, borderBottom: "1px solid var(--line)", background: "#fff", border: "1px solid var(--line)", borderRadius: 12, padding: 6, boxShadow: "var(--shadow)" }}>
         {tabs.map((t) => (
           <button
             key={t}
@@ -1151,10 +1151,10 @@ export default function CrmWorkspaceClient() {
               padding: "10px 18px",
               fontSize: 13,
               fontWeight: 600,
-              background: "none",
+              background: tab === t ? "var(--navy)" : "transparent",
               border: "none",
-              borderBottom: tab === t ? "2px solid var(--accent)" : "2px solid transparent",
-              color: tab === t ? "var(--accent)" : "var(--muted)",
+              borderBottom: "none", borderRadius: 9,
+              color: tab === t ? "#fff" : "var(--muted)",
               cursor: "pointer",
               transition: "color 0.15s",
               whiteSpace: "nowrap",

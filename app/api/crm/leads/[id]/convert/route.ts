@@ -12,7 +12,7 @@ type Params = { params: { id: string } };
 export async function POST(req: Request, { params }: Params) {
   try {
     const body = await req.json().catch(() => ({}));
-    const result = await erpMethod("crm.convert_lead_to_deal", {
+    const result = await erpMethod("fuze_suite.api.crm.convert_lead_to_deal", {
       lead: params.id,
       organization:         body.organization         ?? null,
       contact:              body.contact              ?? null,

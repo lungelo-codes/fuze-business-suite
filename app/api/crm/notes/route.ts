@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     if (limit)  args.limit  = Number(limit);
     if (offset) args.offset = Number(offset);
 
-    const result = await erpMethod("crm.get_notes", args);
+    const result = await erpMethod("fuze_suite.api.crm.get_notes", args);
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "reference_doctype and reference_name are required" }, { status: 400 });
     }
 
-    const result = await erpMethod("crm.create_note", {
+    const result = await erpMethod("fuze_suite.api.crm.create_note", {
       reference_doctype,
       reference_name,
       title: title || "Note",

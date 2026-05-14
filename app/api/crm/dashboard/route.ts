@@ -6,7 +6,7 @@ export async function GET(req: Request) {
   const company = searchParams.get("company") || undefined;
 
   try {
-    const result = await erpMethod("crm.get_dashboard", company ? { company } : {});
+    const result = await erpMethod("fuze_suite.api.crm.get_dashboard", company ? { company } : {});
     return NextResponse.json(result);
   } catch (error: any) {
     // Fallback: try direct ERPNext resource counts when crm module isn't installed
