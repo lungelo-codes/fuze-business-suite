@@ -131,14 +131,14 @@ export async function getComplianceWorkspace() {
     safeList("Fuze CIPC Annual Return", ["name", "company", "status", "due_date", "return_year", "modified"], 100),
     safeList("Fuze Compliance Reminder", ["name", "company", "status", "due_date", "reference_doctype", "modified"], 100),
   ]);
-  const rows = [
-    ...companyCompliance.map((row) => ({ ...row, workspace_type: "Company Compliance" })),
-    ...vat.map((row) => ({ ...row, workspace_type: "VAT" })),
-    ...paye.map((row) => ({ ...row, workspace_type: "PAYE" })),
-    ...uif.map((row) => ({ ...row, workspace_type: "UIF" })),
-    ...sdl.map((row) => ({ ...row, workspace_type: "SDL" })),
-    ...cipc.map((row) => ({ ...row, workspace_type: "CIPC" })),
-    ...reminders.map((row) => ({ ...row, workspace_type: "Reminder" })),
+  const rows: Row[] = [
+    ...companyCompliance.map((row): Row => ({ ...row, workspace_type: "Company Compliance", status: row.overall_status || row.status || "" })),
+    ...vat.map((row): Row => ({ ...row, workspace_type: "VAT" })),
+    ...paye.map((row): Row => ({ ...row, workspace_type: "PAYE" })),
+    ...uif.map((row): Row => ({ ...row, workspace_type: "UIF" })),
+    ...sdl.map((row): Row => ({ ...row, workspace_type: "SDL" })),
+    ...cipc.map((row): Row => ({ ...row, workspace_type: "CIPC" })),
+    ...reminders.map((row): Row => ({ ...row, workspace_type: "Reminder" })),
   ];
   return { companyCompliance, vat, paye, uif, sdl, cipc, reminders, rows, metrics: { compliance: companyCompliance.length, filings: vat.length + paye.length + uif.length + sdl.length + cipc.length, reminders: reminders.length, overdue: rows.filter((r) => String(r.status || "").toLowerCase().includes("overdue")).length } };
 }
