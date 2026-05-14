@@ -1,15 +1,29 @@
 import { NextResponse } from "next/server";
-import { BusinessSuiteError } from "@/lib/server/erpnext";
-import { convertLeadToCustomer, envelope, errorMessage } from "@/lib/server/businessApi";
+import { erpMethod } from "@/lib/server/erpnext";
 
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+type Params = { params: { id: string } };
+
+/**
+ * POST /api/crm/leads/[id]/convert
+ * body: { organization?, contact?, create_organization?, create_contact? }
+ *
+ * Converts a CRM Lead → CRM Deal (Frappe CRM) or Opportunity (ERPNext).
+ */
+export async function POST(req: Request, { params }: Params) {
   try {
-    const data = await convertLeadToCustomer(params.id);
-    return NextResponse.json(envelope(data, "Lead converted to customer"));
-  } catch (error) {
+    const body = await req.json().catch(() => ({}));
+    const result = await erpMethod("crm.convert_lead_to_deal", {
+      lead: params.id,
+      organization:         body.organization         ?? null,
+      contact:              body.contact              ?? null,
+      create_organization:  body.create_organization  ?? true,
+      create_contact:       body.create_contact       ?? true,
+    });
+    return NextResponse.json(result);
+  } catch (error: any) {
     return NextResponse.json(
-      { success: false, message: errorMessage(error, "Could not convert lead"), data: null },
-      { status: error instanceof BusinessSuiteError ? error.status : 500 }
+      { error: error?.message || "Failed to convert lead" },
+      { status: 500 }
     );
   }
 }

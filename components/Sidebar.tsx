@@ -44,27 +44,19 @@ function Icon({ name }: { name: string }) {
 const GROUPS: NavGroup[] = [
   { title: "Home", items: [{ label: "Dashboard", href: "/portal", icon: "dashboard" }] },
   { title: "CRM & Sales", items: [
-    { label: "CRM Workspace", href: "/portal/crm", icon: "crm", module: "crm" },
-    { label: "Leads", href: "/portal/leads", icon: "target", module: "leads" },
-    { label: "Opportunities", href: "/portal/opportunities", icon: "target", module: "opportunities" },
+    // Always visible: do not attach module: "crm" here, otherwise this link can disappear
+    // for tenants that have leads/customers/quotes enabled but not the exact crm key.
+    { label: "CRM Workspace", href: "/portal/crm", icon: "crm" },
     { label: "Customers", href: "/portal/customers", icon: "users", module: "customers" },
     { label: "Contacts", href: "/portal/contacts", icon: "users", module: "customers" },
     { label: "Quotes", href: "/portal/quotes", icon: "quote", module: "quotes" },
     { label: "Sales Orders", href: "/portal/sales-orders", icon: "invoice", module: "sales-orders" },
     { label: "Contracts", href: "/portal/contracts", icon: "invoice", module: "contracts" },
-    { label: "Campaigns", href: "/portal/campaigns", icon: "mail", module: "campaigns" },
   ]},
   { title: "Finance", items: [
+    // Finance dashboard contains invoices, payments and banking internally as tabs/actions.
     { label: "Finance", href: "/portal/finance", icon: "chart", module: "payments" },
-    { label: "Invoices", href: "/portal/invoices", icon: "invoice", module: "invoices" },
-    { label: "Payments", href: "/portal/payments", icon: "card", module: "payments" },
-    { label: "Banking", href: "/portal/bank-reconciliation", icon: "bank", module: "payments" },
     { label: "Compliance", href: "/portal/compliance", icon: "shield", module: "compliance" },
-    { label: "VAT", href: "/portal/vat", icon: "invoice", module: "compliance" },
-    { label: "PAYE", href: "/portal/paye", icon: "card", module: "compliance" },
-    { label: "UIF", href: "/portal/uif", icon: "card", module: "compliance" },
-    { label: "SDL", href: "/portal/sdl", icon: "card", module: "compliance" },
-    { label: "CIPC", href: "/portal/cipc", icon: "shield", module: "compliance" },
   ]},
   { title: "Operations", items: [
     { label: "Documents", href: "/portal/documents", icon: "folder", module: "documents" },
@@ -75,10 +67,7 @@ const GROUPS: NavGroup[] = [
     { label: "Tasks", href: "/portal/tasks", icon: "task", module: "tasks" },
   ]},
   { title: "People", items: [
-    { label: "Employees", href: "/portal/employees", icon: "person", module: "employees" },
-    { label: "Payroll", href: "/portal/payroll", icon: "card", module: "payroll" },
-    { label: "Leave", href: "/portal/leave", icon: "calendar", module: "leave" },
-    { label: "Attendance", href: "/portal/attendance", icon: "task", module: "attendance" },
+    { label: "HR", href: "/portal/hr", icon: "person", module: "employees" },
   ]},
   { title: "Service", items: [
     { label: "Support", href: "/portal/support", icon: "support", module: "support" },
@@ -94,10 +83,41 @@ const GROUPS: NavGroup[] = [
   ]},
 ];
 
+function normalizeModule(module?: string): string | undefined {
+  return module?.trim().toLowerCase();
+}
+
+function moduleAliases(module?: string): string[] {
+  switch (module) {
+    case "customers": return ["customers", "crm", "crm-sales", "crm & sales", "sales"];
+    case "quotes": return ["quotes", "crm", "crm-sales", "crm & sales", "sales"];
+    case "sales-orders": return ["sales-orders", "sales", "crm-sales", "crm & sales"];
+    case "contracts": return ["contracts", "crm", "crm-sales", "crm & sales", "sales"];
+    case "payments": return ["payments", "finance", "accounting", "accounts"];
+    case "compliance": return ["compliance", "finance", "accounting", "sa-compliance", "south african compliance"];
+    case "documents": return ["documents", "document", "document-management", "operations"];
+    case "suppliers": return ["suppliers", "procurement", "buying", "operations"];
+    case "purchase-orders": return ["purchase-orders", "procurement", "buying", "operations"];
+    case "items": return ["items", "inventory", "stock", "operations"];
+    case "projects": return ["projects", "project", "projects-tasks", "operations"];
+    case "tasks": return ["tasks", "project", "projects", "projects-tasks", "operations"];
+    case "employees": return ["employees", "hr", "hr-payroll", "people"];
+    case "support": return ["support", "helpdesk", "service", "support-desk"];
+    case "chat": return ["chat", "workspace", "team-chat", "messages"];
+    case "appointments": return ["appointments", "calendar", "service", "projects", "crm"];
+    default: return module ? [module] : [];
+  }
+}
+
 export default function Sidebar({ activeModules = [], companyName, companyLogo, role, plan, theme = "light", onCollapse }: SidebarProps) {
   const pathname = usePathname();
-  const activeSet = new Set(activeModules);
-  function isVisible(module?: string): boolean { return !module || activeSet.has(module); }
+  const activeSet = new Set(activeModules.map((module) => module.trim().toLowerCase()));
+  function isVisible(module?: string): boolean {
+    const normalized = normalizeModule(module);
+    if (!normalized) return true;
+    if (!activeSet.size) return true;
+    return moduleAliases(normalized).some((alias) => activeSet.has(alias));
+  }
   const isActive = (href: string) => href === "/portal" ? pathname === "/portal" : pathname.startsWith(href);
 
   return (
