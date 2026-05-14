@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import PublicHeader from "@/components/PublicHeader";
+import PublicHeader from "../../components/PublicHeader";
 
 function LoginForm() {
   const router = useRouter();
