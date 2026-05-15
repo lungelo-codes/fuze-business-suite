@@ -124,7 +124,7 @@ export default async function DashboardPage() {
         {moduleAllowed(active, "customers")
           ? <StatCard label="Customers" value={data.customers.length} hint="Customer records" href="/portal/customers" icon="★" />
           : moduleAllowed(active, "employees")
-            ? <StatCard label="Employees" value={data.employees.length} hint="Staff records" href="/portal/employees" icon="👤" />
+            ? <StatCard label="Employees" value={data.employees.length} hint="Staff records" href="/portal/hr" icon="👤" />
             : <StatCard label="Active Modules" value={activeModules.length} hint="Enabled features" href="/portal/modules" icon="⚙" />}
         {(moduleAllowed(active, "support") || moduleAllowed(active, "tasks"))
           ? <StatCard label="Open Work" value={openWork} hint="Tasks and tickets" href={moduleAllowed(active, "tasks") ? "/portal/tasks" : "/portal/support"} icon="⚡" />
@@ -180,6 +180,8 @@ export default async function DashboardPage() {
             {moduleAllowed(active, "quotes") ? <a href="/portal/quotes">Create Quote<span className="demo-record-sub">Prepare proposal</span></a> : null}
             {moduleAllowed(active, "invoices") ? <a href="/portal/invoices">Create Invoice<span className="demo-record-sub">Bill your client</span></a> : null}
             {moduleAllowed(active, "documents") ? <a href="/portal/documents">Upload Document<span className="demo-record-sub">Attach files</span></a> : null}
+            {moduleAllowed(active, "employees") ? <a href="/portal/hr">HR Workspace<span className="demo-record-sub">Manage people</span></a> : null}
+            {moduleAllowed(active, "projects") ? <a href="/portal/projects">New Project<span className="demo-record-sub">Track deliverables</span></a> : null}
           </div>
         </div>
       </section>

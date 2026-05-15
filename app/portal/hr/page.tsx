@@ -1,82 +1,51 @@
-import ModernModuleDashboard from "@/components/modules/ModernModuleDashboard";
-import { erpList, erpMethod } from "@/lib/server/erpnext";
+import { erpMethod, erpList } from "@/lib/server/erpnext";
+import HRWorkspaceClient from "@/components/hr/HRWorkspaceClient";
 
 type Row = Record<string, unknown>;
-async function safeList(doctype: string, fields: string[]): Promise<Row[]> { try { return await erpList<Row>(doctype, { fields, limit: 100, orderBy: "modified desc" }); } catch { return []; } }
+
+async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+  try { return await fn(); } catch { return fallback; }
+}
+
+function unwrapRows(v: unknown): Row[] {
+  const val = v as Record<string, unknown>;
+  if (Array.isArray(v)) return v as Row[];
+  if (Array.isArray(val?.data)) return val.data as Row[];
+  if (Array.isArray(val?.message)) return val.message as Row[];
+  for (const k of ["employees", "rows", "items", "records", "slips", "attendance", "leaves"]) {
+    if (Array.isArray(val?.[k])) return val[k] as Row[];
+  }
+  return [];
+}
 
 export default async function HRPage() {
-  // Fetch base rows for employees, attendance and leave. These provide
-  // individual record lists for the table view within the dashboard.
-  const [employees, attendance, leave] = await Promise.all([
-    safeList("Employee", ["name", "employee_name", "status", "department", "designation", "modified"]),
-    safeList("Attendance", ["name", "employee", "employee_name", "status", "attendance_date", "modified"]),
-    safeList("Leave Application", ["name", "employee", "employee_name", "status", "from_date", "to_date", "modified"]),
+  const [employees, attendance, leave, payroll, dashRaw] = await Promise.all([
+    safe(() => erpList<Row>("Employee", { fields: ["name","employee_name","first_name","last_name","department","designation","status","company_email","cell_number","date_of_joining","modified"], limit:200, orderBy:"modified desc" }), []),
+    safe(() => erpList<Row>("Attendance", { fields: ["name","employee","employee_name","attendance_date","status","working_hours","in_time","out_time","modified"], limit:200, orderBy:"attendance_date desc" }), []),
+    safe(() => erpList<Row>("Leave Application", { fields: ["name","employee","employee_name","leave_type","from_date","to_date","total_leave_days","status","description","modified"], limit:100, orderBy:"from_date desc" }), []),
+    safe(() => erpList<Row>("Salary Slip", { fields: ["name","employee","employee_name","start_date","end_date","gross_pay","net_pay","status","docstatus","payroll_frequency","modified"], limit:100, orderBy:"modified desc" }), []),
+    safe(() => erpMethod<unknown>("hr.get_dashboard", {}), {}),
   ]);
-  const rows = [...employees, ...attendance, ...leave];
 
-  // Load aggregated HR dashboard metrics from the backend. If the call
-  // fails for any reason, fall back to undefined so that metrics and
-  // tab labels can still be derived from the raw row counts below.
-  let dash: any = {};
-  try {
-    const res = await erpMethod<Record<string, unknown>>("hr.get_dashboard", {});
-    dash = res || {};
-  } catch {
-    dash = {};
-  }
-  const cards: Record<string, any> = (dash as any)?.cards || {};
-  const tabsRaw: any[] = Array.isArray((dash as any)?.tabs) ? ((dash as any)?.tabs as any[]) : [];
+  const dash = (dashRaw && typeof dashRaw === "object") ? dashRaw as Record<string, unknown> : {};
+  const cards = (dash.cards && typeof dash.cards === "object") ? dash.cards as Record<string, unknown> : {};
+  const depts = Array.isArray(dash.departments) ? dash.departments as { department: string; count: number }[] : [];
 
-  // Build metrics. Prefer the backend card counts if present, otherwise
-  // derive values from the lists fetched above. Hints describe what each
-  // metric represents.
-  const metrics = [
-    { label: "Employees", value: cards.active_employees ?? employees.length, hint: "Active staff records" },
-    { label: "Attendance", value: cards.present_today ?? attendance.length, hint: "Present today" },
-    { label: "Leave", value: cards.pending_leave ?? leave.length, hint: "Pending leave requests" },
-    { label: "Recruitment", value: cards.open_positions ?? 0, hint: "Open job positions" },
-  ];
-
-  // Convert tabs from the backend into labelled strings. If the backend
-  // did not provide tabs (e.g. due to missing API update), use a
-  // sensible default set. Counts are appended to the tab name when
-  // available.
-  let tabLabels: string[];
-  if (tabsRaw.length) {
-    tabLabels = tabsRaw.map((tab) => {
-      const count = tab.count ?? tab.value ?? 0;
-      return count ? `${tab.name} (${count})` : tab.name;
-    });
-  } else {
-    tabLabels = [
-      `Employees (${employees.length})`,
-      `Attendance (${attendance.length})`,
-      `Leave (${leave.length})`,
-      `Payroll`,
-    ];
-  }
-  const tabs = ["HR Dashboard", ...tabLabels];
-
-  const actions = [
-    { label: "Add Employee", href: "/portal/employees", description: "Create staff profile" },
-    { label: "View Attendance", href: "/portal/attendance", description: "Track daily attendance" },
-    { label: "Approve Leave", href: "/portal/leave", description: "Manage leave requests" },
-    { label: "Payroll", href: "/portal/payroll", description: "Open payroll records" },
-  ];
+  const dashMetrics = {
+    active_employees: typeof cards.active_employees === "number" ? cards.active_employees : employees.filter((e) => String(e.status || "").toLowerCase() === "active").length,
+    present_today: typeof cards.present_today === "number" ? cards.present_today : undefined,
+    pending_leave: typeof cards.pending_leave === "number" ? cards.pending_leave : undefined,
+    payroll_total: cards.payroll_total ?? undefined,
+    departments: depts,
+  };
 
   return (
-    <ModernModuleDashboard
-      title="HR & Payroll"
-      eyebrow="People Workspace"
-      description="Manage employees, attendance, leave, assignments and payroll records without exposing ERPNext complexity."
-      rows={rows}
-      tabs={tabs}
-      metrics={metrics}
-      actions={actions}
-      primaryField="employee_name"
-      secondaryField="department"
-      statusField="status"
-      mode="hr"
+    <HRWorkspaceClient
+      initialEmployees={Array.isArray(employees) ? employees : unwrapRows(employees)}
+      initialAttendance={Array.isArray(attendance) ? attendance : unwrapRows(attendance)}
+      initialLeave={Array.isArray(leave) ? leave : unwrapRows(leave)}
+      initialPayroll={Array.isArray(payroll) ? payroll : unwrapRows(payroll)}
+      dashMetrics={dashMetrics}
     />
   );
 }
