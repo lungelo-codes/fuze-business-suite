@@ -396,7 +396,7 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
 
       {tab === 'Create' ? (
         <section className="demo-panel crud-create-panel">
-          <div className="demo-panel-head"><div><h3>Create {singularTitle(activeConfig.title)}</h3><p>Use the same ERPNext backend with a cleaner business form.</p></div></div>
+          <div className="demo-panel-head"><div><h3>Create {singularTitle(activeConfig.title)}</h3><p>Use the same secure business backend with a cleaner SaaS form.</p></div></div>
           <div className="p-5"><DynamicForm fields={activeConfig.formFields} values={values} onChange={setValues} /><div className="crud-form-actions"><button type="button" onClick={() => setTab('Dashboard')} className="btn">Cancel</button><button type="button" disabled={loading} onClick={saveRecord} className="btn btn-teal">{loading ? 'Saving…' : 'Save Record'}</button></div></div>
         </section>
       ) : null}

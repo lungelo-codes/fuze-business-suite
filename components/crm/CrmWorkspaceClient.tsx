@@ -44,6 +44,10 @@ type Status = { name: string; color: string; position: number };
 type Note   = { name: string; title: string; content: string; owner: string; creation: string };
 type Task   = { name: string; title: string; status: string; priority?: string; due_date?: string; assigned_to?: string };
 type Comment = { name: string; content: string; comment_by: string; creation: string };
+type EmailTemplate = { name: string; subject?: string; response?: string; content?: string; enabled?: number | boolean; for_doctype?: string };
+type CallLog = { name: string; from?: string; to?: string; type?: string; duration?: string | number; creation?: string; recording_url?: string };
+type NotificationRow = { name: string; subject?: string; email_content?: string; document_type?: string; document_name?: string; creation?: string; read?: number | boolean };
+type AutomationData = { sla?: Record<string, unknown>; assignment_rules?: Array<Record<string, unknown>> };
 
 type RecordDetail = {
   lead?: Record<string, unknown>;
@@ -491,13 +495,13 @@ function CreateDealModal({ dealStatuses, onClose, onCreated }: {
         boxShadow: "0 20px 60px rgba(0,0,0,0.2)", zIndex: 301, padding: 24,
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>New Deal</h3>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>New Opportunity</h3>
           <button onClick={onClose} className="btn" style={{ padding: "2px 8px" }}>✕</button>
         </div>
         <InlineError msg={err} />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div style={{ gridColumn: "1/-1" }}>
-            <label className="label">Deal Title *</label>
+            <label className="label">Opportunity Name *</label>
             <input value={form.lead_name} onChange={(e) => set("lead_name", e.target.value)} className="input" style={{ width: "100%" }} />
           </div>
           <div style={{ gridColumn: "1/-1" }}>
@@ -511,7 +515,7 @@ function CreateDealModal({ dealStatuses, onClose, onCreated }: {
             </select>
           </div>
           <div>
-            <label className="label">Deal Value (ZAR)</label>
+            <label className="label">Opportunity Value (ZAR)</label>
             <input type="number" value={form.deal_value} onChange={(e) => set("deal_value", e.target.value)} className="input" style={{ width: "100%" }} placeholder="0" />
           </div>
           <div>
@@ -543,9 +547,9 @@ function DashboardTab({ cards, activity, currency }: {
     { label: "Open Leads",      value: cards.leads,         hint: "Total leads",          color: "" },
     { label: "Opportunities",   value: cards.deals,         hint: "Pipeline value",      color: "teal" },
     { label: "Contacts",        value: cards.contacts,      hint: "CRM contacts",         color: "" },
-    { label: "Organizations",   value: cards.organizations, hint: "Tracked orgs",         color: "" },
-    { label: "Pipeline Value",  value: cards.pipeline_value,hint: "All deal values",      color: "warn" },
-    { label: "Won This Month",  value: cards.won_this_month,hint: "Closed deals",         color: "teal" },
+    { label: "Accounts",   value: cards.organizations, hint: "Tracked accounts",         color: "" },
+    { label: "Pipeline Value",  value: cards.pipeline_value,hint: "All opportunity values",      color: "warn" },
+    { label: "Won This Month",  value: cards.won_this_month,hint: "Closed opportunities",         color: "teal" },
     { label: "Overdue Tasks",   value: cards.overdue_tasks, hint: "Tasks past due date",  color: cards.overdue_tasks > 0 ? "danger" : "" },
   ];
 
@@ -564,6 +568,18 @@ function DashboardTab({ cards, activity, currency }: {
             </div>
           </button>
         ))}
+      </section>
+
+      <section className="demo-panel crm-activity-panel" style={{ marginBottom: 16 }}>
+        <div className="demo-panel-head"><div><h3>Sales Operating Console</h3><p>Salesforce-style workflow without AI: capture, qualify, convert, follow up, forecast and close.</p></div></div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10 }}>
+          {["Capture new leads from web, referrals, calls and campaigns", "Qualify leads with statuses, owner and next task", "Convert qualified leads into accounts, contacts and opportunities", "Track opportunities in Kanban or table pipeline", "Keep emails, calls, comments, notes and tasks on the record", "Use SLA and assignment rules to prevent missed follow-ups"].map((step, index) => (
+            <div key={step} className="card card-pad" style={{ padding: 14 }}>
+              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 6 }}>Step {index + 1}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.35 }}>{step}</div>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="demo-panel crm-activity-panel">
@@ -803,14 +819,14 @@ function DealsTab({ dealStatuses }: { dealStatuses: Status[] }) {
         <div className="kpi" style={{ flex: 1, minWidth: 0 }}>
           <div className="label">Pipeline</div>
           <div className="val">{money(totalPipeline)}</div>
-          <div className="hint">{deals.length} deals total</div>
+          <div className="hint">{deals.length} opportunities total</div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: "auto" }}>
           <div className="seg">
             <button className={view === "kanban" ? "on" : ""} onClick={() => setView("kanban")}>Kanban</button>
             <button className={view === "table"  ? "on" : ""} onClick={() => setView("table")}>Table</button>
           </div>
-          <button onClick={() => setShowCreate(true)} className="btn btn-primary">+ New Deal</button>
+          <button onClick={() => setShowCreate(true)} className="btn btn-primary">+ New Opportunity</button>
         </div>
       </div>
 
@@ -1013,7 +1029,7 @@ function ContactsTab() {
   );
 }
 
-// ─── Organizations Tab ────────────────────────────────────────────────────────
+// ─── Accounts Tab ────────────────────────────────────────────────────────
 
 function OrgsTab() {
   const [orgs, setOrgs]         = useState<Org[]>([]);
@@ -1043,12 +1059,12 @@ function OrgsTab() {
   return (
     <>
       <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14 }}>
-        <SearchInput value={search} onChange={setSearch} placeholder="Search organizations…" />
+        <SearchInput value={search} onChange={setSearch} placeholder="Search accounts…" />
       </div>
       {loading ? <Spinner /> : orgs.length === 0 ? (
         <div className="card card-pad" style={{ textAlign: "center", opacity: 0.5, padding: 40 }}>
-          No organizations found.
-          {orgs.length === 0 && <div style={{ fontSize: 12, marginTop: 8, opacity: 0.7 }}>Organizations are created automatically when converting leads to deals.</div>}
+          No accounts found.
+          {orgs.length === 0 && <div style={{ fontSize: 12, marginTop: 8, opacity: 0.7 }}>Accounts are created automatically when converting leads to opportunities.</div>}
         </div>
       ) : (
         <div className="card" style={{ overflow: "hidden" }}>
@@ -1077,17 +1093,160 @@ function OrgsTab() {
   );
 }
 
+
+// ─── Activities Tab ──────────────────────────────────────────────────────────
+
+function ActivitiesTab() {
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [calls, setCalls] = useState<CallLog[]>([]);
+  const [notifications, setNotifications] = useState<NotificationRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    Promise.allSettled([
+      apiFetch("/api/crm/email-templates?limit=20"),
+      apiFetch("/api/crm/call-logs?limit=20"),
+      apiFetch("/api/crm/notifications?limit=20"),
+    ]).then(([tplRes, callRes, notifRes]) => {
+      if (tplRes.status === "fulfilled") {
+        const data = (tplRes.value as any).data ?? tplRes.value;
+        setTemplates(data.templates || data.email_templates || []);
+      }
+      if (callRes.status === "fulfilled") {
+        const data = (callRes.value as any).data ?? callRes.value;
+        setCalls(data.call_logs || data.calls || []);
+      }
+      if (notifRes.status === "fulfilled") {
+        const data = (notifRes.value as any).data ?? notifRes.value;
+        setNotifications(data.notifications || []);
+      }
+      if ([tplRes, callRes, notifRes].some((r) => r.status === "rejected")) {
+        setErr("Some activity data could not be loaded. Install/update the CRM server methods included in this package if any section stays empty.");
+      }
+    }).finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <>
+      <InlineError msg={err} />
+      <section className="demo-stat-grid crm-stat-grid" style={{ marginBottom: 16 }}>
+        <div className="demo-stat-card crm-stat-card"><div className="demo-stat-label">Email Templates</div><div className="demo-stat-value">{templates.length}</div><div className="demo-stat-hint">Reusable follow-up messages</div></div>
+        <div className="demo-stat-card crm-stat-card teal"><div className="demo-stat-label">Call Logs</div><div className="demo-stat-value">{calls.length}</div><div className="demo-stat-hint">Logged sales conversations</div></div>
+        <div className="demo-stat-card crm-stat-card warn"><div className="demo-stat-label">Notifications</div><div className="demo-stat-value">{notifications.length}</div><div className="demo-stat-hint">Mentions and reminders</div></div>
+      </section>
+
+      {loading ? <Spinner /> : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+          <section className="demo-panel">
+            <div className="demo-panel-head"><div><h3>Email Templates</h3><p>Use saved introductions, proposal follow-ups and check-ins from lead or opportunity records.</p></div></div>
+            {templates.length === 0 ? <div style={{ opacity: 0.55, fontSize: 13 }}>No templates found.</div> : templates.slice(0, 8).map((t) => (
+              <div key={t.name} className="card card-pad" style={{ padding: 12, marginBottom: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{t.name}</div>
+                <div style={{ opacity: 0.65, fontSize: 12, marginTop: 3 }}>{t.subject || t.for_doctype || "Template"}</div>
+              </div>
+            ))}
+          </section>
+
+          <section className="demo-panel">
+            <div className="demo-panel-head"><div><h3>Call Logs</h3><p>Track customer calls and recordings where the tenant has telephony enabled.</p></div></div>
+            {calls.length === 0 ? <div style={{ opacity: 0.55, fontSize: 13 }}>No call logs found.</div> : calls.slice(0, 8).map((c) => (
+              <div key={c.name} className="card card-pad" style={{ padding: 12, marginBottom: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{c.type || "Call"} · {fmt(c.from || c.to)}</div>
+                <div style={{ opacity: 0.65, fontSize: 12, marginTop: 3 }}>{fmtDate(c.creation)} · {fmt(c.duration)}</div>
+              </div>
+            ))}
+          </section>
+
+          <section className="demo-panel">
+            <div className="demo-panel-head"><div><h3>Notifications</h3><p>Mentions, reminders and follow-up alerts for the sales team.</p></div></div>
+            {notifications.length === 0 ? <div style={{ opacity: 0.55, fontSize: 13 }}>No notifications found.</div> : notifications.slice(0, 8).map((n) => (
+              <div key={n.name} className="card card-pad" style={{ padding: 12, marginBottom: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{n.subject || n.document_type || "Notification"}</div>
+                <div style={{ opacity: 0.65, fontSize: 12, marginTop: 3 }}>{fmt(n.document_name)} · {fmtDate(n.creation)}</div>
+              </div>
+            ))}
+          </section>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Automation Tab ──────────────────────────────────────────────────────────
+
+function AutomationTab() {
+  const [data, setData] = useState<AutomationData>({});
+  const [fields, setFields] = useState<Array<Record<string, unknown>>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.allSettled([
+      apiFetch("/api/crm/automation"),
+      apiFetch("/api/crm/custom-fields?doctype=CRM Lead"),
+    ]).then(([autoRes, fieldsRes]) => {
+      if (autoRes.status === "fulfilled") {
+        const raw = autoRes.value as any;
+        const sla = (raw.sla?.data ?? raw.sla) as Record<string, unknown> | undefined;
+        const rulesRaw = raw.assignment_rules?.data ?? raw.assignment_rules;
+        setData({ sla, assignment_rules: Array.isArray(rulesRaw?.assignment_rules) ? rulesRaw.assignment_rules : Array.isArray(rulesRaw) ? rulesRaw : [] });
+      }
+      if (fieldsRes.status === "fulfilled") {
+        const raw = fieldsRes.value as any;
+        const payload = raw.data ?? raw;
+        setFields(payload.custom_fields || []);
+      }
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const rules = data.assignment_rules || [];
+  return loading ? <Spinner /> : (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+      <section className="demo-panel">
+        <div className="demo-panel-head"><div><h3>SLA & Follow-up Rules</h3><p>Keep response-time discipline for new leads and active opportunities.</p></div></div>
+        <div className="card card-pad" style={{ padding: 14 }}>
+          <div style={{ fontSize: 12, opacity: 0.65 }}>Server status</div>
+          <div style={{ fontSize: 18, fontWeight: 800, marginTop: 4 }}>{data.sla ? "Configured" : "Not configured yet"}</div>
+          <div style={{ fontSize: 12, opacity: 0.65, marginTop: 6 }}>Use the server CRM methods to expose lead/deal SLA settings to this workspace.</div>
+        </div>
+      </section>
+
+      <section className="demo-panel">
+        <div className="demo-panel-head"><div><h3>Assignment Rules</h3><p>Automatically route leads and opportunities to the right owner or team.</p></div></div>
+        {rules.length === 0 ? <div style={{ opacity: 0.55, fontSize: 13 }}>No assignment rules found.</div> : rules.slice(0, 8).map((r, index) => (
+          <div key={String(r.name || index)} className="card card-pad" style={{ padding: 12, marginBottom: 8 }}>
+            <div style={{ fontWeight: 700, fontSize: 13 }}>{fmt(r.name || r.rule_name || `Rule ${index + 1}`)}</div>
+            <div style={{ opacity: 0.65, fontSize: 12, marginTop: 3 }}>{fmt(r.document_type || r.doctype || "CRM record")}</div>
+          </div>
+        ))}
+      </section>
+
+      <section className="demo-panel">
+        <div className="demo-panel-head"><div><h3>Custom CRM Fields</h3><p>Tenant-specific fields for industries, regions, deal scoring and business rules.</p></div></div>
+        {fields.length === 0 ? <div style={{ opacity: 0.55, fontSize: 13 }}>No custom lead fields found.</div> : fields.slice(0, 8).map((f, index) => (
+          <div key={String(f.name || index)} className="card card-pad" style={{ padding: 12, marginBottom: 8 }}>
+            <div style={{ fontWeight: 700, fontSize: 13 }}>{fmt(f.label || f.fieldname || f.name)}</div>
+            <div style={{ opacity: 0.65, fontSize: 12, marginTop: 3 }}>{fmt(f.fieldtype || "Custom field")}</div>
+          </div>
+        ))}
+      </section>
+    </div>
+  );
+}
+
 // ─── Main CRM Workspace ───────────────────────────────────────────────────────
 
-type Tab = "Dashboard" | "Leads" | "Opportunities" | "Contacts" | "Organizations";
-const CRM_TABS: Tab[] = ["Dashboard", "Leads", "Opportunities", "Contacts", "Organizations"];
+type Tab = "Dashboard" | "Leads" | "Opportunities" | "Accounts" | "Contacts" | "Activities" | "Automation";
+const CRM_TABS: Tab[] = ["Dashboard", "Leads", "Opportunities", "Accounts", "Contacts", "Activities", "Automation"];
 
 function normalizeCrmTab(value?: string): Tab {
   const cleaned = String(value || "").trim().toLowerCase();
   if (["lead", "leads"].includes(cleaned)) return "Leads";
   if (["deal", "deals", "opportunity", "opportunities", "pipeline"].includes(cleaned)) return "Opportunities";
   if (["contact", "contacts"].includes(cleaned)) return "Contacts";
-  if (["organization", "organizations", "organisations"].includes(cleaned)) return "Organizations";
+  if (["activity", "activities", "calls", "emails", "templates", "notifications"].includes(cleaned)) return "Activities";
+  if (["automation", "sla", "assignment", "custom-fields", "custom_fields"].includes(cleaned)) return "Automation";
+  if (["account", "accounts", "organization", "organizations", "organisation", "organisations"].includes(cleaned)) return "Accounts";
   return "Dashboard";
 }
 
@@ -1143,7 +1302,7 @@ export default function CrmWorkspaceClient({ initialTab }: { initialTab?: string
         <div>
           <div className="demo-eyebrow">CRM &amp; Sales</div>
           <h1>CRM Workspace</h1>
-          <p>Manage leads, opportunities, contacts and organizations from one clean workspace. Live data from your ERPNext backend.</p>
+          <p>Manage leads, opportunities, contacts and accounts from one clean workspace. Connected to your Fuze CRM backend with live tenant data.</p>
         </div>
         <div className="demo-module-actions">
           <button type="button" onClick={() => setTab("Leads")} className="btn btn-teal">New Lead</button>
@@ -1169,7 +1328,7 @@ export default function CrmWorkspaceClient({ initialTab }: { initialTab?: string
           {tab === "Dashboard" && (
             cards
               ? <DashboardTab cards={cards} activity={activity} currency={currency} />
-              : <div className="card card-pad" style={{ opacity: 0.6 }}>Dashboard data unavailable. Make sure the <code>crm</code> Python module is installed on your ERPNext site.</div>
+              : <div className="card card-pad" style={{ opacity: 0.6 }}>Dashboard data unavailable. Make sure the <code>crm</code> Python module is installed on the tenant server.</div>
           )}
 
           {tab === "Leads" && (
@@ -1182,7 +1341,11 @@ export default function CrmWorkspaceClient({ initialTab }: { initialTab?: string
 
           {tab === "Contacts" && <ContactsTab />}
 
-          {tab === "Organizations" && <OrgsTab />}
+          {tab === "Accounts" && <OrgsTab />}
+
+          {tab === "Activities" && <ActivitiesTab />}
+
+          {tab === "Automation" && <AutomationTab />}
         </>
       )}
     </div>
