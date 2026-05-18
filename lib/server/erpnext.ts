@@ -258,20 +258,32 @@ function unwrapERPMethodResponse<T>(response: ERPDocumentResponse<T> | T): T | n
 
 function methodCandidates(method: string): string[] {
   const clean = String(method || "").trim().replace(/^\/+/, "");
-  const configured = (process.env.ERPNEXT_API_METHOD_PREFIX || process.env.NEXT_PUBLIC_API_METHOD_PREFIX || "fuze_suite.api").trim().replace(/\.$/, "");
-  const prefixes = Array.from(new Set([configured, "fuze_suite.api", "business_suite.api", "frappe"].filter(Boolean)));
+  const configured = (process.env.ERPNEXT_API_METHOD_PREFIX || process.env.NEXT_PUBLIC_API_METHOD_PREFIX || "fuze_suite.api")
+    .trim()
+    .replace(/\.$/, "");
   const candidates: string[] = [];
 
-  // Keep exact method first so existing working endpoints remain untouched.
+  // CRM is installed on the server in the fuze_suite app. Do not let an old
+  // Vercel/env prefix such as business_suite.api break CRM calls.
+  if (clean.startsWith("crm.")) {
+    candidates.push(`fuze_suite.api.${clean}`);
+    if (configured && configured !== "fuze_suite.api" && configured !== "business_suite.api") {
+      candidates.push(`${configured}.${clean}`);
+    }
+    candidates.push(clean);
+    return Array.from(new Set(candidates));
+  }
+
+  // Fully-qualified methods should be attempted as provided first.
   if (clean) candidates.push(clean);
 
-  // API zip files are intended to live in an app api package, for example
-  // fuze_suite.api.crm.get_leads. Older UI routes called crm.get_leads, which
-  // leaves the frontend connected to nothing on a real ERPNext site.
+  // Short app methods like selling.get_customers live under fuze_suite.api.*
+  // on this server. Keep a custom configured prefix only when it is not the old
+  // missing business_suite app.
   if (clean.split(".").length === 2) {
-    for (const prefix of prefixes) {
-      if (prefix === "frappe") continue;
-      candidates.push(`${prefix}.${clean}`);
+    candidates.push(`fuze_suite.api.${clean}`);
+    if (configured && configured !== "fuze_suite.api" && configured !== "business_suite.api") {
+      candidates.push(`${configured}.${clean}`);
     }
   }
 
@@ -287,7 +299,7 @@ export async function erpMethod<T>(method: string, body: Record<string, unknown>
     } catch (error) {
       lastError = error;
       const msg = error instanceof Error ? error.message : String(error || "");
-      const missing = /not found|failed to get method|module.*has no attribute|no module named|does not exist/i.test(msg);
+      const missing = /not found|failed to get method|module.*has no attribute|no module named|does not exist|app .* is not installed|not installed/i.test(msg);
       if (!missing) throw error;
     }
   }

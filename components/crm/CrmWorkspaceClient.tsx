@@ -1,55 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+type CrmMode = "erpnext" | "frappe_crm";
+type Tab = "Command Center" | "Leads" | "Opportunities" | "Accounts" | "Contacts" | "Activities" | "Automation";
+type Status = { name: string; color?: string; position?: number };
+type Lead = { id: string; name: string; first_name?: string; last_name?: string; company?: string; email?: string; phone?: string; source?: string; status: string; lead_owner?: string; city?: string; country?: string; website?: string; created?: string; last_updated?: string };
+type Deal = { id: string; title: string; organization?: string; stage: string; value?: string | number; raw_value?: number; currency?: string; probability?: number; expected_close?: string; owner?: string; source?: string; last_updated?: string };
+type Contact = { id: string; name: string; email?: string; phone?: string; company?: string; designation?: string; last_updated?: string };
+type Account = { name: string; organization_name?: string; website?: string; territory?: string; industry?: string; annual_revenue?: number; no_of_employees?: string; city?: string; country?: string; modified?: string };
+type Activity = { name?: string; subject?: string; sender?: string; reference_doctype?: string; reference_name?: string; creation?: string; communication_type?: string; content?: string };
+type Task = { name: string; title?: string; description?: string; status?: string; priority?: string; due_date?: string; assigned_to?: string; creation?: string };
+type Note = { name: string; title?: string; content?: string; owner?: string; creation?: string };
+type Comment = { name: string; content?: string; comment_by?: string; creation?: string };
+type DashboardCards = { leads: number; deals: number; contacts: number; organizations: number; pipeline_value: string | number; won_this_month: string | number; overdue_tasks: number };
 
-type Lead = {
-  id: string; name: string; first_name?: string; last_name?: string;
-  company?: string; email?: string; phone?: string; source?: string;
-  status: string; lead_owner?: string; city?: string; country?: string;
-  website?: string; created?: string; last_updated?: string;
-};
-
-type Deal = {
-  id: string; title: string; organization?: string; stage: string;
-  value: string; raw_value: number; currency?: string; probability: number;
-  expected_close?: string; owner?: string; source?: string; last_updated?: string;
-};
-
-type Contact = {
-  id: string; name: string; email?: string; phone?: string;
-  company?: string; designation?: string; last_updated?: string;
-};
-
-type Org = {
-  name: string; organization_name?: string; website?: string;
-  territory?: string; annual_revenue?: number; industry?: string;
-  no_of_employees?: string; city?: string; country?: string;
-};
-
-type Activity = {
-  name: string; subject?: string; sender?: string;
-  reference_doctype?: string; reference_name?: string;
-  creation: string; communication_type?: string;
-};
-
-type DashboardCards = {
-  leads: number; deals: number; contacts: number; organizations: number;
-  pipeline_value: string; won_this_month: string; overdue_tasks: number;
-};
-
-type Status = { name: string; color: string; position: number };
-
-type Note   = { name: string; title: string; content: string; owner: string; creation: string };
-type Task   = { name: string; title: string; status: string; priority?: string; due_date?: string; assigned_to?: string };
-type Comment = { name: string; content: string; comment_by: string; creation: string };
-type EmailTemplate = { name: string; subject?: string; response?: string; content?: string; enabled?: number | boolean; for_doctype?: string };
-type CallLog = { name: string; from?: string; to?: string; type?: string; duration?: string | number; creation?: string; recording_url?: string };
-type NotificationRow = { name: string; subject?: string; email_content?: string; document_type?: string; document_name?: string; creation?: string; read?: number | boolean };
-type AutomationData = { sla?: Record<string, unknown>; assignment_rules?: Array<Record<string, unknown>> };
-
-type RecordDetail = {
+type DetailState = {
   lead?: Record<string, unknown>;
   deal?: Record<string, unknown>;
   notes: Note[];
@@ -58,1296 +24,477 @@ type RecordDetail = {
   communications: Activity[];
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function fmt(v: unknown) { return v == null || v === "" ? "—" : String(v); }
-function fmtDate(v?: string) {
-  if (!v) return "—";
-  return new Date(v).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  new: "#3b82f6", open: "#f59e0b", contacted: "#f97316", replied: "#8b5cf6",
-  qualified: "#10b981", unqualified: "#ef4444", converted: "#14b8a6",
-  "do not contact": "#6b7280", qualification: "#3b82f6", "demo/presentation": "#f59e0b",
-  "proposal/quotation": "#f97316", negotiation: "#8b5cf6", "ready to close": "#14b8a6",
-  won: "#10b981", lost: "#ef4444",
+const TABS: Tab[] = ["Command Center", "Leads", "Opportunities", "Accounts", "Contacts", "Activities", "Automation"];
+const DEFAULT_LEAD_STATUSES: Status[] = [
+  { name: "New", color: "blue", position: 1 },
+  { name: "Open", color: "yellow", position: 2 },
+  { name: "Contacted", color: "orange", position: 3 },
+  { name: "Replied", color: "purple", position: 4 },
+  { name: "Qualified", color: "green", position: 5 },
+  { name: "Converted", color: "teal", position: 6 },
+  { name: "Do Not Contact", color: "gray", position: 7 },
+];
+const DEFAULT_DEAL_STATUSES: Status[] = [
+  { name: "Qualification", color: "blue", position: 1 },
+  { name: "Demo/Presentation", color: "yellow", position: 2 },
+  { name: "Proposal/Quotation", color: "orange", position: 3 },
+  { name: "Negotiation", color: "purple", position: 4 },
+  { name: "Ready to Close", color: "teal", position: 5 },
+  { name: "Won", color: "green", position: 6 },
+  { name: "Lost", color: "red", position: 7 },
+];
+const STATUS_COLOR: Record<string, string> = {
+  new: "#2E6BE5", lead: "#2E6BE5", open: "#F59E0B", contacted: "#F97316", replied: "#8B5CF6",
+  interested: "#28A486", qualified: "#28A486", opportunity: "#28A486", converted: "#14B8A6",
+  "do not contact": "#64748B", qualification: "#2E6BE5", prospecting: "#2E6BE5",
+  "demo/presentation": "#F59E0B", "proposal/quotation": "#F97316", quotation: "#F97316",
+  negotiation: "#8B5CF6", "ready to close": "#14B8A6", won: "#16A34A", lost: "#DC2626", "lost quotation": "#DC2626",
 };
-function statusColor(s: string) { return STATUS_COLORS[s.toLowerCase()] ?? "#6b7280"; }
-function StatusBadge({ status }: { status: string }) {
-  const c = statusColor(status);
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 4,
-      background: c + "1a", color: c,
-      border: `1px solid ${c}33`,
-      borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 600,
-      whiteSpace: "nowrap",
-    }}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: c, display: "inline-block" }} />
-      {status}
-    </span>
-  );
+
+function normalizeTab(value?: string): Tab {
+  const v = String(value || "").trim().toLowerCase();
+  if (["lead", "leads"].includes(v)) return "Leads";
+  if (["deal", "deals", "opportunity", "opportunities", "pipeline"].includes(v)) return "Opportunities";
+  if (["account", "accounts", "organization", "organizations", "organisation", "organisations"].includes(v)) return "Accounts";
+  if (["contact", "contacts"].includes(v)) return "Contacts";
+  if (["activity", "activities", "task", "tasks", "notes", "email", "calls"].includes(v)) return "Activities";
+  if (["automation", "assignment", "sla", "custom-fields", "custom_fields"].includes(v)) return "Automation";
+  return "Command Center";
 }
-
-// ─── API helpers ──────────────────────────────────────────────────────────────
-
+function fmt(value: unknown) { return value === undefined || value === null || value === "" ? "—" : String(value); }
+function dateText(value?: string) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
+}
+function money(value: unknown, currency = "ZAR") {
+  if (typeof value === "string" && value.match(/[A-Z]{3}|R|\d/)) return value;
+  const n = Number(value || 0);
+  return new Intl.NumberFormat("en-ZA", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
+}
+function getStatusColor(status?: string) { return STATUS_COLOR[String(status || "").toLowerCase()] || "#64748B"; }
+function uniqueStatuses(statuses: Status[], fallback: Status[]) {
+  const merged = [...statuses, ...fallback].filter(Boolean);
+  const seen = new Set<string>();
+  return merged.filter((s) => {
+    const key = s.name;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function unwrap<T>(json: unknown, key?: string): T {
+  const root = json as Record<string, unknown>;
+  const data = (root?.data ?? root?.message ?? root) as Record<string, unknown>;
+  if (key && data && key in data) return data[key] as T;
+  return data as T;
+}
+function arrayFrom<T>(json: unknown, keys: string[]): T[] {
+  const root = json as Record<string, unknown>;
+  const data = (root?.data ?? root?.message ?? root) as Record<string, unknown>;
+  for (const key of keys) {
+    const value = data?.[key];
+    if (Array.isArray(value)) return value as T[];
+  }
+  return [];
+}
 async function apiFetch(url: string, init?: RequestInit) {
   const res = await fetch(url, init);
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
+  if (!res.ok) throw new Error((json as any).error || (json as any).message || `Request failed (${res.status})`);
   return json;
 }
+function StatusBadge({ status }: { status?: string }) {
+  const color = getStatusColor(status);
+  return <span className="crm-status-badge" style={{ ["--s" as string]: color }}>{fmt(status)}</span>;
+}
+function EmptyState({ title, body, action }: { title: string; body: string; action?: React.ReactNode }) {
+  return <div className="crm-empty"><b>{title}</b><span>{body}</span>{action}</div>;
+}
+function ErrorBanner({ message }: { message?: string }) {
+  if (!message) return null;
+  return <div className="crm-banner warn">{message}</div>;
+}
+function LoadingBlock() { return <div className="crm-loading"><span /> Loading CRM workspace…</div>; }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function SearchInput({ value, onChange, placeholder = "Search…" }: {
-  value: string; onChange: (v: string) => void; placeholder?: string;
-}) {
-  return (
-    <div style={{ position: "relative" }}>
-      <svg style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", opacity: 0.4 }}
-           width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-        <circle cx={11} cy={11} r={8} /><path d="m21 21-4.35-4.35" />
-      </svg>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="search"
-        style={{ paddingLeft: 28 }}
-      />
+function CreateLeadModal({ statuses, sources, onClose, onSaved }: { statuses: Status[]; sources: string[]; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({ first_name: "", last_name: "", company: "", email: "", phone: "", source: sources[0] || "Website", status: statuses[0]?.name || "New", city: "", country: "South Africa", website: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const set = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
+  async function submit() {
+    if (!form.first_name.trim() && !form.company.trim()) { setError("Add a contact name or company name."); return; }
+    setSaving(true); setError("");
+    try {
+      await apiFetch("/api/crm/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      onSaved();
+    } catch (err) { setError(err instanceof Error ? err.message : "Could not create lead"); setSaving(false); }
+  }
+  return <Modal title="Create Lead" subtitle="Capture the prospect before qualification." onClose={onClose} width={720}>
+    <ErrorBanner message={error} />
+    <div className="crm-form-grid">
+      <Field label="First name"><input value={form.first_name} onChange={(e) => set("first_name", e.target.value)} /></Field>
+      <Field label="Last name"><input value={form.last_name} onChange={(e) => set("last_name", e.target.value)} /></Field>
+      <Field label="Company / Account"><input value={form.company} onChange={(e) => set("company", e.target.value)} /></Field>
+      <Field label="Email"><input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} /></Field>
+      <Field label="Phone"><input value={form.phone} onChange={(e) => set("phone", e.target.value)} /></Field>
+      <Field label="Website"><input value={form.website} onChange={(e) => set("website", e.target.value)} /></Field>
+      <Field label="Source"><select value={form.source} onChange={(e) => set("source", e.target.value)}>{sources.map((s) => <option key={s}>{s}</option>)}</select></Field>
+      <Field label="Status"><select value={form.status} onChange={(e) => set("status", e.target.value)}>{statuses.map((s) => <option key={s.name}>{s.name}</option>)}</select></Field>
+      <Field label="City"><input value={form.city} onChange={(e) => set("city", e.target.value)} /></Field>
+      <Field label="Country"><input value={form.country} onChange={(e) => set("country", e.target.value)} /></Field>
     </div>
-  );
+    <div className="crm-modal-actions"><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={submit} disabled={saving}>{saving ? "Creating…" : "Create Lead"}</button></div>
+  </Modal>;
 }
 
-function InlineError({ msg }: { msg: string }) {
-  return msg ? <div className="banner" style={{ background: "#fef2f2", borderColor: "#fecaca", color: "#b91c1c", marginBottom: 12 }}>{msg}</div> : null;
-}
-
-function Spinner() {
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 40, opacity: 0.5 }}>
-      <div style={{
-        width: 24, height: 24, border: "2px solid currentColor", borderTopColor: "transparent",
-        borderRadius: "50%", animation: "spin 0.7s linear infinite",
-      }} />
+function CreateDealModal({ statuses, onClose, onSaved }: { statuses: Status[]; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({ lead_name: "", organization: "", status: statuses[0]?.name || "Qualification", deal_value: "", probability: "25", expected_closing: "", source: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const set = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
+  async function submit() {
+    if (!form.lead_name.trim()) { setError("Opportunity name is required."); return; }
+    setSaving(true); setError("");
+    try {
+      await apiFetch("/api/crm/deals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, deal_value: Number(form.deal_value || 0), probability: Number(form.probability || 0) }) });
+      onSaved();
+    } catch (err) { setError(err instanceof Error ? err.message : "Could not create opportunity"); setSaving(false); }
+  }
+  return <Modal title="Create Opportunity" subtitle="Track value, stage and expected close date." onClose={onClose} width={680}>
+    <ErrorBanner message={error} />
+    <div className="crm-form-grid">
+      <Field label="Opportunity name"><input value={form.lead_name} onChange={(e) => set("lead_name", e.target.value)} /></Field>
+      <Field label="Account / Organization"><input value={form.organization} onChange={(e) => set("organization", e.target.value)} /></Field>
+      <Field label="Stage"><select value={form.status} onChange={(e) => set("status", e.target.value)}>{statuses.map((s) => <option key={s.name}>{s.name}</option>)}</select></Field>
+      <Field label="Value"><input type="number" value={form.deal_value} onChange={(e) => set("deal_value", e.target.value)} /></Field>
+      <Field label="Probability %"><input type="number" min={0} max={100} value={form.probability} onChange={(e) => set("probability", e.target.value)} /></Field>
+      <Field label="Expected close"><input type="date" value={form.expected_closing} onChange={(e) => set("expected_closing", e.target.value)} /></Field>
     </div>
-  );
+    <div className="crm-modal-actions"><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={submit} disabled={saving}>{saving ? "Creating…" : "Create Opportunity"}</button></div>
+  </Modal>;
 }
 
-// ─── Detail Side Panel ────────────────────────────────────────────────────────
+function CreateContactModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({ first_name: "", last_name: "", email: "", phone: "", company: "", designation: "" });
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const set = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
+  async function submit() {
+    if (!form.first_name.trim()) { setError("First name is required."); return; }
+    setSaving(true); setError("");
+    try { await apiFetch("/api/crm/contacts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) }); onSaved(); }
+    catch (err) { setError(err instanceof Error ? err.message : "Could not create contact"); setSaving(false); }
+  }
+  return <Modal title="Create Contact" subtitle="Add a decision maker or stakeholder." onClose={onClose} width={620}>
+    <ErrorBanner message={error} />
+    <div className="crm-form-grid">
+      <Field label="First name"><input value={form.first_name} onChange={(e) => set("first_name", e.target.value)} /></Field>
+      <Field label="Last name"><input value={form.last_name} onChange={(e) => set("last_name", e.target.value)} /></Field>
+      <Field label="Email"><input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} /></Field>
+      <Field label="Phone"><input value={form.phone} onChange={(e) => set("phone", e.target.value)} /></Field>
+      <Field label="Company"><input value={form.company} onChange={(e) => set("company", e.target.value)} /></Field>
+      <Field label="Designation"><input value={form.designation} onChange={(e) => set("designation", e.target.value)} /></Field>
+    </div>
+    <div className="crm-modal-actions"><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={submit} disabled={saving}>{saving ? "Creating…" : "Create Contact"}</button></div>
+  </Modal>;
+}
 
-function DetailPanel({
-  recordId, recordDoctype, recordName, onClose,
-}: {
-  recordId: string; recordDoctype: "lead" | "deal"; recordName: string; onClose: () => void;
-}) {
-  const [detail, setDetail]   = useState<RecordDetail | null>(null);
+function Modal({ title, subtitle, children, onClose, width = 640 }: { title: string; subtitle?: string; children: React.ReactNode; onClose: () => void; width?: number }) {
+  return <>
+    <div className="crm-modal-backdrop" onClick={onClose} />
+    <div className="crm-modal" style={{ maxWidth: width }}>
+      <div className="crm-modal-head"><div><h3>{title}</h3>{subtitle && <p>{subtitle}</p>}</div><button className="crm-icon-btn" onClick={onClose}>×</button></div>
+      {children}
+    </div>
+  </>;
+}
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="crm-field"><span>{label}</span>{children}</label>; }
+
+function DetailDrawer({ record, mode, crmMode, onClose, onRefresh }: { record: { id: string; type: "lead" | "deal"; title: string }; mode: CrmMode; crmMode: CrmMode; onClose: () => void; onRefresh: () => void }) {
+  const [detail, setDetail] = useState<DetailState | null>(null);
+  const [active, setActive] = useState<"timeline" | "notes" | "tasks" | "comments">("timeline");
+  const [message, setMessage] = useState("");
+  const [note, setNote] = useState("");
+  const [task, setTask] = useState("");
+  const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(true);
-  const [tab, setTab]         = useState<"notes" | "tasks" | "comments" | "comms">("notes");
-  const [noteInput, setNoteInput]   = useState("");
-  const [noteTitle, setNoteTitle]   = useState("");
-  const [commentInput, setCommentInput] = useState("");
-  const [taskTitle, setTaskTitle]   = useState("");
-  const [taskDue, setTaskDue]       = useState("");
-  const [saving, setSaving]         = useState(false);
-  const [msg, setMsg]               = useState("");
+  const leadDoctype = crmMode === "frappe_crm" ? "CRM Lead" : "Lead";
+  const dealDoctype = crmMode === "frappe_crm" ? "CRM Deal" : "Opportunity";
+  const doctype = record.type === "lead" ? leadDoctype : dealDoctype;
 
-  const doctype = recordDoctype === "lead" ? "CRM Lead" : "CRM Deal";
-
-  useEffect(() => {
+  async function load() {
     setLoading(true);
-    const url = recordDoctype === "lead"
-      ? `/api/crm/leads/${recordId}`
-      : `/api/crm/deals/${recordId}`;
-    apiFetch(url).then((d) => {
-      const data = (d as any).data ?? d;
+    try {
+      const url = record.type === "lead" ? `/api/crm/leads/${record.id}` : `/api/crm/deals/${record.id}`;
+      const json = await apiFetch(url);
+      const data = unwrap<Record<string, unknown>>(json);
       setDetail({
-        lead:           data.lead,
-        deal:           data.deal,
-        notes:          data.notes          || [],
-        tasks:          data.tasks          || [],
-        comments:       data.comments       || [],
-        communications: data.communications || [],
+        lead: data.lead as Record<string, unknown> | undefined,
+        deal: data.deal as Record<string, unknown> | undefined,
+        notes: (data.notes as Note[]) || [],
+        tasks: (data.tasks as Task[]) || [],
+        comments: (data.comments as Comment[]) || [],
+        communications: (data.communications as Activity[]) || [],
       });
-    }).catch(() => setDetail({ notes: [], tasks: [], comments: [], communications: [] }))
-      .finally(() => setLoading(false));
-  }, [recordId, recordDoctype]);
+    } catch { setDetail({ notes: [], tasks: [], comments: [], communications: [] }); }
+    finally { setLoading(false); }
+  }
+  useEffect(() => { void load(); }, [record.id]);
 
   async function addNote() {
-    if (!noteInput.trim()) return;
-    setSaving(true); setMsg("");
-    try {
-      await apiFetch("/api/crm/notes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reference_doctype: doctype, reference_name: recordId, title: noteTitle || "Note", content: noteInput }),
-      });
-      const r = await apiFetch(`/api/crm/notes?reference_doctype=${doctype}&reference_name=${recordId}`);
-      setDetail((d) => d ? { ...d, notes: (r as any)?.data?.notes || (r as any)?.notes || d.notes } : d);
-      setNoteInput(""); setNoteTitle(""); setMsg("Note saved.");
-    } catch (e: any) { setMsg(e.message); } finally { setSaving(false); }
+    if (!note.trim()) return;
+    try { await apiFetch("/api/crm/notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reference_doctype: doctype, reference_name: record.id, title: "Sales note", content: note }) }); setNote(""); setMessage("Note saved"); await load(); }
+    catch (err) { setMessage(err instanceof Error ? err.message : "Could not save note"); }
   }
-
-  async function addComment() {
-    if (!commentInput.trim()) return;
-    setSaving(true); setMsg("");
-    try {
-      await apiFetch("/api/crm/comments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reference_doctype: doctype, reference_name: recordId, content: commentInput }),
-      });
-      const r = await apiFetch(`/api/crm/comments?reference_doctype=${doctype}&reference_name=${recordId}`);
-      setDetail((d) => d ? { ...d, comments: (r as any)?.data?.comments || (r as any)?.comments || d.comments } : d);
-      setCommentInput(""); setMsg("Comment posted.");
-    } catch (e: any) { setMsg(e.message); } finally { setSaving(false); }
-  }
-
   async function addTask() {
-    if (!taskTitle.trim()) return;
-    setSaving(true); setMsg("");
-    try {
-      await apiFetch("/api/crm/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reference_doctype: doctype, reference_name: recordId, title: taskTitle, due_date: taskDue || undefined }),
-      });
-      const r = await apiFetch(`/api/crm/tasks?reference_doctype=${doctype}&reference_name=${recordId}`);
-      setDetail((d) => d ? { ...d, tasks: (r as any)?.data?.tasks || (r as any)?.tasks || d.tasks } : d);
-      setTaskTitle(""); setTaskDue(""); setMsg("Task created.");
-    } catch (e: any) { setMsg(e.message); } finally { setSaving(false); }
+    if (!task.trim()) return;
+    try { await apiFetch("/api/crm/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reference_doctype: doctype, reference_name: record.id, title: task, status: "Open", priority: "Medium" }) }); setTask(""); setMessage("Task created"); await load(); }
+    catch (err) { setMessage(err instanceof Error ? err.message : "Could not create task"); }
+  }
+  async function addComment() {
+    if (!comment.trim()) return;
+    try { await apiFetch("/api/crm/comments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reference_doctype: doctype, reference_name: record.id, content: comment }) }); setComment(""); setMessage("Comment added"); await load(); }
+    catch (err) { setMessage(err instanceof Error ? err.message : "Could not add comment"); }
+  }
+  async function convertLead() {
+    if (record.type !== "lead") return;
+    try { await apiFetch(`/api/crm/leads/${record.id}/convert`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); setMessage("Lead converted to opportunity"); onRefresh(); }
+    catch (err) { setMessage(err instanceof Error ? err.message : "Could not convert lead"); }
   }
 
-  async function toggleTask(task: Task) {
-    const nextStatus = task.status === "Closed" ? "Open" : "Closed";
-    try {
-      await apiFetch(`/api/crm/tasks/${task.name}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: nextStatus }),
-      });
-      setDetail((d) => d ? { ...d, tasks: d.tasks.map((t) => t.name === task.name ? { ...t, status: nextStatus } : t) } : d);
-    } catch {/* noop */}
-  }
-
-  async function deleteNote(noteName: string) {
-    try {
-      await apiFetch(`/api/crm/notes/${noteName}`, { method: "DELETE" });
-      setDetail((d) => d ? { ...d, notes: d.notes.filter((n) => n.name !== noteName) } : d);
-    } catch {/* noop */}
-  }
-
-  const panelStyle: React.CSSProperties = {
-    position: "fixed", top: 0, right: 0, bottom: 0,
-    width: "min(480px, 96vw)", background: "var(--surface)",
-    borderLeft: "1px solid var(--border)", boxShadow: "-8px 0 32px rgba(0,0,0,0.12)",
-    zIndex: 200, display: "flex", flexDirection: "column", overflow: "hidden",
-  };
-
-  return (
-    <>
-      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.25)", zIndex: 199 }} onClick={onClose} />
-      <div style={panelStyle}>
-        {/* Header */}
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>
-              {recordDoctype === "lead" ? "Lead" : "Deal"}
-            </div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "var(--fg)", marginTop: 2 }}>{recordName}</div>
-          </div>
-          <button onClick={onClose} className="btn" style={{ padding: "4px 10px" }}>✕</button>
-        </div>
-
-        {/* Tab bar */}
-        <div className="seg" style={{ margin: "12px 20px 0", flexShrink: 0 }}>
-          {(["notes", "tasks", "comments", "comms"] as const).map((t) => (
-            <button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>
-              {t === "comms" ? "Emails" : t.charAt(0).toUpperCase() + t.slice(1)}
-              {detail && <span style={{ marginLeft: 4, opacity: 0.6, fontSize: 11 }}>
-                {t === "notes" ? detail.notes.length : t === "tasks" ? detail.tasks.length : t === "comments" ? detail.comments.length : detail.communications.length}
-              </span>}
-            </button>
-          ))}
-        </div>
-
-        {/* Body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
-          {loading ? <Spinner /> : !detail ? <div className="banner">Could not load details.</div> : (
-            <>
-              {msg && <div className="banner info" style={{ marginBottom: 12 }}>{msg}</div>}
-
-              {/* Notes tab */}
-              {tab === "notes" && (
-                <>
-                  <div style={{ marginBottom: 16 }}>
-                    <input value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} placeholder="Note title (optional)" className="input" style={{ marginBottom: 6, width: "100%" }} />
-                    <textarea value={noteInput} onChange={(e) => setNoteInput(e.target.value)} placeholder="Write a note…" rows={3} style={{ width: "100%", padding: "8px 10px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, resize: "vertical", background: "var(--surface)", color: "var(--fg)" }} />
-                    <button onClick={addNote} disabled={saving || !noteInput.trim()} className="btn btn-primary" style={{ marginTop: 6 }}>
-                      {saving ? "Saving…" : "Add Note"}
-                    </button>
-                  </div>
-                  {detail.notes.length === 0 ? <div style={{ opacity: 0.5, fontSize: 13 }}>No notes yet.</div> : detail.notes.map((n) => (
-                    <div key={n.name} className="card card-pad" style={{ marginBottom: 10, position: "relative" }}>
-                      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{n.title}</div>
-                      <div style={{ fontSize: 13, opacity: 0.8, whiteSpace: "pre-wrap" }}>{n.content}</div>
-                      <div style={{ fontSize: 11, opacity: 0.4, marginTop: 6 }}>{fmtDate(n.creation)} · {n.owner}</div>
-                      <button onClick={() => deleteNote(n.name)} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", cursor: "pointer", opacity: 0.4, fontSize: 13, color: "inherit" }} title="Delete note">✕</button>
-                    </div>
-                  ))}
-                </>
-              )}
-
-              {/* Tasks tab */}
-              {tab === "tasks" && (
-                <>
-                  <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-                    <input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="Task title…" className="input" style={{ flex: 1 }} />
-                    <input type="date" value={taskDue} onChange={(e) => setTaskDue(e.target.value)} className="input" style={{ width: 130 }} />
-                    <button onClick={addTask} disabled={saving || !taskTitle.trim()} className="btn btn-primary">Add</button>
-                  </div>
-                  {detail.tasks.length === 0 ? <div style={{ opacity: 0.5, fontSize: 13 }}>No tasks yet.</div> : detail.tasks.map((t) => (
-                    <div key={t.name} className="card card-pad" style={{ marginBottom: 8, display: "flex", gap: 10, alignItems: "flex-start" }}>
-                      <input type="checkbox" checked={t.status === "Closed"} onChange={() => toggleTask(t)} style={{ marginTop: 2, cursor: "pointer" }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, textDecoration: t.status === "Closed" ? "line-through" : "none", opacity: t.status === "Closed" ? 0.5 : 1 }}>{t.title}</div>
-                        <div style={{ fontSize: 11, opacity: 0.4, marginTop: 2 }}>
-                          {t.due_date ? `Due ${fmtDate(t.due_date)}` : "No due date"}
-                          {t.assigned_to ? ` · ${t.assigned_to}` : ""}
-                        </div>
-                      </div>
-                      <StatusBadge status={t.status} />
-                    </div>
-                  ))}
-                </>
-              )}
-
-              {/* Comments tab */}
-              {tab === "comments" && (
-                <>
-                  <div style={{ marginBottom: 16 }}>
-                    <textarea value={commentInput} onChange={(e) => setCommentInput(e.target.value)} placeholder="Leave a comment…" rows={3} style={{ width: "100%", padding: "8px 10px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, resize: "vertical", background: "var(--surface)", color: "var(--fg)" }} />
-                    <button onClick={addComment} disabled={saving || !commentInput.trim()} className="btn btn-primary" style={{ marginTop: 6 }}>
-                      {saving ? "Posting…" : "Post Comment"}
-                    </button>
-                  </div>
-                  {detail.comments.length === 0 ? <div style={{ opacity: 0.5, fontSize: 13 }}>No comments yet.</div> : detail.comments.map((c) => (
-                    <div key={c.name} className="card card-pad" style={{ marginBottom: 10 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, opacity: 0.7 }}>{c.comment_by} · {fmtDate(c.creation)}</div>
-                      <div style={{ fontSize: 13, whiteSpace: "pre-wrap" }} dangerouslySetInnerHTML={{ __html: c.content }} />
-                    </div>
-                  ))}
-                </>
-              )}
-
-              {/* Comms tab */}
-              {tab === "comms" && (
-                <>
-                  {detail.communications.length === 0 ? <div style={{ opacity: 0.5, fontSize: 13 }}>No email communications.</div> : detail.communications.map((c) => (
-                    <div key={c.name} className="card card-pad" style={{ marginBottom: 10 }}>
-                      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }}>{c.subject || "(No subject)"}</div>
-                      <div style={{ fontSize: 12, opacity: 0.6 }}>From: {c.sender} · {fmtDate(c.creation)}</div>
-                    </div>
-                  ))}
-                </>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    </>
-  );
+  return <>
+    <div className="crm-drawer-backdrop" onClick={onClose} />
+    <aside className="crm-drawer">
+      <div className="crm-drawer-head"><div><span className="demo-eyebrow">{record.type === "lead" ? "Lead" : "Opportunity"}</span><h2>{record.title}</h2><p>{doctype} · {record.id}</p></div><button className="crm-icon-btn" onClick={onClose}>×</button></div>
+      {record.type === "lead" && <div className="crm-drawer-actions"><button className="btn btn-primary" onClick={convertLead}>Convert to Opportunity</button><button className="btn" onClick={() => setActive("tasks")}>Create Follow-up</button></div>}
+      {message && <div className="crm-banner">{message}</div>}
+      <div className="crm-detail-tabs">{(["timeline", "notes", "tasks", "comments"] as const).map((t) => <button key={t} className={active === t ? "active" : ""} onClick={() => setActive(t)}>{t}</button>)}</div>
+      {loading ? <LoadingBlock /> : <div className="crm-drawer-body">
+        {active === "timeline" && (detail?.communications.length ? detail.communications.map((a, i) => <div className="crm-timeline-row" key={a.name || i}><b>{a.subject || a.communication_type || "CRM activity"}</b><span>{fmt(a.sender)} · {dateText(a.creation)}</span></div>) : <EmptyState title="No timeline yet" body="Emails, comments and logged interactions will appear here." />)}
+        {active === "notes" && <><div className="crm-composer"><textarea placeholder="Add an internal sales note…" value={note} onChange={(e) => setNote(e.target.value)} /><button className="btn btn-primary" onClick={addNote}>Save Note</button></div>{detail?.notes.length ? detail.notes.map((n) => <div className="crm-mini-card" key={n.name}><b>{n.title || "Note"}</b><p>{n.content}</p><span>{fmt(n.owner)} · {dateText(n.creation)}</span></div>) : <EmptyState title="No notes" body="Keep important selling context here." />}</>}
+        {active === "tasks" && <><div className="crm-composer compact"><input placeholder="Follow-up task…" value={task} onChange={(e) => setTask(e.target.value)} /><button className="btn btn-primary" onClick={addTask}>Add Task</button></div>{detail?.tasks.length ? detail.tasks.map((t) => <div className="crm-mini-card" key={t.name}><b>{t.title || t.description || "Task"}</b><span>{fmt(t.status)} · Due {dateText(t.due_date)}</span></div>) : <EmptyState title="No tasks" body="Create the next action for this record." />}</>}
+        {active === "comments" && <><div className="crm-composer"><textarea placeholder="Add a comment for the team…" value={comment} onChange={(e) => setComment(e.target.value)} /><button className="btn btn-primary" onClick={addComment}>Post</button></div>{detail?.comments.length ? detail.comments.map((c) => <div className="crm-mini-card" key={c.name}><p>{c.content}</p><span>{fmt(c.comment_by)} · {dateText(c.creation)}</span></div>) : <EmptyState title="No comments" body="Team comments will appear here." />}</>}
+      </div>}
+    </aside>
+  </>;
 }
 
-// ─── Create Lead Modal ────────────────────────────────────────────────────────
-
-function CreateLeadModal({ statuses, sources, onClose, onCreated }: {
-  statuses: Status[]; sources: string[];
-  onClose: () => void; onCreated: () => void;
-}) {
-  const [form, setForm] = useState({
-    first_name: "", last_name: "", company: "", email: "", phone: "",
-    source: sources[0] || "Website", status: "New", city: "", country: "South Africa",
-  });
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState("");
-
-  function set(k: string, v: string) { setForm((f) => ({ ...f, [k]: v })); }
-
-  async function submit() {
-    if (!form.first_name.trim()) { setErr("First name is required."); return; }
-    setSaving(true); setErr("");
-    try {
-      await apiFetch("/api/crm/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      onCreated();
-    } catch (e: any) { setErr(e.message); setSaving(false); }
-  }
-
-  return (
-    <>
-      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 300 }} onClick={onClose} />
-      <div style={{
-        position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
-        width: "min(520px, 94vw)", background: "var(--surface)", borderRadius: 10,
-        boxShadow: "0 20px 60px rgba(0,0,0,0.2)", zIndex: 301, padding: 24,
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>New Lead</h3>
-          <button onClick={onClose} className="btn" style={{ padding: "2px 8px" }}>✕</button>
-        </div>
-        <InlineError msg={err} />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <div>
-            <label className="label">First Name *</label>
-            <input value={form.first_name} onChange={(e) => set("first_name", e.target.value)} className="input" style={{ width: "100%" }} />
-          </div>
-          <div>
-            <label className="label">Last Name</label>
-            <input value={form.last_name} onChange={(e) => set("last_name", e.target.value)} className="input" style={{ width: "100%" }} />
-          </div>
-          <div style={{ gridColumn: "1/-1" }}>
-            <label className="label">Company</label>
-            <input value={form.company} onChange={(e) => set("company", e.target.value)} className="input" style={{ width: "100%" }} />
-          </div>
-          <div>
-            <label className="label">Email</label>
-            <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} className="input" style={{ width: "100%" }} />
-          </div>
-          <div>
-            <label className="label">Phone</label>
-            <input value={form.phone} onChange={(e) => set("phone", e.target.value)} className="input" style={{ width: "100%" }} />
-          </div>
-          <div>
-            <label className="label">Source</label>
-            <select value={form.source} onChange={(e) => set("source", e.target.value)} className="input" style={{ width: "100%" }}>
-              {sources.map((s) => <option key={s}>{s}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">Status</label>
-            <select value={form.status} onChange={(e) => set("status", e.target.value)} className="input" style={{ width: "100%" }}>
-              {statuses.map((s) => <option key={s.name}>{s.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">City</label>
-            <input value={form.city} onChange={(e) => set("city", e.target.value)} className="input" style={{ width: "100%" }} />
-          </div>
-          <div>
-            <label className="label">Country</label>
-            <input value={form.country} onChange={(e) => set("country", e.target.value)} className="input" style={{ width: "100%" }} />
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 20 }}>
-          <button onClick={onClose} className="btn">Cancel</button>
-          <button onClick={submit} disabled={saving} className="btn btn-primary">
-            {saving ? "Creating…" : "Create Lead"}
-          </button>
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ─── Create Opportunity Modal ────────────────────────────────────────────────────────
-
-function CreateDealModal({ dealStatuses, onClose, onCreated }: {
-  dealStatuses: Status[]; onClose: () => void; onCreated: () => void;
-}) {
-  const [form, setForm] = useState({
-    lead_name: "", organization: "", status: "Qualification",
-    deal_value: "", expected_closing: "", probability: "",
-  });
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState("");
-
-  function set(k: string, v: string) { setForm((f) => ({ ...f, [k]: v })); }
-
-  async function submit() {
-    if (!form.lead_name.trim()) { setErr("Title is required."); return; }
-    setSaving(true); setErr("");
-    try {
-      await apiFetch("/api/crm/deals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          deal_value: Number(form.deal_value) || 0,
-          probability: Number(form.probability) || 0,
-        }),
-      });
-      onCreated();
-    } catch (e: any) { setErr(e.message); setSaving(false); }
-  }
-
-  return (
-    <>
-      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 300 }} onClick={onClose} />
-      <div style={{
-        position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
-        width: "min(480px, 94vw)", background: "var(--surface)", borderRadius: 10,
-        boxShadow: "0 20px 60px rgba(0,0,0,0.2)", zIndex: 301, padding: 24,
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>New Opportunity</h3>
-          <button onClick={onClose} className="btn" style={{ padding: "2px 8px" }}>✕</button>
-        </div>
-        <InlineError msg={err} />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <div style={{ gridColumn: "1/-1" }}>
-            <label className="label">Opportunity Name *</label>
-            <input value={form.lead_name} onChange={(e) => set("lead_name", e.target.value)} className="input" style={{ width: "100%" }} />
-          </div>
-          <div style={{ gridColumn: "1/-1" }}>
-            <label className="label">Organization</label>
-            <input value={form.organization} onChange={(e) => set("organization", e.target.value)} className="input" style={{ width: "100%" }} />
-          </div>
-          <div>
-            <label className="label">Stage</label>
-            <select value={form.status} onChange={(e) => set("status", e.target.value)} className="input" style={{ width: "100%" }}>
-              {dealStatuses.map((s) => <option key={s.name}>{s.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">Opportunity Value (ZAR)</label>
-            <input type="number" value={form.deal_value} onChange={(e) => set("deal_value", e.target.value)} className="input" style={{ width: "100%" }} placeholder="0" />
-          </div>
-          <div>
-            <label className="label">Expected Close</label>
-            <input type="date" value={form.expected_closing} onChange={(e) => set("expected_closing", e.target.value)} className="input" style={{ width: "100%" }} />
-          </div>
-          <div>
-            <label className="label">Probability (%)</label>
-            <input type="number" min={0} max={100} value={form.probability} onChange={(e) => set("probability", e.target.value)} className="input" style={{ width: "100%" }} placeholder="0" />
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 20 }}>
-          <button onClick={onClose} className="btn">Cancel</button>
-          <button onClick={submit} disabled={saving} className="btn btn-primary">
-            {saving ? "Creating…" : "Create Opportunity"}
-          </button>
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ─── Dashboard Tab ────────────────────────────────────────────────────────────
-
-function DashboardTab({ cards, activity, currency }: {
-  cards: DashboardCards; activity: Activity[]; currency: string;
-}) {
-  const metrics = [
-    { label: "Open Leads",      value: cards.leads,         hint: "Total leads",          color: "" },
-    { label: "Opportunities",   value: cards.deals,         hint: "Pipeline value",      color: "teal" },
-    { label: "Contacts",        value: cards.contacts,      hint: "CRM contacts",         color: "" },
-    { label: "Accounts",   value: cards.organizations, hint: "Tracked accounts",         color: "" },
-    { label: "Pipeline Value",  value: cards.pipeline_value,hint: "All opportunity values",      color: "warn" },
-    { label: "Won This Month",  value: cards.won_this_month,hint: "Closed opportunities",         color: "teal" },
-    { label: "Overdue Tasks",   value: cards.overdue_tasks, hint: "Tasks past due date",  color: cards.overdue_tasks > 0 ? "danger" : "" },
+function CommandCenter({ cards, leads, deals, activity, currency, setTab, onOpen }: { cards: DashboardCards | null; leads: Lead[]; deals: Deal[]; activity: Activity[]; currency: string; setTab: (tab: Tab) => void; onOpen: (r: { id: string; type: "lead" | "deal"; title: string }) => void }) {
+  const weighted = deals.reduce((sum, d) => sum + (Number(d.raw_value || 0) * Number(d.probability || 0)) / 100, 0);
+  const stats = [
+    { label: "Leads", value: cards?.leads ?? leads.length, hint: "Prospects captured", tab: "Leads" as Tab },
+    { label: "Opportunities", value: cards?.deals ?? deals.length, hint: "Active pipeline", tab: "Opportunities" as Tab },
+    { label: "Contacts", value: cards?.contacts ?? 0, hint: "People database", tab: "Contacts" as Tab },
+    { label: "Pipeline", value: money(cards?.pipeline_value ?? 0, currency), hint: "Total open value", tab: "Opportunities" as Tab },
+    { label: "Weighted Forecast", value: money(weighted, currency), hint: "Probability weighted", tab: "Opportunities" as Tab },
+    { label: "Overdue Tasks", value: cards?.overdue_tasks ?? 0, hint: "Needs attention", tab: "Activities" as Tab },
   ];
-
-  return (
-    <>
-      <section className="demo-stat-grid crm-stat-grid">
-        {metrics.map((m, index) => (
-          <button key={m.label} type="button" className={`demo-stat-card demo-interactive-card crm-stat-card ${m.color}`} style={{ animationDelay: `${index * 45}ms` }}>
-            <div className="demo-stat-top">
-              <div>
-                <div className="demo-stat-label">{m.label}</div>
-                <div className="demo-stat-value">{typeof m.value === "number" ? m.value.toLocaleString("en-ZA") : m.value}</div>
-                <div className="demo-stat-hint">{m.hint}</div>
-              </div>
-              <div className="demo-stat-icon">↗</div>
-            </div>
-          </button>
-        ))}
-      </section>
-
-      <section className="demo-panel crm-activity-panel" style={{ marginBottom: 16 }}>
-        <div className="demo-panel-head"><div><h3>Sales Operating Console</h3><p>Salesforce-style workflow without AI: capture, qualify, convert, follow up, forecast and close.</p></div></div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10 }}>
-          {["Capture new leads from web, referrals, calls and campaigns", "Qualify leads with statuses, owner and next task", "Convert qualified leads into accounts, contacts and opportunities", "Track opportunities in Kanban or table pipeline", "Keep emails, calls, comments, notes and tasks on the record", "Use SLA and assignment rules to prevent missed follow-ups"].map((step, index) => (
-            <div key={step} className="card card-pad" style={{ padding: 14 }}>
-              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 6 }}>Step {index + 1}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.35 }}>{step}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="demo-panel crm-activity-panel">
-        <div className="demo-panel-head"><div><h3>Recent Activity</h3><p>Latest CRM communication and follow-ups.</p></div></div>
-        {activity.length === 0 ? (
-          <div style={{ opacity: 0.5, fontSize: 13 }}>No recent communications.</div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {activity.slice(0, 10).map((a) => (
-              <div key={a.name} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: "50%", background: "#3b82f61a", color: "#3b82f6",
-                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0,
-                }}>
-                  {(a.sender || a.reference_doctype || "?")[0].toUpperCase()}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {a.subject || a.communication_type || "Communication"}
-                  </div>
-                  <div style={{ fontSize: 12, opacity: 0.55, marginTop: 2 }}>
-                    {a.sender || a.reference_doctype} · {fmtDate(a.creation)}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-    </>
-  );
+  return <div className="crm-command">
+    <div className="crm-stat-grid">{stats.map((s) => <button key={s.label} className="crm-stat-card" onClick={() => setTab(s.tab)}><span>{s.label}</span><b>{s.value}</b><small>{s.hint}</small></button>)}</div>
+    <div className="crm-split-grid">
+      <section className="demo-panel"><div className="demo-panel-head"><div><h3>Priority Leads</h3><p>New and open prospects your team should qualify.</p></div><button className="btn" onClick={() => setTab("Leads")}>View all</button></div><div className="crm-list-panel">{leads.slice(0, 6).map((l) => <button key={l.id} className="crm-row-card" onClick={() => onOpen({ id: l.id, type: "lead", title: l.name || l.company || l.id })}><div><b>{l.name || l.company || l.id}</b><span>{fmt(l.company)} · {fmt(l.email || l.phone)}</span></div><StatusBadge status={l.status} /></button>)}{!leads.length && <EmptyState title="No leads yet" body="Create your first lead to start the pipeline." />}</div></section>
+      <section className="demo-panel"><div className="demo-panel-head"><div><h3>Opportunity Focus</h3><p>Deals that are moving through the sales process.</p></div><button className="btn" onClick={() => setTab("Opportunities")}>Pipeline</button></div><div className="crm-list-panel">{deals.slice(0, 6).map((d) => <button key={d.id} className="crm-row-card" onClick={() => onOpen({ id: d.id, type: "deal", title: d.title || d.id })}><div><b>{d.title || d.id}</b><span>{fmt(d.organization)} · {fmt(d.value || money(d.raw_value, currency))}</span></div><StatusBadge status={d.stage} /></button>)}{!deals.length && <EmptyState title="No opportunities yet" body="Convert a qualified lead or create an opportunity manually." />}</div></section>
+    </div>
+    <section className="demo-panel"><div className="demo-panel-head"><div><h3>Recent CRM Activity</h3><p>Latest communication linked to leads, opportunities and contacts.</p></div></div><div className="crm-timeline">{activity.length ? activity.slice(0, 10).map((a, i) => <div key={a.name || i} className="crm-timeline-row"><b>{a.subject || a.communication_type || "Activity"}</b><span>{fmt(a.reference_doctype)} {fmt(a.reference_name)} · {dateText(a.creation)}</span></div>) : <EmptyState title="No activity yet" body="Once emails, notes and tasks are logged they will appear here." />}</div></section>
+  </div>;
 }
 
-// ─── Leads Tab ────────────────────────────────────────────────────────────────
-
-function LeadsTab({ statuses, sources }: { statuses: Status[]; sources: string[] }) {
-  const [leads, setLeads]           = useState<Lead[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [search, setSearch]         = useState("");
-  const [statusFilter, setStatusF]  = useState("all");
-  const [total, setTotal]           = useState(0);
-  const [offset, setOffset]         = useState(0);
-  const [showCreate, setShowCreate] = useState(false);
-  const [detail, setDetail]         = useState<{ id: string; name: string } | null>(null);
-  const [converting, setConverting] = useState<string | null>(null);
-  const [convMsg, setConvMsg]       = useState("");
-  const [movingId, setMovingId]     = useState<string | null>(null);
-  const LIMIT = 20;
-
-  const load = useCallback(async (q?: string, st?: string, off?: number) => {
-    setLoading(true);
-    const params = new URLSearchParams({ limit: String(LIMIT), offset: String(off ?? offset) });
-    if (q ?? search) params.set("search", q ?? search);
-    if ((st ?? statusFilter) !== "all") params.set("status", st ?? statusFilter);
-    try {
-      const r = await apiFetch(`/api/crm/leads?${params}`);
-      const data = (r as any).data ?? r;
-      setLeads(data.leads || []);
-      setTotal((data as any).meta?.total ?? data.leads?.length ?? 0);
-    } catch { setLeads([]); } finally { setLoading(false); }
-  }, [search, statusFilter, offset]);
-
-  // Debounced search
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => { setOffset(0); load(search, statusFilter, 0); }, 350);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [search, statusFilter]);
-
-  async function moveStage(lead: Lead, newStatus: string) {
-    setMovingId(lead.id);
-    try {
-      await apiFetch(`/api/crm/leads/${lead.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      setLeads((ls) => ls.map((l) => l.id === lead.id ? { ...l, status: newStatus } : l));
-    } catch {/* noop */} finally { setMovingId(null); }
-  }
-
-  async function convertLead(lead: Lead) {
-    setConverting(lead.id); setConvMsg("");
-    try {
-      const r = await apiFetch(`/api/crm/leads/${lead.id}/convert`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-      const data = (r as any).data ?? r;
-      setConvMsg(`✓ ${lead.name} converted → Opportunity ${(data as any)?.deal?.id ?? ""}`);
-      load();
-    } catch (e: any) { setConvMsg(`Error: ${e.message}`); } finally { setConverting(null); }
-  }
-
-  return (
-    <>
-      {showCreate && <CreateLeadModal statuses={statuses} sources={sources} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); load(); }} />}
-      {detail && <DetailPanel recordId={detail.id} recordDoctype="lead" recordName={detail.name} onClose={() => setDetail(null)} />}
-
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
-        <SearchInput value={search} onChange={setSearch} placeholder="Search leads…" />
-        <select value={statusFilter} onChange={(e) => { setStatusF(e.target.value); setOffset(0); }}
-          className="input" style={{ minWidth: 140 }}>
-          <option value="all">All Statuses</option>
-          {statuses.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
-        </select>
-        <button onClick={() => setShowCreate(true)} className="btn btn-primary" style={{ marginLeft: "auto" }}>+ New Lead</button>
-      </div>
-
-      {convMsg && <div className="banner info" style={{ marginBottom: 12 }}>{convMsg}</div>}
-
-      {loading ? <Spinner /> : leads.length === 0 ? (
-        <div className="card card-pad" style={{ textAlign: "center", opacity: 0.5, padding: 40 }}>
-          No leads found.{" "}<button className="btn" onClick={() => setShowCreate(true)}>Create your first lead</button>
-        </div>
-      ) : (
-        <div className="card" style={{ overflow: "hidden" }}>
-          <div className="overflow-x-auto">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th>Name</th><th>Company</th><th>Email</th>
-                  <th>Phone</th><th>Status</th><th>Source</th><th>Updated</th><th style={{ width: 200 }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leads.map((l) => (
-                  <tr key={l.id}>
-                    <td>
-                      <button onClick={() => setDetail({ id: l.id, name: l.name })}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", fontWeight: 600, padding: 0, fontSize: 13 }}>
-                        {l.name}
-                      </button>
-                    </td>
-                    <td>{fmt(l.company)}</td>
-                    <td>{fmt(l.email)}</td>
-                    <td>{fmt(l.phone)}</td>
-                    <td><StatusBadge status={l.status} /></td>
-                    <td>{fmt(l.source)}</td>
-                    <td style={{ fontSize: 12, opacity: 0.6 }}>{fmtDate(l.last_updated)}</td>
-                    <td>
-                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                        <select
-                          value={l.status}
-                          disabled={movingId === l.id}
-                          onChange={(e) => moveStage(l, e.target.value)}
-                          className="input"
-                          style={{ fontSize: 11, padding: "2px 4px", height: 24 }}
-                        >
-                          {statuses.map((s) => <option key={s.name}>{s.name}</option>)}
-                        </select>
-                        {l.status !== "Converted" && (
-                          <button onClick={() => convertLead(l)} disabled={converting === l.id} className="btn btn-sm" title="Convert to Deal">
-                            {converting === l.id ? "…" : "→ Deal"}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Pagination */}
-      {total > LIMIT && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, fontSize: 13 }}>
-          <span style={{ opacity: 0.6 }}>Showing {offset + 1}–{Math.min(offset + LIMIT, total)} of {total}</span>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button disabled={offset === 0} onClick={() => { const o = Math.max(0, offset - LIMIT); setOffset(o); load(undefined, undefined, o); }} className="btn">← Prev</button>
-            <button disabled={offset + LIMIT >= total} onClick={() => { const o = offset + LIMIT; setOffset(o); load(undefined, undefined, o); }} className="btn">Next →</button>
-          </div>
-        </div>
-      )}
-    </>
-  );
+function LeadsView({ statuses, sources, onOpen, refreshSignal, onRefresh }: { statuses: Status[]; sources: string[]; onOpen: (r: { id: string; type: "lead"; title: string }) => void; refreshSignal: number; onRefresh: () => void }) {
+  const [rows, setRows] = useState<Lead[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [search, setSearch] = useState(""); const [status, setStatus] = useState("all"); const [showCreate, setShowCreate] = useState(false);
+  async function load() { setLoading(true); setError(""); try { const q = new URLSearchParams({ limit: "80", offset: "0" }); if (search) q.set("search", search); if (status !== "all") q.set("status", status); const json = await apiFetch(`/api/crm/leads?${q}`); setRows(arrayFrom<Lead>(json, ["leads"])); } catch (err) { setError(err instanceof Error ? err.message : "Could not load leads"); } finally { setLoading(false); } }
+  useEffect(() => { void load(); }, [refreshSignal]);
+  async function updateStatus(lead: Lead, next: string) { try { await apiFetch(`/api/crm/leads/${lead.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }) }); setRows((r) => r.map((x) => x.id === lead.id ? { ...x, status: next } : x)); onRefresh(); } catch (err) { setError(err instanceof Error ? err.message : "Could not update lead"); } }
+  async function convert(lead: Lead) { try { await apiFetch(`/api/crm/leads/${lead.id}/convert`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); await load(); onRefresh(); } catch (err) { setError(err instanceof Error ? err.message : "Could not convert lead"); } }
+  return <section className="demo-panel"><div className="demo-panel-head crm-toolbar"><div><h3>Leads</h3><p>Capture, qualify and convert prospects into opportunities.</p></div><div className="crm-toolbar-actions"><input placeholder="Search leads…" value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === "Enter" && load()} /><select value={status} onChange={(e) => setStatus(e.target.value)}><option value="all">All statuses</option>{statuses.map((s) => <option key={s.name}>{s.name}</option>)}</select><button className="btn" onClick={load}>Search</button><button className="btn btn-primary" onClick={() => setShowCreate(true)}>New Lead</button></div></div><ErrorBanner message={error} />{loading ? <LoadingBlock /> : <div className="crm-table-wrap"><table className="demo-table crm-table"><thead><tr><th>Lead</th><th>Company</th><th>Contact</th><th>Source</th><th>Status</th><th>Owner</th><th>Next Step</th></tr></thead><tbody>{rows.map((l) => <tr key={l.id} onClick={() => onOpen({ id: l.id, type: "lead", title: l.name || l.company || l.id })}><td><b>{l.name || l.id}</b><small>{l.id}</small></td><td>{fmt(l.company)}</td><td>{fmt(l.email || l.phone)}</td><td>{fmt(l.source)}</td><td><select value={l.status} onClick={(e) => e.stopPropagation()} onChange={(e) => updateStatus(l, e.target.value)}>{statuses.map((s) => <option key={s.name}>{s.name}</option>)}</select></td><td>{fmt(l.lead_owner)}</td><td><button className="btn btn-small" onClick={(e) => { e.stopPropagation(); convert(l); }}>Convert</button></td></tr>)}</tbody></table>{!rows.length && <EmptyState title="No leads found" body="Adjust your filters or create a new lead." action={<button className="btn btn-primary" onClick={() => setShowCreate(true)}>Create Lead</button>} />}</div>}{showCreate && <CreateLeadModal statuses={statuses} sources={sources} onClose={() => setShowCreate(false)} onSaved={() => { setShowCreate(false); void load(); onRefresh(); }} />}</section>;
 }
 
-// ─── Opportunities / Kanban Tab ───────────────────────────────────────────────────────
-
-function DealsTab({ dealStatuses }: { dealStatuses: Status[] }) {
-  const [deals, setDeals]           = useState<Deal[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [view, setView]             = useState<"kanban" | "table">("kanban");
+function OpportunitiesView({ statuses, onOpen, refreshSignal, onRefresh, currency }: { statuses: Status[]; onOpen: (r: { id: string; type: "deal"; title: string }) => void; refreshSignal: number; onRefresh: () => void; currency: string }) {
+  const [rows, setRows] = useState<Deal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [detail, setDetail]         = useState<{ id: string; name: string } | null>(null);
-  const [movingId, setMovingId]     = useState<string | null>(null);
-  const [total, setTotal]           = useState(0);
-  const [offset, setOffset]         = useState(0);
-  const LIMIT = 50;
+  const [view, setView] = useState<"board" | "list">("board");
 
-  const load = useCallback(async (off = 0) => {
+  async function load() {
     setLoading(true);
+    setError("");
     try {
-      const r = await apiFetch(`/api/crm/deals?limit=${LIMIT}&offset=${off}`);
-      const data = (r as any).data ?? r;
-      setDeals(data.deals || []);
-      setTotal((data as any).meta?.total ?? data.deals?.length ?? 0);
-    } catch { setDeals([]); } finally { setLoading(false); }
-  }, []);
+      const json = await apiFetch("/api/crm/deals?limit=120&offset=0");
+      setRows(arrayFrom<Deal>(json, ["deals", "opportunities"]));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load opportunities");
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [refreshSignal]);
 
-  const stageNames = dealStatuses.map((s) => s.name);
-  const byStage = useMemo(() =>
-    Object.fromEntries(stageNames.map((s) => [s, deals.filter((d) => d.stage === s)])),
-    [deals, stageNames]
-  );
-
-  const totalPipeline = useMemo(() => deals.reduce((sum, d) => sum + (d.raw_value || 0), 0), [deals]);
-
-  async function moveDeal(deal: Deal, newStage: string) {
-    setMovingId(deal.id);
+  async function move(deal: Deal, stage: string) {
     try {
       await apiFetch(`/api/crm/deals/${deal.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStage }),
+        body: JSON.stringify({ status: stage, sales_stage: stage }),
       });
-      setDeals((ds) => ds.map((d) => d.id === deal.id ? { ...d, stage: newStage } : d));
-    } catch {/* noop */} finally { setMovingId(null); }
+      setRows((current) => current.map((item) => item.id === deal.id ? { ...item, stage } : item));
+      onRefresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update opportunity");
+    }
   }
 
-  async function markLost(deal: Deal) {
-    if (!confirm(`Mark "${deal.title}" as Lost?`)) return;
-    await moveDeal(deal, "Lost");
-  }
-
-  const money = (v: number) => `R${v.toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`;
+  const cols = statuses.map((s) => ({
+    status: s.name,
+    deals: rows.filter((d) => (d.stage || "").toLowerCase() === s.name.toLowerCase()),
+  }));
 
   return (
-    <>
-      {showCreate && <CreateDealModal dealStatuses={dealStatuses} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); load(); }} />}
-      {detail && <DetailPanel recordId={detail.id} recordDoctype="deal" recordName={detail.name} onClose={() => setDetail(null)} />}
-
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14 }}>
-        <div className="kpi" style={{ flex: 1, minWidth: 0 }}>
-          <div className="label">Pipeline</div>
-          <div className="val">{money(totalPipeline)}</div>
-          <div className="hint">{deals.length} opportunities total</div>
+    <section className="demo-panel">
+      <div className="demo-panel-head crm-toolbar">
+        <div>
+          <h3>Opportunities</h3>
+          <p>Pipeline board for qualified deals, values and close stages.</p>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: "auto" }}>
-          <div className="seg">
-            <button className={view === "kanban" ? "on" : ""} onClick={() => setView("kanban")}>Kanban</button>
-            <button className={view === "table"  ? "on" : ""} onClick={() => setView("table")}>Table</button>
-          </div>
-          <button onClick={() => setShowCreate(true)} className="btn btn-primary">+ New Opportunity</button>
+        <div className="crm-toolbar-actions">
+          <button className="btn" onClick={() => setView(view === "board" ? "list" : "board")}>{view === "board" ? "List View" : "Board View"}</button>
+          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>New Opportunity</button>
         </div>
       </div>
-
-      {loading ? <Spinner /> : (
+      <ErrorBanner message={error} />
+      {loading ? <LoadingBlock /> : (
         <>
-          {view === "kanban" ? (
-            <div className="kanban" style={{ overflowX: "auto" }}>
-              {stageNames.map((stage) => {
-                const stageDeals = byStage[stage] || [];
-                const stageValue = stageDeals.reduce((s, d) => s + (d.raw_value || 0), 0);
-                return (
-                  <div key={stage} className="kan-col">
-                    <div style={{ marginBottom: 10 }}>
-                      <h4 style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span><StatusBadge status={stage} /></span>
-                        <span className="cnt">{stageDeals.length}</span>
-                      </h4>
-                      {stageValue > 0 && <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>{money(stageValue)}</div>}
-                    </div>
-                    {stageDeals.map((d) => (
-                      <div key={d.id} className="kan-card">
-                        <button onClick={() => setDetail({ id: d.id, name: d.title })}
-                          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left", width: "100%" }}>
-                          <div className="ktitle">{d.title}</div>
-                          <div className="kmeta">
-                            <span>{d.organization || "—"}</span>
-                            <strong>{d.value}</strong>
-                          </div>
-                          {d.probability > 0 && (
-                            <div style={{ marginTop: 6 }}>
-                              <div style={{ height: 3, background: "var(--border)", borderRadius: 2 }}>
-                                <div style={{ height: "100%", width: `${d.probability}%`, background: statusColor(stage), borderRadius: 2 }} />
-                              </div>
-                              <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>{d.probability}% probability</div>
-                            </div>
-                          )}
-                        </button>
-                        <div style={{ display: "flex", gap: 4, marginTop: 10, flexWrap: "wrap" }}>
-                          {stageNames.filter((s) => s !== stage && s !== "Lost" && s !== "Won").slice(0, 2).map((s) => (
-                            <button key={s} className="btn btn-sm" disabled={movingId === d.id} onClick={() => moveDeal(d, s)}>{s}</button>
-                          ))}
-                          {stage !== "Won"  && <button className="btn btn-sm" disabled={movingId === d.id} onClick={() => moveDeal(d, "Won")} style={{ color: "#10b981" }}>Won</button>}
-                          {stage !== "Lost" && <button className="btn btn-sm" disabled={movingId === d.id} onClick={() => markLost(d)} style={{ color: "#ef4444" }}>Lost</button>}
-                        </div>
+          {view === "board" ? (
+            <div className="crm-kanban">
+              {cols.map((col) => (
+                <div className="crm-kanban-col" key={col.status}>
+                  <div className="crm-kanban-head"><b>{col.status}</b><span>{col.deals.length}</span></div>
+                  {col.deals.map((d) => (
+                    <button className="crm-deal-card" key={d.id} onClick={() => onOpen({ id: d.id, type: "deal", title: d.title || d.id })}>
+                      <b>{d.title || d.id}</b>
+                      <p>{fmt(d.organization)} · {fmt(d.owner)}</p>
+                      <strong>{fmt(d.value || money(d.raw_value, currency))}</strong>
+                      <small>{Number(d.probability || 0)}% · Close {dateText(d.expected_close)}</small>
+                      <div className="crm-card-actions" onClick={(e) => e.stopPropagation()}>
+                        {statuses.map((s) => s.name !== d.stage ? <button key={s.name} title={s.name} onClick={() => move(d, s.name)} /> : null)}
                       </div>
-                    ))}
-                  </div>
-                );
-              })}
+                    </button>
+                  ))}
+                </div>
+              ))}
             </div>
           ) : (
-            <div className="card" style={{ overflow: "hidden" }}>
-              <div className="overflow-x-auto">
-                <table className="data">
-                  <thead>
-                    <tr><th>Title</th><th>Organization</th><th>Stage</th><th>Value</th><th>Probability</th><th>Expected Close</th><th>Actions</th></tr>
-                  </thead>
-                  <tbody>
-                    {deals.map((d) => (
-                      <tr key={d.id}>
-                        <td>
-                          <button onClick={() => setDetail({ id: d.id, name: d.title })}
-                            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", fontWeight: 600, padding: 0, fontSize: 13 }}>
-                            {d.title}
-                          </button>
-                        </td>
-                        <td>{fmt(d.organization)}</td>
-                        <td><StatusBadge status={d.stage} /></td>
-                        <td style={{ fontWeight: 600 }}>{d.value}</td>
-                        <td>{d.probability > 0 ? `${d.probability}%` : "—"}</td>
-                        <td style={{ fontSize: 12, opacity: 0.6 }}>{fmtDate(d.expected_close)}</td>
-                        <td>
-                          <div style={{ display: "flex", gap: 4 }}>
-                            <select value={d.stage} onChange={(e) => moveDeal(d, e.target.value)} className="input" style={{ fontSize: 11, padding: "2px 4px", height: 24 }} disabled={movingId === d.id}>
-                              {stageNames.map((s) => <option key={s}>{s}</option>)}
-                            </select>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="crm-table-wrap">
+              <table className="demo-table crm-table">
+                <thead><tr><th>Opportunity</th><th>Account</th><th>Stage</th><th>Value</th><th>Probability</th><th>Expected Close</th><th>Owner</th></tr></thead>
+                <tbody>
+                  {rows.map((d) => (
+                    <tr key={d.id} onClick={() => onOpen({ id: d.id, type: "deal", title: d.title || d.id })}>
+                      <td><b>{d.title || d.id}</b><small>{d.id}</small></td>
+                      <td>{fmt(d.organization)}</td>
+                      <td><StatusBadge status={d.stage} /></td>
+                      <td>{fmt(d.value || money(d.raw_value, currency))}</td>
+                      <td>{Number(d.probability || 0)}%</td>
+                      <td>{dateText(d.expected_close)}</td>
+                      <td>{fmt(d.owner)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
+          {!rows.length && <EmptyState title="No opportunities yet" body="Create a manual opportunity or convert a lead." action={<button className="btn btn-primary" onClick={() => setShowCreate(true)}>Create Opportunity</button>} />}
         </>
       )}
-    </>
+      {showCreate && <CreateDealModal statuses={statuses} onClose={() => setShowCreate(false)} onSaved={() => { setShowCreate(false); void load(); onRefresh(); }} />}
+    </section>
   );
 }
 
-// ─── Contacts Tab ─────────────────────────────────────────────────────────────
-
-function ContactsTab() {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [search, setSearch]     = useState("");
-  const [total, setTotal]       = useState(0);
-  const [offset, setOffset]     = useState(0);
-  const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ first_name: "", last_name: "", email: "", phone: "", company: "", designation: "" });
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState("");
-  const LIMIT = 20;
-
-  const load = useCallback(async (q?: string, off = 0) => {
-    setLoading(true);
-    const params = new URLSearchParams({ limit: String(LIMIT), offset: String(off) });
-    if (q ?? search) params.set("search", q ?? search);
-    try {
-      const r = await apiFetch(`/api/crm/contacts?${params}`);
-      const data = (r as any).data ?? r;
-      setContacts(data.contacts || []);
-      setTotal((data as any).meta?.total ?? data.contacts?.length ?? 0);
-    } catch { setContacts([]); } finally { setLoading(false); }
-  }, [search]);
-
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => { setOffset(0); load(search, 0); }, 350);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [search]);
-
-  async function createContact() {
-    if (!form.first_name.trim()) { setErr("First name required."); return; }
-    setSaving(true); setErr("");
-    try {
-      await apiFetch("/api/crm/contacts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
-      setShowCreate(false);
-      setForm({ first_name: "", last_name: "", email: "", phone: "", company: "", designation: "" });
-      load("", 0);
-    } catch (e: any) { setErr(e.message); } finally { setSaving(false); }
-  }
-
-  function setF(k: string, v: string) { setForm((f) => ({ ...f, [k]: v })); }
-
-  return (
-    <>
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14 }}>
-        <SearchInput value={search} onChange={setSearch} placeholder="Search contacts…" />
-        <button onClick={() => setShowCreate(!showCreate)} className="btn btn-primary" style={{ marginLeft: "auto" }}>+ New Contact</button>
-      </div>
-
-      {showCreate && (
-        <div className="card card-pad" style={{ marginBottom: 16 }}>
-          <h4 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700 }}>New Contact</h4>
-          <InlineError msg={err} />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <div><label className="label">First Name *</label><input value={form.first_name} onChange={(e) => setF("first_name", e.target.value)} className="input" style={{ width: "100%" }} /></div>
-            <div><label className="label">Last Name</label><input value={form.last_name} onChange={(e) => setF("last_name", e.target.value)} className="input" style={{ width: "100%" }} /></div>
-            <div><label className="label">Email</label><input type="email" value={form.email} onChange={(e) => setF("email", e.target.value)} className="input" style={{ width: "100%" }} /></div>
-            <div><label className="label">Phone</label><input value={form.phone} onChange={(e) => setF("phone", e.target.value)} className="input" style={{ width: "100%" }} /></div>
-            <div><label className="label">Company</label><input value={form.company} onChange={(e) => setF("company", e.target.value)} className="input" style={{ width: "100%" }} /></div>
-            <div><label className="label">Designation</label><input value={form.designation} onChange={(e) => setF("designation", e.target.value)} className="input" style={{ width: "100%" }} /></div>
-          </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <button onClick={createContact} disabled={saving} className="btn btn-primary">{saving ? "Saving…" : "Create"}</button>
-            <button onClick={() => setShowCreate(false)} className="btn">Cancel</button>
-          </div>
-        </div>
-      )}
-
-      {loading ? <Spinner /> : contacts.length === 0 ? (
-        <div className="card card-pad" style={{ textAlign: "center", opacity: 0.5, padding: 40 }}>No contacts found.</div>
-      ) : (
-        <div className="card" style={{ overflow: "hidden" }}>
-          <div className="overflow-x-auto">
-            <table className="data">
-              <thead>
-                <tr><th>Name</th><th>Email</th><th>Phone</th><th>Company</th><th>Title</th><th>Updated</th></tr>
-              </thead>
-              <tbody>
-                {contacts.map((c) => (
-                  <tr key={c.id}>
-                    <td style={{ fontWeight: 600 }}>{c.name}</td>
-                    <td>{fmt(c.email)}</td>
-                    <td>{fmt(c.phone)}</td>
-                    <td>{fmt(c.company)}</td>
-                    <td style={{ opacity: 0.7 }}>{fmt(c.designation)}</td>
-                    <td style={{ fontSize: 12, opacity: 0.6 }}>{fmtDate(c.last_updated)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {total > LIMIT && (
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, fontSize: 13 }}>
-          <span style={{ opacity: 0.6 }}>{offset + 1}–{Math.min(offset + LIMIT, total)} of {total}</span>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button disabled={offset === 0} onClick={() => { const o = Math.max(0, offset - LIMIT); setOffset(o); load(undefined, o); }} className="btn">← Prev</button>
-            <button disabled={offset + LIMIT >= total} onClick={() => { const o = offset + LIMIT; setOffset(o); load(undefined, o); }} className="btn">Next →</button>
-          </div>
-        </div>
-      )}
-    </>
-  );
+function ContactsView({ refreshSignal }: { refreshSignal: number }) {
+  const [rows, setRows] = useState<Contact[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [search, setSearch] = useState(""); const [showCreate, setShowCreate] = useState(false);
+  async function load() { setLoading(true); setError(""); try { const q = new URLSearchParams({ limit: "100", offset: "0" }); if (search) q.set("search", search); const json = await apiFetch(`/api/crm/contacts?${q}`); setRows(arrayFrom<Contact>(json, ["contacts"])); } catch (err) { setError(err instanceof Error ? err.message : "Could not load contacts"); } finally { setLoading(false); } }
+  useEffect(() => { void load(); }, [refreshSignal]);
+  return <section className="demo-panel"><div className="demo-panel-head crm-toolbar"><div><h3>Contacts</h3><p>People your sales team works with across leads and opportunities.</p></div><div className="crm-toolbar-actions"><input placeholder="Search contacts…" value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === "Enter" && load()} /><button className="btn" onClick={load}>Search</button><button className="btn btn-primary" onClick={() => setShowCreate(true)}>New Contact</button></div></div><ErrorBanner message={error} />{loading ? <LoadingBlock /> : <div className="crm-card-grid">{rows.map((c) => <div className="crm-person-card" key={c.id}><div className="crm-avatar">{(c.name || "?").slice(0, 1).toUpperCase()}</div><div><b>{c.name || c.id}</b><span>{fmt(c.designation)} · {fmt(c.company)}</span><small>{fmt(c.email || c.phone)}</small></div></div>)}{!rows.length && <EmptyState title="No contacts found" body="Add contacts or convert qualified leads." />}</div>}{showCreate && <CreateContactModal onClose={() => setShowCreate(false)} onSaved={() => { setShowCreate(false); void load(); }} />}</section>;
 }
 
-// ─── Accounts Tab ────────────────────────────────────────────────────────
-
-function OrgsTab() {
-  const [orgs, setOrgs]         = useState<Org[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [search, setSearch]     = useState("");
-
-  const load = useCallback(async (q?: string) => {
-    setLoading(true);
-    const params = new URLSearchParams({ limit: "50" });
-    if (q ?? search) params.set("search", q ?? search);
-    try {
-      const r = await apiFetch(`/api/crm/organizations?${params}`);
-      const data = (r as any).data ?? r;
-      setOrgs(data.organizations || []);
-    } catch { setOrgs([]); } finally { setLoading(false); }
-  }, [search]);
-
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => load(search), 350);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [search]);
-
-  const money = (v?: number) => v ? `R${Number(v).toLocaleString("en-ZA", { maximumFractionDigits: 0 })}` : "—";
-
-  return (
-    <>
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14 }}>
-        <SearchInput value={search} onChange={setSearch} placeholder="Search accounts…" />
-      </div>
-      {loading ? <Spinner /> : orgs.length === 0 ? (
-        <div className="card card-pad" style={{ textAlign: "center", opacity: 0.5, padding: 40 }}>
-          No accounts found.
-          {orgs.length === 0 && <div style={{ fontSize: 12, marginTop: 8, opacity: 0.7 }}>Accounts are created automatically when converting leads to opportunities.</div>}
-        </div>
-      ) : (
-        <div className="card" style={{ overflow: "hidden" }}>
-          <div className="overflow-x-auto">
-            <table className="data">
-              <thead>
-                <tr><th>Organization</th><th>Industry</th><th>Revenue</th><th>City</th><th>Country</th><th>Website</th></tr>
-              </thead>
-              <tbody>
-                {orgs.map((o) => (
-                  <tr key={o.name}>
-                    <td style={{ fontWeight: 600 }}>{o.organization_name || o.name}</td>
-                    <td>{fmt(o.industry)}</td>
-                    <td>{money(o.annual_revenue)}</td>
-                    <td>{fmt(o.city)}</td>
-                    <td>{fmt(o.country)}</td>
-                    <td>{o.website ? <a href={o.website} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>{o.website}</a> : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </>
-  );
+function AccountsView({ crmMode, refreshSignal }: { crmMode: CrmMode; refreshSignal: number }) {
+  const [rows, setRows] = useState<Account[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState("");
+  async function load() { setLoading(true); try { const json = await apiFetch("/api/crm/organizations?limit=80&offset=0"); setRows(arrayFrom<Account>(json, ["organizations"])); } catch (err) { setError(err instanceof Error ? err.message : "Could not load accounts"); } finally { setLoading(false); } }
+  useEffect(() => { void load(); }, [refreshSignal]);
+  return <section className="demo-panel"><div className="demo-panel-head"><div><h3>Accounts</h3><p>Organizations behind contacts and opportunities.</p></div></div><ErrorBanner message={error} />{crmMode === "erpnext" && <div className="crm-banner info">Your tenant is running ERPNext CRM fallback. Accounts will fully unlock when the Frappe CRM app is installed and the tenant has CRM Organization DocTypes.</div>}{loading ? <LoadingBlock /> : <div className="crm-card-grid">{rows.map((a) => <div className="crm-account-card" key={a.name}><b>{a.organization_name || a.name}</b><span>{fmt(a.industry)} · {fmt(a.territory || a.city)}</span><small>{fmt(a.website)}</small></div>)}{!rows.length && <EmptyState title="No accounts yet" body="Accounts are created from Frappe CRM organizations or lead conversion." />}</div>}</section>;
 }
 
-
-// ─── Activities Tab ──────────────────────────────────────────────────────────
-
-function ActivitiesTab() {
-  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
-  const [calls, setCalls] = useState<CallLog[]>([]);
-  const [notifications, setNotifications] = useState<NotificationRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-
-  useEffect(() => {
-    Promise.allSettled([
-      apiFetch("/api/crm/email-templates?limit=20"),
-      apiFetch("/api/crm/call-logs?limit=20"),
-      apiFetch("/api/crm/notifications?limit=20"),
-    ]).then(([tplRes, callRes, notifRes]) => {
-      if (tplRes.status === "fulfilled") {
-        const data = (tplRes.value as any).data ?? tplRes.value;
-        setTemplates(data.templates || data.email_templates || []);
-      }
-      if (callRes.status === "fulfilled") {
-        const data = (callRes.value as any).data ?? callRes.value;
-        setCalls(data.call_logs || data.calls || []);
-      }
-      if (notifRes.status === "fulfilled") {
-        const data = (notifRes.value as any).data ?? notifRes.value;
-        setNotifications(data.notifications || []);
-      }
-      if ([tplRes, callRes, notifRes].some((r) => r.status === "rejected")) {
-        setErr("Some activity data could not be loaded. Install/update the CRM server methods included in this package if any section stays empty.");
-      }
-    }).finally(() => setLoading(false));
-  }, []);
-
-  return (
-    <>
-      <InlineError msg={err} />
-      <section className="demo-stat-grid crm-stat-grid" style={{ marginBottom: 16 }}>
-        <div className="demo-stat-card crm-stat-card"><div className="demo-stat-label">Email Templates</div><div className="demo-stat-value">{templates.length}</div><div className="demo-stat-hint">Reusable follow-up messages</div></div>
-        <div className="demo-stat-card crm-stat-card teal"><div className="demo-stat-label">Call Logs</div><div className="demo-stat-value">{calls.length}</div><div className="demo-stat-hint">Logged sales conversations</div></div>
-        <div className="demo-stat-card crm-stat-card warn"><div className="demo-stat-label">Notifications</div><div className="demo-stat-value">{notifications.length}</div><div className="demo-stat-hint">Mentions and reminders</div></div>
-      </section>
-
-      {loading ? <Spinner /> : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
-          <section className="demo-panel">
-            <div className="demo-panel-head"><div><h3>Email Templates</h3><p>Use saved introductions, proposal follow-ups and check-ins from lead or opportunity records.</p></div></div>
-            {templates.length === 0 ? <div style={{ opacity: 0.55, fontSize: 13 }}>No templates found.</div> : templates.slice(0, 8).map((t) => (
-              <div key={t.name} className="card card-pad" style={{ padding: 12, marginBottom: 8 }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>{t.name}</div>
-                <div style={{ opacity: 0.65, fontSize: 12, marginTop: 3 }}>{t.subject || t.for_doctype || "Template"}</div>
-              </div>
-            ))}
-          </section>
-
-          <section className="demo-panel">
-            <div className="demo-panel-head"><div><h3>Call Logs</h3><p>Track customer calls and recordings where the tenant has telephony enabled.</p></div></div>
-            {calls.length === 0 ? <div style={{ opacity: 0.55, fontSize: 13 }}>No call logs found.</div> : calls.slice(0, 8).map((c) => (
-              <div key={c.name} className="card card-pad" style={{ padding: 12, marginBottom: 8 }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>{c.type || "Call"} · {fmt(c.from || c.to)}</div>
-                <div style={{ opacity: 0.65, fontSize: 12, marginTop: 3 }}>{fmtDate(c.creation)} · {fmt(c.duration)}</div>
-              </div>
-            ))}
-          </section>
-
-          <section className="demo-panel">
-            <div className="demo-panel-head"><div><h3>Notifications</h3><p>Mentions, reminders and follow-up alerts for the sales team.</p></div></div>
-            {notifications.length === 0 ? <div style={{ opacity: 0.55, fontSize: 13 }}>No notifications found.</div> : notifications.slice(0, 8).map((n) => (
-              <div key={n.name} className="card card-pad" style={{ padding: 12, marginBottom: 8 }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>{n.subject || n.document_type || "Notification"}</div>
-                <div style={{ opacity: 0.65, fontSize: 12, marginTop: 3 }}>{fmt(n.document_name)} · {fmtDate(n.creation)}</div>
-              </div>
-            ))}
-          </section>
-        </div>
-      )}
-    </>
-  );
+function ActivitiesView({ crmMode }: { crmMode: CrmMode }) {
+  const [templates, setTemplates] = useState<any[]>([]); const [calls, setCalls] = useState<any[]>([]); const [notices, setNotices] = useState<any[]>([]); const [loading, setLoading] = useState(true);
+  useEffect(() => { Promise.allSettled([apiFetch("/api/crm/email-templates?limit=20"), apiFetch("/api/crm/call-logs?limit=20"), apiFetch("/api/crm/notifications?limit=20")]).then(([t, c, n]) => { if (t.status === "fulfilled") setTemplates(arrayFrom<any>(t.value, ["templates"])); if (c.status === "fulfilled") setCalls(arrayFrom<any>(c.value, ["call_logs"])); if (n.status === "fulfilled") setNotices(arrayFrom<any>(n.value, ["notifications"])); }).finally(() => setLoading(false)); }, []);
+  if (loading) return <LoadingBlock />;
+  return <div className="crm-split-grid three"><section className="demo-panel"><div className="demo-panel-head"><div><h3>Email Templates</h3><p>Reusable messages for follow-ups, proposals and onboarding.</p></div></div><div className="crm-list-panel">{templates.map((t, i) => <div className="crm-mini-card" key={t.name || i}><b>{t.name || t.subject}</b><span>{fmt(t.subject)}</span></div>)}{!templates.length && <EmptyState title="No templates" body="Create templates on the tenant server or Frappe desk." />}</div></section><section className="demo-panel"><div className="demo-panel-head"><div><h3>Call Logs</h3><p>Logged calls for leads and opportunities.</p></div></div><div className="crm-list-panel">{calls.map((c, i) => <div className="crm-mini-card" key={c.name || i}><b>{c.type || "Call"}</b><span>{fmt(c.receiver || c.to || c.caller)} · {dateText(c.creation)}</span></div>)}{!calls.length && <EmptyState title="No call logs" body="Call logs require the CRM calls add-on or Frappe CRM Call Log DocType." />}</div></section><section className="demo-panel"><div className="demo-panel-head"><div><h3>Notifications</h3><p>Assigned tasks, reminders and alerts.</p></div></div><div className="crm-list-panel">{notices.map((n, i) => <div className="crm-mini-card" key={n.id || n.name || i}><b>{n.title || n.subject || "Notification"}</b><span>{fmt(n.document_name || n.message)} · {dateText(n.creation || n.date)}</span></div>)}{!notices.length && <EmptyState title="No notifications" body="Notifications will appear here once tasks and reminders are active." />}</div></section></div>;
 }
 
-// ─── Automation Tab ──────────────────────────────────────────────────────────
-
-function AutomationTab() {
-  const [data, setData] = useState<AutomationData>({});
-  const [fields, setFields] = useState<Array<Record<string, unknown>>>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    Promise.allSettled([
-      apiFetch("/api/crm/automation"),
-      apiFetch("/api/crm/custom-fields?doctype=CRM Lead"),
-    ]).then(([autoRes, fieldsRes]) => {
-      if (autoRes.status === "fulfilled") {
-        const raw = autoRes.value as any;
-        const sla = (raw.sla?.data ?? raw.sla) as Record<string, unknown> | undefined;
-        const rulesRaw = raw.assignment_rules?.data ?? raw.assignment_rules;
-        setData({ sla, assignment_rules: Array.isArray(rulesRaw?.assignment_rules) ? rulesRaw.assignment_rules : Array.isArray(rulesRaw) ? rulesRaw : [] });
-      }
-      if (fieldsRes.status === "fulfilled") {
-        const raw = fieldsRes.value as any;
-        const payload = raw.data ?? raw;
-        setFields(payload.custom_fields || []);
-      }
-    }).finally(() => setLoading(false));
-  }, []);
-
-  const rules = data.assignment_rules || [];
-  return loading ? <Spinner /> : (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
-      <section className="demo-panel">
-        <div className="demo-panel-head"><div><h3>SLA & Follow-up Rules</h3><p>Keep response-time discipline for new leads and active opportunities.</p></div></div>
-        <div className="card card-pad" style={{ padding: 14 }}>
-          <div style={{ fontSize: 12, opacity: 0.65 }}>Server status</div>
-          <div style={{ fontSize: 18, fontWeight: 800, marginTop: 4 }}>{data.sla ? "Configured" : "Not configured yet"}</div>
-          <div style={{ fontSize: 12, opacity: 0.65, marginTop: 6 }}>Use the server CRM methods to expose lead/deal SLA settings to this workspace.</div>
-        </div>
-      </section>
-
-      <section className="demo-panel">
-        <div className="demo-panel-head"><div><h3>Assignment Rules</h3><p>Automatically route leads and opportunities to the right owner or team.</p></div></div>
-        {rules.length === 0 ? <div style={{ opacity: 0.55, fontSize: 13 }}>No assignment rules found.</div> : rules.slice(0, 8).map((r, index) => (
-          <div key={String(r.name || index)} className="card card-pad" style={{ padding: 12, marginBottom: 8 }}>
-            <div style={{ fontWeight: 700, fontSize: 13 }}>{fmt(r.name || r.rule_name || `Rule ${index + 1}`)}</div>
-            <div style={{ opacity: 0.65, fontSize: 12, marginTop: 3 }}>{fmt(r.document_type || r.doctype || "CRM record")}</div>
-          </div>
-        ))}
-      </section>
-
-      <section className="demo-panel">
-        <div className="demo-panel-head"><div><h3>Custom CRM Fields</h3><p>Tenant-specific fields for industries, regions, deal scoring and business rules.</p></div></div>
-        {fields.length === 0 ? <div style={{ opacity: 0.55, fontSize: 13 }}>No custom lead fields found.</div> : fields.slice(0, 8).map((f, index) => (
-          <div key={String(f.name || index)} className="card card-pad" style={{ padding: 12, marginBottom: 8 }}>
-            <div style={{ fontWeight: 700, fontSize: 13 }}>{fmt(f.label || f.fieldname || f.name)}</div>
-            <div style={{ opacity: 0.65, fontSize: 12, marginTop: 3 }}>{fmt(f.fieldtype || "Custom field")}</div>
-          </div>
-        ))}
-      </section>
-    </div>
-  );
-}
-
-// ─── Main CRM Workspace ───────────────────────────────────────────────────────
-
-type Tab = "Dashboard" | "Leads" | "Opportunities" | "Accounts" | "Contacts" | "Activities" | "Automation";
-const CRM_TABS: Tab[] = ["Dashboard", "Leads", "Opportunities", "Accounts", "Contacts", "Activities", "Automation"];
-
-function normalizeCrmTab(value?: string): Tab {
-  const cleaned = String(value || "").trim().toLowerCase();
-  if (["lead", "leads"].includes(cleaned)) return "Leads";
-  if (["deal", "deals", "opportunity", "opportunities", "pipeline"].includes(cleaned)) return "Opportunities";
-  if (["contact", "contacts"].includes(cleaned)) return "Contacts";
-  if (["activity", "activities", "calls", "emails", "templates", "notifications"].includes(cleaned)) return "Activities";
-  if (["automation", "sla", "assignment", "custom-fields", "custom_fields"].includes(cleaned)) return "Automation";
-  if (["account", "accounts", "organization", "organizations", "organisation", "organisations"].includes(cleaned)) return "Accounts";
-  return "Dashboard";
+function AutomationView({ crmMode }: { crmMode: CrmMode }) {
+  const [rules, setRules] = useState<any[]>([]); const [fields, setFields] = useState<any[]>([]); const [sla, setSla] = useState<any>(null); const [loading, setLoading] = useState(true);
+  useEffect(() => { const dt = crmMode === "frappe_crm" ? "CRM Lead" : "Lead"; Promise.allSettled([apiFetch("/api/crm/automation"), apiFetch(`/api/crm/custom-fields?doctype=${encodeURIComponent(dt)}`)]).then(([a, f]) => { if (a.status === "fulfilled") { const raw = a.value as any; const ar = raw.assignment_rules?.data ?? raw.assignment_rules ?? {}; setRules(ar.rules || ar.assignment_rules || []); setSla(raw.sla?.data ?? raw.sla ?? null); } if (f.status === "fulfilled") setFields(arrayFrom<any>(f.value, ["custom_fields"])); }).finally(() => setLoading(false)); }, [crmMode]);
+  if (loading) return <LoadingBlock />;
+  return <div className="crm-split-grid three"><section className="demo-panel"><div className="demo-panel-head"><div><h3>SLA Rules</h3><p>Response and follow-up discipline for sales records.</p></div></div><div className="crm-list-panel"><div className="crm-mini-card"><b>{sla ? "Configured" : "Not configured"}</b><span>{crmMode === "frappe_crm" ? "Frappe CRM SLA rules can be surfaced here." : "Install Frappe CRM for CRM Service Level Agreement DocTypes."}</span></div></div></section><section className="demo-panel"><div className="demo-panel-head"><div><h3>Assignment Rules</h3><p>Route leads and opportunities by workload or conditions.</p></div></div><div className="crm-list-panel">{rules.map((r, i) => <div className="crm-mini-card" key={r.name || i}><b>{r.name || `Rule ${i + 1}`}</b><span>{fmt(r.document_type)} · {fmt(r.assign_condition)}</span></div>)}{!rules.length && <EmptyState title="No assignment rules" body="Create routing rules on the tenant server." />}</div></section><section className="demo-panel"><div className="demo-panel-head"><div><h3>Custom Fields</h3><p>Tenant-specific lead and opportunity fields.</p></div></div><div className="crm-list-panel">{fields.map((f, i) => <div className="crm-mini-card" key={f.name || i}><b>{f.label || f.fieldname}</b><span>{fmt(f.fieldtype)} · {fmt(f.options)}</span></div>)}{!fields.length && <EmptyState title="No custom fields" body="Add tenant-specific fields when needed." />}</div></section></div>;
 }
 
 export default function CrmWorkspaceClient({ initialTab }: { initialTab?: string } = {}) {
-  const [tab, setTab]                 = useState<Tab>(() => normalizeCrmTab(initialTab));
-  const [loading, setLoading]         = useState(true);
-  const [cards, setCards]             = useState<DashboardCards | null>(null);
-  const [activity, setActivity]       = useState<Activity[]>([]);
-  const [currency, setCurrency]       = useState("ZAR");
-  const [leadStatuses, setLeadStatuses] = useState<Status[]>([]);
-  const [dealStatuses, setDealStatuses] = useState<Status[]>([]);
-  const [sources, setSources]           = useState<string[]>([]);
-  const [dashErr, setDashErr]           = useState("");
+  const [tab, setTab] = useState<Tab>(() => normalizeTab(initialTab));
+  const [cards, setCards] = useState<DashboardCards | null>(null);
+  const [activity, setActivity] = useState<Activity[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [currency, setCurrency] = useState("ZAR");
+  const [crmMode, setCrmMode] = useState<CrmMode>("erpnext");
+  const [leadStatuses, setLeadStatuses] = useState<Status[]>(DEFAULT_LEAD_STATUSES);
+  const [dealStatuses, setDealStatuses] = useState<Status[]>(DEFAULT_DEAL_STATUSES);
+  const [sources, setSources] = useState<string[]>(["Website", "Email", "Phone", "Referral", "Social Media", "Campaign", "Walk In", "Other"]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [refreshSignal, setRefreshSignal] = useState(0);
+  const [modal, setModal] = useState<"lead" | "deal" | "contact" | null>(null);
+  const [drawer, setDrawer] = useState<{ id: string; type: "lead" | "deal"; title: string } | null>(null);
+  const leadStatusList = useMemo(() => uniqueStatuses(leadStatuses, DEFAULT_LEAD_STATUSES), [leadStatuses]);
+  const dealStatusList = useMemo(() => uniqueStatuses(dealStatuses, DEFAULT_DEAL_STATUSES), [dealStatuses]);
 
-  useEffect(() => {
-    // Load dashboard + statuses + sources in parallel
-    Promise.allSettled([
-      apiFetch("/api/crm/dashboard"),
-      apiFetch("/api/crm/statuses?type=lead"),
-      apiFetch("/api/crm/statuses?type=deal"),
-      apiFetch("/api/crm/sources"),
-    ]).then(([dashRes, leadStRes, dealStRes, srcRes]) => {
-      if (dashRes.status === "fulfilled") {
-        const d = (dashRes.value as any).data ?? dashRes.value;
-        setCards(d.cards ?? null);
-        setActivity(d.recent_activity ?? []);
-        setCurrency(d.currency ?? "ZAR");
-      } else {
-        setDashErr("Could not load dashboard data from backend.");
-      }
+  async function refreshCore() {
+    setError("");
+    const [dash, leadSt, dealSt, src, leadRows, dealRows] = await Promise.allSettled([
+      apiFetch("/api/crm/dashboard"), apiFetch("/api/crm/statuses?type=lead"), apiFetch("/api/crm/statuses?type=deal"), apiFetch("/api/crm/sources"), apiFetch("/api/crm/leads?limit=8&offset=0"), apiFetch("/api/crm/deals?limit=8&offset=0"),
+    ]);
+    if (dash.status === "fulfilled") { const d = unwrap<any>(dash.value); setCards(d.cards || null); setActivity(d.recent_activity || []); setCurrency(d.currency || "ZAR"); setCrmMode(d.crm_app === "frappe_crm" ? "frappe_crm" : "erpnext"); }
+    else setError(dash.reason instanceof Error ? dash.reason.message : "Could not load dashboard data from backend.");
+    if (leadSt.status === "fulfilled") setLeadStatuses(arrayFrom<Status>(leadSt.value, ["statuses"]));
+    if (dealSt.status === "fulfilled") setDealStatuses(arrayFrom<Status>(dealSt.value, ["statuses"]));
+    if (src.status === "fulfilled") { const list = arrayFrom<string>(src.value, ["sources"]); if (list.length) setSources(list); }
+    if (leadRows.status === "fulfilled") setLeads(arrayFrom<Lead>(leadRows.value, ["leads"]));
+    if (dealRows.status === "fulfilled") setDeals(arrayFrom<Deal>(dealRows.value, ["deals", "opportunities"]));
+  }
+  useEffect(() => { setLoading(true); refreshCore().finally(() => setLoading(false)); }, [refreshSignal]);
+  const bump = () => setRefreshSignal((x) => x + 1);
 
-      if (leadStRes.status === "fulfilled") {
-        const d = (leadStRes.value as any).data ?? leadStRes.value;
-        setLeadStatuses(d.statuses || []);
-      }
-      if (dealStRes.status === "fulfilled") {
-        const d = (dealStRes.value as any).data ?? dealStRes.value;
-        setDealStatuses(d.statuses || []);
-      }
-      if (srcRes.status === "fulfilled") {
-        const d = (srcRes.value as any).data ?? srcRes.value;
-        setSources(d.sources || []);
-      }
-    }).finally(() => setLoading(false));
-  }, []);
-
-  const tabs = CRM_TABS;
-
-  return (
-    <div className="demo-workspace crm-workspace animate-fade-up">
-      {/* Page head */}
-      <section className="demo-module-titlebar crm-titlebar">
-        <div>
-          <div className="demo-eyebrow">CRM &amp; Sales</div>
-          <h1>CRM Workspace</h1>
-          <p>Manage leads, opportunities, contacts and accounts from one clean workspace. Connected to your Fuze CRM backend with live tenant data.</p>
-        </div>
-        <div className="demo-module-actions">
-          <button type="button" onClick={() => setTab("Leads")} className="btn btn-teal">New Lead</button>
-          <button type="button" onClick={() => setTab("Opportunities")} className="btn">View Opportunities</button>
-          {currency !== "ZAR" && <span className="crm-currency-pill">Currency: {currency}</span>}
-        </div>
-      </section>
-
-      {/* Tab navigation */}
-      <section className="demo-tabbar crm-tabbar" aria-label="CRM workspace sections">
-        {tabs.map((t) => (
-          <button key={t} type="button" onClick={() => setTab(t)} className={tab === t ? "active" : ""}>
-            {t}
-          </button>
-        ))}
-      </section>
-
-      {/* Tab content */}
-      {loading ? <Spinner /> : (
-        <>
-          {dashErr && tab === "Dashboard" && <div className="banner" style={{ marginBottom: 16, background: "#fff7ed", borderColor: "#fed7aa", color: "#c2410c" }}>{dashErr}</div>}
-
-          {tab === "Dashboard" && (
-            cards
-              ? <DashboardTab cards={cards} activity={activity} currency={currency} />
-              : <div className="card card-pad" style={{ opacity: 0.6 }}>Dashboard data unavailable. Make sure the <code>crm</code> Python module is installed on the tenant server.</div>
-          )}
-
-          {tab === "Leads" && (
-            <LeadsTab statuses={leadStatuses} sources={sources} />
-          )}
-
-          {tab === "Opportunities" && (
-            <DealsTab dealStatuses={dealStatuses} />
-          )}
-
-          {tab === "Contacts" && <ContactsTab />}
-
-          {tab === "Accounts" && <OrgsTab />}
-
-          {tab === "Activities" && <ActivitiesTab />}
-
-          {tab === "Automation" && <AutomationTab />}
-        </>
-      )}
-    </div>
-  );
+  return <div className="demo-workspace crm-console animate-fade-up">
+    <section className="crm-hero-card">
+      <div><div className="demo-eyebrow">CRM & Sales Command Center</div><h1>Complete CRM Operation</h1><p>Run your lead-to-opportunity process from one tenant-aware workspace: capture, qualify, convert, follow up, and forecast. No AI included.</p><div className="crm-hero-tags"><span>{crmMode === "frappe_crm" ? "Frappe CRM mode" : "ERPNext CRM fallback"}</span><span>Tenant live data</span><span>{currency}</span></div></div>
+      <div className="crm-hero-actions"><button className="btn btn-primary" onClick={() => setModal("lead")}>New Lead</button><button className="btn" onClick={() => setModal("deal")}>New Opportunity</button><button className="btn" onClick={() => setTab("Activities")}>Log Activity</button></div>
+    </section>
+    <ErrorBanner message={error} />
+    <nav className="demo-tabbar crm-tabbar">{TABS.map((t) => <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>{t}</button>)}</nav>
+    {loading ? <LoadingBlock /> : <>
+      {tab === "Command Center" && <CommandCenter cards={cards} leads={leads} deals={deals} activity={activity} currency={currency} setTab={setTab} onOpen={setDrawer} />}
+      {tab === "Leads" && <LeadsView statuses={leadStatusList} sources={sources} onOpen={setDrawer} refreshSignal={refreshSignal} onRefresh={bump} />}
+      {tab === "Opportunities" && <OpportunitiesView statuses={dealStatusList} onOpen={setDrawer} refreshSignal={refreshSignal} onRefresh={bump} currency={currency} />}
+      {tab === "Accounts" && <AccountsView crmMode={crmMode} refreshSignal={refreshSignal} />}
+      {tab === "Contacts" && <ContactsView refreshSignal={refreshSignal} />}
+      {tab === "Activities" && <ActivitiesView crmMode={crmMode} />}
+      {tab === "Automation" && <AutomationView crmMode={crmMode} />}
+    </>}
+    {modal === "lead" && <CreateLeadModal statuses={leadStatusList} sources={sources} onClose={() => setModal(null)} onSaved={() => { setModal(null); bump(); setTab("Leads"); }} />}
+    {modal === "deal" && <CreateDealModal statuses={dealStatusList} onClose={() => setModal(null)} onSaved={() => { setModal(null); bump(); setTab("Opportunities"); }} />}
+    {modal === "contact" && <CreateContactModal onClose={() => setModal(null)} onSaved={() => { setModal(null); bump(); setTab("Contacts"); }} />}
+    {drawer && <DetailDrawer record={drawer} mode={crmMode} crmMode={crmMode} onClose={() => setDrawer(null)} onRefresh={bump} />}
+  </div>;
 }
