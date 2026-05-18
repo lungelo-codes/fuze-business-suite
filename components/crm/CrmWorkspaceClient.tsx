@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 type CrmMode = "erpnext" | "frappe_crm";
-type Tab = "Command Center" | "Leads" | "Opportunities" | "Customer 360" | "Contacts" | "Activities" | "Automation";
+type Tab = "Command Center" | "Leads" | "Opportunities" | "Customers" | "Quotes" | "Sales Orders" | "Contracts" | "Customer 360" | "Contacts" | "Activities" | "Automation";
 type Status = { name: string; color?: string; position?: number };
 type Lead = { id: string; name?: string; first_name?: string; last_name?: string; company?: string; email?: string; phone?: string; source?: string; status?: string; lead_owner?: string; last_updated?: string };
 type Deal = { id: string; title?: string; organization?: string; stage?: string; value?: string | number; raw_value?: number; currency?: string; probability?: number; expected_close?: string; owner?: string; source?: string; last_updated?: string };
@@ -13,7 +13,7 @@ type Activity = { name?: string; subject?: string; sender?: string; reference_do
 type DrawerRecord = { id: string; type: "lead" | "deal"; title: string };
 type Customer360 = { customer?: Record<string, any> | null; quotations?: Record<string, any>[]; invoices?: Record<string, any>[]; payments?: Record<string, any>[]; sales_orders?: Record<string, any>[]; contracts?: Record<string, any>[]; opportunities?: Record<string, any>[] };
 
-const TABS: Tab[] = ["Command Center", "Leads", "Opportunities", "Customer 360", "Contacts", "Activities", "Automation"];
+const TABS: Tab[] = ["Command Center", "Leads", "Opportunities", "Customers", "Quotes", "Sales Orders", "Contracts", "Customer 360", "Contacts", "Activities", "Automation"];
 const DEFAULT_LEAD_STATUSES: Status[] = [
   { name: "New" }, { name: "Open" }, { name: "Contacted" }, { name: "Replied" },
   { name: "Qualified" }, { name: "Converted" }, { name: "Do Not Contact" },
@@ -33,6 +33,10 @@ function normalizeTab(value?: string): Tab {
   const v = String(value || "").toLowerCase();
   if (v.includes("lead")) return "Leads";
   if (v.includes("opportun") || v.includes("deal") || v.includes("pipeline")) return "Opportunities";
+  if (v === "customers" || v.includes("account")) return "Customers";
+  if (v.includes("quote")) return "Quotes";
+  if (v.includes("sales-order") || v.includes("sales order")) return "Sales Orders";
+  if (v.includes("contract")) return "Contracts";
   if (v.includes("customer") || v.includes("360")) return "Customer 360";
   if (v.includes("contact")) return "Contacts";
   if (v.includes("activ") || v.includes("task") || v.includes("note")) return "Activities";
@@ -50,9 +54,9 @@ async function apiFetch(url: string, init?: RequestInit) { const res = await fet
 function StatusBadge({ status }: { status?: string }) { return <span className="crm-status-badge" style={{ ["--s" as string]: statusColor(status) }}>{fmt(status)}</span>; }
 function LoadingBlock() { return <div className="crm-loading"><span /> Loading CRM…</div>; }
 function ErrorBanner({ message }: { message?: string }) { return message ? <div className="crm-banner warn">{message}</div> : null; }
-function EmptyState({ title, body, action }: { title: string; body: string; action?: React.ReactNode }) { return <div className="crm-empty"><b>{title}</b><span>{body}</span>{action}</div>; }
-function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="crm-field"><span>{label}</span>{children}</label>; }
-function Modal({ title, subtitle, width, children, onClose }: { title: string; subtitle?: string; width?: number; children: React.ReactNode; onClose: () => void }) { return <><div className="crm-modal-backdrop" onClick={onClose} /><section className="crm-modal" style={{ width: `min(94vw, ${width || 720}px)` }}><div className="crm-modal-head"><div><h3>{title}</h3>{subtitle && <p>{subtitle}</p>}</div><button className="crm-icon-btn" onClick={onClose}>×</button></div>{children}</section></>; }
+function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) { return <div className="crm-empty"><b>{title}</b><span>{body}</span>{action}</div>; }
+function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="crm-field"><span>{label}</span>{children}</label>; }
+function Modal({ title, subtitle, width, children, onClose }: { title: string; subtitle?: string; width?: number; children: ReactNode; onClose: () => void }) { return <><div className="crm-modal-backdrop" onClick={onClose} /><section className="crm-modal" style={{ width: `min(94vw, ${width || 720}px)` }}><div className="crm-modal-head"><div><h3>{title}</h3>{subtitle && <p>{subtitle}</p>}</div><button className="crm-icon-btn" onClick={onClose}>×</button></div>{children}</section></>; }
 
 function CreateLeadModal({ statuses, sources, onClose, onSaved }: { statuses: Status[]; sources: string[]; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({ first_name: "", last_name: "", company: "", email: "", phone: "", source: sources[0] || "Website", status: statuses[0]?.name || "New", city: "", country: "South Africa", website: "" });
@@ -132,15 +136,80 @@ function OpportunitiesView({ statuses, onOpen, refreshSignal, onRefresh, currenc
 }
 
 function Customer360View({ leads, deals, onOpen }: { leads: Lead[]; deals: Deal[]; onOpen: (r: DrawerRecord) => void }) { return <div className="crm-split-grid"><section className="demo-panel"><div className="demo-panel-head"><div><h3>Customer lifecycle starts here</h3><p>Select a lead or opportunity to open Customer 360, link a customer, and create quotes/invoices.</p></div></div><div className="crm-list-panel">{leads.slice(0, 8).map((l) => <button className="crm-row-card" key={l.id} onClick={() => onOpen({ id: l.id, type: "lead", title: l.name || l.company || l.id })}><div><b>{l.name || l.company || l.id}</b><span>{fmt(l.company)} · {fmt(l.status)}</span></div><span>Open 360</span></button>)}</div></section><section className="demo-panel"><div className="demo-panel-head"><div><h3>Revenue lifecycle</h3><p>Open an opportunity to create a customer, quote and invoice.</p></div></div><div className="crm-list-panel">{deals.slice(0, 8).map((d) => <button className="crm-row-card" key={d.id} onClick={() => onOpen({ id: d.id, type: "deal", title: d.title || d.id })}><div><b>{d.title || d.id}</b><span>{fmt(d.stage)} · {fmt(d.value)}</span></div><span>Open 360</span></button>)}</div></section></div>; }
+function RevenueDocsView({ module, title, subtitle, refreshSignal }: { module: string; title: string; subtitle: string; refreshSignal: number }) {
+  const [rows, setRows] = useState<Record<string, any>[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    setLoading(true); setError("");
+    apiFetch(`/api/crud/${module}?limit=80`).then((json) => {
+      const data = json?.data ?? json?.message ?? [];
+      setRows(Array.isArray(data) ? data : []);
+    }).catch((e) => setError(e instanceof Error ? e.message : `Could not load ${title.toLowerCase()}.`)).finally(() => setLoading(false));
+  }, [module, title, refreshSignal]);
+  return <section className="demo-panel">
+    <div className="demo-panel-head"><div><h3>{title}</h3><p>{subtitle}</p></div></div>
+    <ErrorBanner message={error} />
+    {loading ? <LoadingBlock /> : <div className="crm-table-wrap"><table className="demo-table crm-table"><thead><tr><th>Record</th><th>Customer / Party</th><th>Status</th><th>Date</th><th>Amount</th></tr></thead><tbody>{rows.map((r, index) => <tr key={String(r.name || r.id || index)}><td><b>{fmt(r.name || r.id)}</b><small>{fmt(r.title || r.subject || r.contract_name)}</small></td><td>{fmt(r.customer_name || r.customer || r.party_name)}</td><td><StatusBadge status={String(r.status || r.workflow_state || "Draft")} /></td><td>{dateText(String(r.transaction_date || r.posting_date || r.start_date || r.modified || ""))}</td><td>{r.grand_total !== undefined || r.total !== undefined ? money(r.grand_total ?? r.total, r.currency || "ZAR") : "—"}</td></tr>)}</tbody></table>{!rows.length && <EmptyState title={`No ${title.toLowerCase()} yet`} body="Create records from a lead or opportunity using the CRM drawer." />}</div>}
+  </section>;
+}
 function ContactsView({ refreshSignal }: { refreshSignal: number }) { const [rows, setRows] = useState<Contact[]>([]); const [loading, setLoading] = useState(true); useEffect(() => { apiFetch("/api/crm/contacts?limit=80").then((j) => setRows(arrayFrom<Contact>(j, ["contacts"]))).finally(() => setLoading(false)); }, [refreshSignal]); return <section className="demo-panel"><div className="demo-panel-head"><div><h3>Contacts</h3><p>People linked to leads, opportunities and customers.</p></div></div>{loading ? <LoadingBlock /> : <div className="crm-card-grid">{rows.map((c) => <div className="crm-person-card" key={c.id}><div className="crm-avatar">{(c.name || "?").slice(0, 1)}</div><div><b>{c.name || c.id}</b><span>{fmt(c.company)} · {fmt(c.designation)}</span><small>{fmt(c.email || c.phone)}</small></div></div>)}{!rows.length && <EmptyState title="No contacts" body="Contacts are created directly or during conversion." />}</div>}</section>; }
-function ActivitiesView() { return <div className="crm-split-grid three"><InfoPanel title="Tasks & Notes" body="Open a lead or opportunity drawer to add follow-up tasks, sales notes and team comments." /><InfoPanel title="Emails & Templates" body="Email templates and communications are surfaced from the tenant CRM backend." /><InfoPanel title="Calls & Notifications" body="Call logs and notifications appear when the matching CRM add-ons or DocTypes are installed." /></div>; }
-function AutomationView({ crmMode }: { crmMode: CrmMode }) { return <div className="crm-split-grid three"><InfoPanel title="Assignment Rules" body="Route leads and opportunities to users from the tenant backend." /><InfoPanel title="SLA" body={crmMode === "frappe_crm" ? "Frappe CRM SLA rules can be enabled per tenant." : "Install Frappe CRM to unlock CRM SLA DocTypes."} /><InfoPanel title="Custom Fields" body="Tenant-specific lead and opportunity fields are stored as site-level Custom Fields." /></div>; }
+function ActivitiesView() {
+  const [templates, setTemplates] = useState<Record<string, any>[]>([]);
+  const [notifications, setNotifications] = useState<Record<string, any>[]>([]);
+  const [calls, setCalls] = useState<Record<string, any>[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    Promise.allSettled([
+      apiFetch("/api/crm/email-templates?limit=8"),
+      apiFetch("/api/crm/notifications?limit=8"),
+      apiFetch("/api/crm/call-logs?limit=8"),
+    ]).then(([tpl, notif, call]) => {
+      if (!active) return;
+      if (tpl.status === "fulfilled") setTemplates(arrayFrom<Record<string, any>>(tpl.value, ["templates"]));
+      if (notif.status === "fulfilled") setNotifications(arrayFrom<Record<string, any>>(notif.value, ["notifications"]));
+      if (call.status === "fulfilled") setCalls(arrayFrom<Record<string, any>>(call.value, ["call_logs"]));
+    }).finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, []);
+  return <div className="crm-split-grid three">
+    <section className="demo-panel"><div className="demo-panel-head"><div><h3>Email templates</h3><p>Reusable messages for quote follow-ups, introductions and reminders.</p></div></div>{loading ? <LoadingBlock /> : <DataList rows={templates} empty="No email templates yet." render={(r) => <><b>{r.name || r.subject}</b><span>{fmt(r.subject)}</span></>} />}</section>
+    <section className="demo-panel"><div className="demo-panel-head"><div><h3>Notifications</h3><p>Open reminders and alerts for your sales team.</p></div></div>{loading ? <LoadingBlock /> : <DataList rows={notifications} empty="No active notifications." render={(r) => <><b>{r.title || r.subject || r.name}</b><span>{fmt(r.message || r.type)} · {dateText(r.date || r.creation)}</span></>} />}</section>
+    <section className="demo-panel"><div className="demo-panel-head"><div><h3>Call activity</h3><p>Recent customer calls and follow-up records.</p></div></div>{loading ? <LoadingBlock /> : <DataList rows={calls} empty="No call activity yet." render={(r) => <><b>{r.type || "Call"} · {fmt(r.status)}</b><span>{fmt(r.receiver || r.caller)} · {dateText(r.creation)}</span></>} />}</section>
+  </div>;
+}
+function AutomationView() {
+  const [rules, setRules] = useState<Record<string, any>[]>([]);
+  const [sla, setSla] = useState<Record<string, any>[]>([]);
+  const [customFields, setCustomFields] = useState<Record<string, any>[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    Promise.allSettled([apiFetch("/api/crm/automation"), apiFetch("/api/crm/custom-fields?doctype=Lead")]).then(([auto, custom]) => {
+      if (!active) return;
+      if (auto.status === "fulfilled") {
+        const autoData = auto.value || {};
+        setRules(arrayFrom<Record<string, any>>(autoData.assignment_rules, ["rules"]));
+        setSla(arrayFrom<Record<string, any>>(autoData.sla, ["sla"]));
+      }
+      if (custom.status === "fulfilled") setCustomFields(arrayFrom<Record<string, any>>(custom.value, ["custom_fields"]));
+    }).finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, []);
+  return <div className="crm-split-grid three">
+    <section className="demo-panel"><div className="demo-panel-head"><div><h3>Assignment rules</h3><p>Automatically route leads and opportunities to the right sales owner.</p></div></div>{loading ? <LoadingBlock /> : <DataList rows={rules} empty="No assignment rules configured." render={(r) => <><b>{r.name}</b><span>{fmt(r.document_type)} · Priority {fmt(r.priority)}</span></>} />}</section>
+    <section className="demo-panel"><div className="demo-panel-head"><div><h3>Service levels</h3><p>Response and resolution targets for sales follow-ups.</p></div></div>{loading ? <LoadingBlock /> : <DataList rows={sla} empty="No service levels configured." render={(r) => <><b>{r.name}</b><span>{fmt(r.doctype_name)} · {fmt(r.response_time)} {fmt(r.response_time_period)}</span></>} />}</section>
+    <section className="demo-panel"><div className="demo-panel-head"><div><h3>Custom fields</h3><p>Extra fields your team added to sales records.</p></div></div>{loading ? <LoadingBlock /> : <DataList rows={customFields} empty="No custom CRM fields yet." render={(r) => <><b>{r.label || r.fieldname}</b><span>{fmt(r.fieldtype)} · {fmt(r.fieldname)}</span></>} />}</section>
+  </div>;
+}
+function DataList({ rows, empty, render }: { rows: Record<string, any>[]; empty: string; render: (row: Record<string, any>) => ReactNode }) { return <div className="crm-list-panel">{rows.length ? rows.slice(0, 8).map((row, index) => <div className="crm-mini-card" key={row.name || row.id || index}>{render(row)}</div>) : <EmptyState title={empty} body="You can manage this from the CRM workspace when your team needs it." />}</div>; }
 function InfoPanel({ title, body }: { title: string; body: string }) { return <section className="demo-panel"><div className="demo-panel-head"><div><h3>{title}</h3><p>{body}</p></div></div><div className="crm-list-panel"><div className="crm-mini-card"><b>Available in this workspace</b><span>{body}</span></div></div></section>; }
 
 export default function CrmWorkspaceClient({ initialTab }: { initialTab?: string } = {}) {
   const [tab, setTab] = useState<Tab>(() => normalizeTab(initialTab)); const [cards, setCards] = useState<Cards | null>(null); const [leads, setLeads] = useState<Lead[]>([]); const [deals, setDeals] = useState<Deal[]>([]); const [currency, setCurrency] = useState("ZAR"); const [crmMode, setCrmMode] = useState<CrmMode>("erpnext"); const [leadStatuses, setLeadStatuses] = useState<Status[]>(DEFAULT_LEAD_STATUSES); const [dealStatuses, setDealStatuses] = useState<Status[]>(DEFAULT_DEAL_STATUSES); const [sources, setSources] = useState<string[]>(["Website", "Email", "Phone", "Referral", "Social Media", "Campaign", "Walk In", "Other"]); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [refreshSignal, setRefreshSignal] = useState(0); const [modal, setModal] = useState<"lead" | "deal" | null>(null); const [drawer, setDrawer] = useState<DrawerRecord | null>(null);
   const leadStatusList = useMemo(() => uniqueStatuses(leadStatuses, DEFAULT_LEAD_STATUSES), [leadStatuses]); const dealStatusList = useMemo(() => uniqueStatuses(dealStatuses, DEFAULT_DEAL_STATUSES), [dealStatuses]);
-  async function refreshCore() { setError(""); const [dash, leadSt, dealSt, src, leadRows, dealRows] = await Promise.allSettled([apiFetch("/api/crm/dashboard"), apiFetch("/api/crm/statuses?type=lead"), apiFetch("/api/crm/statuses?type=deal"), apiFetch("/api/crm/sources"), apiFetch("/api/crm/leads?limit=10&offset=0"), apiFetch("/api/crm/deals?limit=10&offset=0")]); if (dash.status === "fulfilled") { const d = unwrap<any>(dash.value); setCards(d.cards || null); setCurrency(d.currency || "ZAR"); setCrmMode(d.crm_app === "frappe_crm" ? "frappe_crm" : "erpnext"); } else setError(dash.reason instanceof Error ? dash.reason.message : "Could not load dashboard data from backend."); if (leadSt.status === "fulfilled") setLeadStatuses(arrayFrom<Status>(leadSt.value, ["statuses"])); if (dealSt.status === "fulfilled") setDealStatuses(arrayFrom<Status>(dealSt.value, ["statuses"])); if (src.status === "fulfilled") { const list = arrayFrom<string>(src.value, ["sources"]); if (list.length) setSources(list); } if (leadRows.status === "fulfilled") setLeads(arrayFrom<Lead>(leadRows.value, ["leads"])); if (dealRows.status === "fulfilled") setDeals(arrayFrom<Deal>(dealRows.value, ["deals", "opportunities"])); }
+  async function refreshCore() { setError(""); const [dash, leadSt, dealSt, src, leadRows, dealRows] = await Promise.allSettled([apiFetch("/api/crm/dashboard"), apiFetch("/api/crm/statuses?type=lead"), apiFetch("/api/crm/statuses?type=deal"), apiFetch("/api/crm/sources"), apiFetch("/api/crm/leads?limit=10&offset=0"), apiFetch("/api/crm/deals?limit=10&offset=0")]); if (dash.status === "fulfilled") { const d = unwrap<any>(dash.value); setCards(d.cards || null); setCurrency(d.currency || "ZAR"); setCrmMode(d.crm_app === "frappe_crm" ? "frappe_crm" : "erpnext"); } else setError(dash.reason instanceof Error ? dash.reason.message : "Could not load dashboard data."); if (leadSt.status === "fulfilled") setLeadStatuses(arrayFrom<Status>(leadSt.value, ["statuses"])); if (dealSt.status === "fulfilled") setDealStatuses(arrayFrom<Status>(dealSt.value, ["statuses"])); if (src.status === "fulfilled") { const list = arrayFrom<string>(src.value, ["sources"]); if (list.length) setSources(list); } if (leadRows.status === "fulfilled") setLeads(arrayFrom<Lead>(leadRows.value, ["leads"])); if (dealRows.status === "fulfilled") setDeals(arrayFrom<Deal>(dealRows.value, ["deals", "opportunities"])); }
   useEffect(() => { setLoading(true); refreshCore().finally(() => setLoading(false)); }, [refreshSignal]); const bump = () => setRefreshSignal((x) => x + 1);
-  return <div className="demo-workspace crm-console animate-fade-up"><section className="crm-hero-card"><div><div className="demo-eyebrow">CRM & Sales Command Center</div><h1>Customer Lifecycle CRM</h1><p>Run the full process in one tenant-aware workspace: Lead → Opportunity → Customer → Quote → Invoice. No AI included.</p><div className="crm-hero-tags"><span>{crmMode === "frappe_crm" ? "Frappe CRM mode" : "ERPNext CRM fallback"}</span><span>Tenant live data</span><span>{currency}</span></div></div><div className="crm-hero-actions"><button className="btn btn-primary" onClick={() => setModal("lead")}>New Lead</button><button className="btn" onClick={() => setModal("deal")}>New Opportunity</button><button className="btn" onClick={() => setTab("Customer 360")}>Customer 360</button></div></section><ErrorBanner message={error} /><nav className="demo-tabbar crm-tabbar">{TABS.map((t) => <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>{t}</button>)}</nav>{loading ? <LoadingBlock /> : <>{tab === "Command Center" && <CommandCenter cards={cards} leads={leads} deals={deals} currency={currency} setTab={setTab} onOpen={setDrawer} />}{tab === "Leads" && <LeadsView statuses={leadStatusList} sources={sources} onOpen={setDrawer} refreshSignal={refreshSignal} onRefresh={bump} />}{tab === "Opportunities" && <OpportunitiesView statuses={dealStatusList} onOpen={setDrawer} refreshSignal={refreshSignal} onRefresh={bump} currency={currency} />}{tab === "Customer 360" && <Customer360View leads={leads} deals={deals} onOpen={setDrawer} />}{tab === "Contacts" && <ContactsView refreshSignal={refreshSignal} />}{tab === "Activities" && <ActivitiesView />}{tab === "Automation" && <AutomationView crmMode={crmMode} />}</>}{modal === "lead" && <CreateLeadModal statuses={leadStatusList} sources={sources} onClose={() => setModal(null)} onSaved={() => { setModal(null); bump(); setTab("Leads"); }} />}{modal === "deal" && <CreateDealModal statuses={dealStatusList} onClose={() => setModal(null)} onSaved={() => { setModal(null); bump(); setTab("Opportunities"); }} />}{drawer && <DetailDrawer record={drawer} crmMode={crmMode} onClose={() => setDrawer(null)} onRefresh={bump} />}</div>;
+  return <div className="demo-workspace crm-console animate-fade-up"><section className="crm-hero-card"><div><div className="demo-eyebrow">CRM & Sales Command Center</div><h1>Customer Lifecycle CRM</h1><p>Run the full customer lifecycle in one workspace: Lead → Opportunity → Customer → Quote → Sales Order → Invoice.</p><div className="crm-hero-tags"><span>Live CRM data</span><span>Sales pipeline</span><span>{currency}</span></div></div><div className="crm-hero-actions"><button className="btn btn-primary" onClick={() => setModal("lead")}>New Lead</button><button className="btn" onClick={() => setModal("deal")}>New Opportunity</button><button className="btn" onClick={() => setTab("Customer 360")}>Customer 360</button></div></section><ErrorBanner message={error} /><nav className="demo-tabbar crm-tabbar">{TABS.map((t) => <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>{t}</button>)}</nav>{loading ? <LoadingBlock /> : <>{tab === "Command Center" && <CommandCenter cards={cards} leads={leads} deals={deals} currency={currency} setTab={setTab} onOpen={setDrawer} />}{tab === "Leads" && <LeadsView statuses={leadStatusList} sources={sources} onOpen={setDrawer} refreshSignal={refreshSignal} onRefresh={bump} />}{tab === "Opportunities" && <OpportunitiesView statuses={dealStatusList} onOpen={setDrawer} refreshSignal={refreshSignal} onRefresh={bump} currency={currency} />}{tab === "Customers" && <RevenueDocsView module="customers" title="Customers" subtitle="Customer records created from qualified leads and opportunities." refreshSignal={refreshSignal} />}{tab === "Quotes" && <RevenueDocsView module="quotes" title="Quotes" subtitle="Draft and sent quotations linked to your sales pipeline." refreshSignal={refreshSignal} />}{tab === "Sales Orders" && <RevenueDocsView module="sales-orders" title="Sales Orders" subtitle="Confirmed customer orders created from won opportunities." refreshSignal={refreshSignal} />}{tab === "Contracts" && <RevenueDocsView module="contracts" title="Contracts" subtitle="Customer agreements created during the sales lifecycle." refreshSignal={refreshSignal} />}{tab === "Customer 360" && <Customer360View leads={leads} deals={deals} onOpen={setDrawer} />}{tab === "Contacts" && <ContactsView refreshSignal={refreshSignal} />}{tab === "Activities" && <ActivitiesView />}{tab === "Automation" && <AutomationView />}</>}{modal === "lead" && <CreateLeadModal statuses={leadStatusList} sources={sources} onClose={() => setModal(null)} onSaved={() => { setModal(null); bump(); setTab("Leads"); }} />}{modal === "deal" && <CreateDealModal statuses={dealStatusList} onClose={() => setModal(null)} onSaved={() => { setModal(null); bump(); setTab("Opportunities"); }} />}{drawer && <DetailDrawer record={drawer} crmMode={crmMode} onClose={() => setDrawer(null)} onRefresh={bump} />}</div>;
 }

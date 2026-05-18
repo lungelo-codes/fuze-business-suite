@@ -27,6 +27,7 @@ const METHODS: Record<string, ModuleMethods> = {
   opportunities: { list: "crm.get_pipeline", get: "crm.get_deal", create: "crm.create_deal", update: "crm.update_deal", getArg: "deal", updateArg: "deal", createWrap: "data" },
   quotes: { list: "sales.get_quotations", get: "sales.get_quotation", create: "sales.create_quotation", submit: "sales.submit_quotation", cancel: "sales.cancel_quotation", getArg: "name", submitArg: "name", cancelArg: "name", createWrap: "data" },
   "sales-orders": { list: "sales.get_sales_orders", get: "sales.get_sales_order", create: "sales.create_sales_order", submit: "sales.submit_sales_order", cancel: "sales.cancel_sales_order", getArg: "name", submitArg: "name", cancelArg: "name", createWrap: "data" },
+  contracts: { list: "crm.get_contracts", create: "crm.create_contract_from_crm", listArg: "customer", createWrap: "data" },
   invoices: { list: "sales.get_invoices", get: "sales.get_invoice", create: "sales.create_sales_invoice", cancel: "sales.cancel_sales_invoice", getArg: "name", cancelArg: "name", createWrap: "data" },
   payments: { list: "accounting.get_payments", get: "accounting.get_payment", create: "sales.create_payment_entry", getArg: "name", createWrap: "data" },
   suppliers: { list: "buying.get_suppliers", get: "buying.get_supplier", create: "buying.create_supplier", update: "buying.update_supplier", getArg: "name", updateArg: "name", createWrap: "data" },
