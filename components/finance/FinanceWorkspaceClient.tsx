@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import StatusChip from "@/components/StatusChip";
 
 type Any = Record<string, any>;
-type ModalType = null | "invoice" | "payment" | "paymentLink" | "bank" | "bankTransaction" | "reconcile" | "vat" | "invoiceDetail";
+type ModalType = null | "invoice" | "payment" | "paymentLink" | "bank" | "bankTransaction" | "reconcile" | "invoiceDetail";
 
 const money = (v?: any) => `R ${Number(v || 0).toLocaleString("en-ZA", { maximumFractionDigits: 2 })}`;
 const dateOnly = (v?: string) => (v ? String(v).slice(0, 10) : "—");
@@ -101,8 +101,7 @@ export default function FinanceWorkspaceClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState<Any>({});
-  const [compliance, setCompliance] = useState<Any>({});
-  const [reconciliation, setReconciliation] = useState<Any>({});
+    const [reconciliation, setReconciliation] = useState<Any>({});
   const [modal, setModal] = useState<ModalType>(null);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Any | null>(null);
@@ -114,13 +113,11 @@ export default function FinanceWorkspaceClient() {
     setError("");
     try {
       await api("/api/accounting/setup", { method: "POST", body: JSON.stringify({}) }).catch(() => null);
-      const [finance, comp, recon] = await Promise.all([
+      const [finance, recon] = await Promise.all([
         api("/api/accounting/workspace"),
-        api("/api/compliance/dashboard"),
         api("/api/accounting/reconcile"),
       ]);
       setData(finance);
-      setCompliance(comp);
       setReconciliation(recon);
     } catch (e: any) {
       setError(e?.message || "Could not load finance workspace");
@@ -137,10 +134,8 @@ export default function FinanceWorkspaceClient() {
   const bankAccounts = data.bank_accounts || [];
   const bankTx = reconciliation.transactions || data.bank_transactions || [];
   const openInvoices = reconciliation.open_invoices || invoices.filter((i: Any) => Number(i.outstanding_amount || 0) > 0);
-  const compCards = compliance.cards || {};
-  const upcoming = compliance.upcoming || [];
   const currency = data.currency || "ZAR";
-  const tabs = [["dashboard", "Dashboard"], ["invoices", "Invoices"], ["payments", "Payments"], ["banking", "Banking"], ["compliance", "Compliance"]];
+  const tabs = [["dashboard", "Dashboard"], ["invoices", "Invoices"], ["payments", "Payments"], ["banking", "Banking"]];
 
   const invoiceOptions = useMemo(() => openInvoices.map((i: Any) => ({ value: i.name, label: `${i.name} • ${i.customer_name || i.customer} • ${money(i.outstanding_amount || i.grand_total)}` })), [openInvoices]);
 
@@ -201,10 +196,6 @@ export default function FinanceWorkspaceClient() {
         url = "/api/accounting/reconcile";
         body = { bank_transaction: form.bank_transaction || selected?.name, invoice: form.invoice, amount: Number(form.amount || 0), reference_no: form.reference_no, mode_of_payment: form.mode_of_payment || "Bank Transfer" };
       }
-      if (kind === "vat") {
-        url = "/api/compliance/vat";
-        body = { status: form.status, from_date: form.from_date, to_date: form.to_date, due_date: form.due_date_compliance };
-      }
       const result = await api(url, { method: "POST", body: JSON.stringify(body) });
       if (kind === "paymentLink") {
         const link = result.payment_link || result.transaction?.payment_url || result.data?.payment_link;
@@ -225,7 +216,7 @@ export default function FinanceWorkspaceClient() {
       <div className="demo-module-titlebar">
         <div>
           <h1>Finance</h1>
-          <p>Invoices, payments, payment links, banking reconciliation and South African compliance.</p>
+          <p>Invoices, payments, payment links and banking reconciliation.</p>
         </div>
         <div className="demo-module-actions">
           <button className="btn" onClick={() => openModal("invoice")}>New Invoice</button>
@@ -288,18 +279,6 @@ export default function FinanceWorkspaceClient() {
               </div>
               <Table cols={["Date", "Description", "Deposit", "Withdrawal", "Status", "Action"]} rows={bankTx} render={(r) => <><td>{dateOnly(r.date)}</td><td>{r.description || r.reference_number || r.transaction_id}</td><td>{money(r.deposit)}</td><td>{money(r.withdrawal)}</td><td><StatusChip status={r.status || "Unreconciled"} /></td><td><button className="btn btn-sm" onClick={() => openModal("reconcile", r)}>Reconcile</button></td></>} />
             </>}
-
-            {tab === "compliance" && <>
-              <div className="demo-module-actions" style={{ marginBottom: 14 }}><button className="btn btn-teal" onClick={() => openModal("vat")}>Create VAT Return</button></div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14, marginBottom: 18 }}>
-                <Card label="VAT Due" value={compCards.vat_returns_due || 0} />
-                <Card label="VAT Overdue" value={compCards.vat_overdue || 0} />
-                <Card label="PAYE Due" value={compCards.paye_due || 0} />
-                <Card label="CIPC Due" value={compCards.cipc_due || 0} />
-                <Card label="Deadlines" value={compCards.upcoming_deadlines || 0} />
-              </div>
-              <Table cols={["Deadline", "Type", "Due Date", "Priority", "Status"]} rows={upcoming} render={(r) => <><td>{r.title || r.name}</td><td>{r.task_type || "Compliance"}</td><td>{dateOnly(r.due_date)}</td><td>{r.priority || "—"}</td><td><StatusChip status={r.status} /></td></>} />
-            </>}
           </div>
         )}
       </div>
@@ -334,8 +313,6 @@ export default function FinanceWorkspaceClient() {
         <div className="field"><label>Reference</label><input value={form.reference_no || ""} onChange={e => setForm({ ...form, reference_no: e.target.value })} /></div>
         <button className="btn btn-teal" disabled={saving} onClick={() => submit("reconcile")}>{saving ? "Reconciling…" : "Reconcile"}</button>
       </Modal>}
-
-      {modal === "vat" && <Modal title="Create VAT Return" onClose={() => setModal(null)}><div className="field-row"><div className="field"><label>From</label><input type="date" value={form.from_date || ""} onChange={e => setForm({ ...form, from_date: e.target.value })} /></div><div className="field"><label>To</label><input type="date" value={form.to_date || ""} onChange={e => setForm({ ...form, to_date: e.target.value })} /></div><div className="field"><label>Due date</label><input type="date" value={form.due_date_compliance || ""} onChange={e => setForm({ ...form, due_date_compliance: e.target.value })} /></div></div><button className="btn btn-teal" disabled={saving} onClick={() => submit("vat")}>{saving ? "Saving…" : "Create VAT Return"}</button></Modal>}
     </div>
   );
 }

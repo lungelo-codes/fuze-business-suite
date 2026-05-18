@@ -70,7 +70,7 @@ export default async function DashboardPage() {
   ].slice(0, 7);
 
   const alerts = [
-    { title: `${data.compliance.length} compliance records available`, module: "Finance & Compliance", href: "/portal/compliance", show: moduleAllowed(active, "compliance") },
+    { title: `${data.compliance.length} compliance records available`, module: "Compliance", href: "/portal/compliance", show: moduleAllowed(active, "compliance") },
     { title: `${data.quotes.length} quotations in the sales workspace`, module: "CRM & Sales", href: "/portal/quotes", show: moduleAllowed(active, "quotes") },
     { title: `${openWork} open tasks, tickets or support items`, module: "Operations", href: moduleAllowed(active, "tasks") ? "/portal/tasks" : "/portal/support", show: moduleAllowed(active, "tasks") || moduleAllowed(active, "support") },
     { title: `${data.payments.length} payments captured`, module: "Finance", href: "/portal/payments", show: moduleAllowed(active, "payments") },
