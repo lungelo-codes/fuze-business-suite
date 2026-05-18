@@ -1,23 +1,19 @@
 import { NextResponse } from "next/server";
 import { erpMethod } from "@/lib/server/erpnext";
-
-// List timesheets. Supports filtering by employee or project and pagination.
 export async function GET(req: Request) {
+  const p = new URL(req.url).searchParams;
+  const args: Record<string,unknown> = {};
+  if (p.get("employee")) args.employee = p.get("employee");
+  if (p.get("project"))  args.project  = p.get("project");
+  if (p.get("company"))  args.company  = p.get("company");
+  if (p.get("limit"))    args.limit    = Number(p.get("limit") || 50);
+  if (p.get("offset"))   args.offset   = Number(p.get("offset") || 0);
+  try { return NextResponse.json(await erpMethod("projects.get_timesheets", args)); }
+  catch (e:any) { return NextResponse.json({ error: e?.message }, { status:500 }); }
+}
+export async function POST(req: Request) {
   try {
-    const params = new URL(req.url).searchParams;
-    const employee = params.get("employee") || undefined;
-    const project = params.get("project") || undefined;
-    const limitStr = params.get("limit");
-    const offsetStr = params.get("offset");
-    const args: any = {};
-    if (employee) args.employee = employee;
-    if (project) args.project = project;
-    if (limitStr) args.limit = parseInt(limitStr, 10);
-    if (offsetStr) args.offset = parseInt(offsetStr, 10);
-    const result = await erpMethod("projects.get_timesheets", args);
-    return NextResponse.json(result);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to fetch timesheets";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+    const body = await req.json();
+    return NextResponse.json(await erpMethod("projects.create_timesheet", { data: body }), { status:201 });
+  } catch (e:any) { return NextResponse.json({ error: e?.message }, { status:500 }); }
 }

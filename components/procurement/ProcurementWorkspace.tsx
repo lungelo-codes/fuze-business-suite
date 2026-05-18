@@ -104,9 +104,13 @@ export default function ProcurementWorkspace({ initialSuppliers, initialPurchase
   }
 
   async function submit(module:string, values:Row, onSuccess:(r:Row)=>void) {
+    return submitRoute(`/api/crud/${module}`, values, onSuccess);
+  }
+
+  async function submitRoute(route:string, values:Row, onSuccess:(r:Row)=>void) {
     setBusy(true); setFormError("");
     try {
-      const res = await fetch(`/api/crud/${module}`, { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(values) });
+      const res = await fetch(route, { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(values) });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error||"Failed");
       onSuccess(json.data||json);
@@ -265,14 +269,14 @@ export default function ProcurementWorkspace({ initialSuppliers, initialPurchase
           { name:"email_id", label:"Email", type:"email" },
           { name:"mobile_no", label:"Mobile No", type:"tel" },
           { name:"country", label:"Country" },
-        ]} onClose={() => { setModal(null); setFormError(""); }} onSubmit={(v) => submit("suppliers", v, (r) => setSuppliers((p) => [r,...p]))} busy={busy} error={formError} />
+        ]} onClose={() => { setModal(null); setFormError(""); }} onSubmit={(v) => submitRoute("/api/procurement/suppliers", v, (r) => setSuppliers((p) => [r,...p]))} busy={busy} error={formError} />
       )}
       {modal === "order" && (
         <Modal title="New Purchase Order" fields={[
           { name:"supplier", label:"Supplier ID", required:true },
           { name:"transaction_date", label:"Order Date", type:"date", required:true },
           { name:"schedule_date", label:"Expected Delivery", type:"date" },
-        ]} onClose={() => { setModal(null); setFormError(""); }} onSubmit={(v) => submit("purchase-orders", v, (r) => setOrders((p) => [r,...p]))} busy={busy} error={formError} />
+        ]} onClose={() => { setModal(null); setFormError(""); }} onSubmit={(v) => submitRoute("/api/procurement/purchase-orders", v, (r) => setOrders((p) => [r,...p]))} busy={busy} error={formError} />
       )}
     </div>
   );

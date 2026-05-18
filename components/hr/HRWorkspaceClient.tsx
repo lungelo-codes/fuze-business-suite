@@ -187,7 +187,14 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
     setBusy(true);
     setFormError("");
     try {
-      const res = await fetch(`/api/crud/${module}`, {
+      const routeMap: Record<string,string> = {
+        employees: "/api/hr/employees",
+        attendance: "/api/hr/attendance",
+        leave: "/api/hr/leave-requests",
+        payroll: "/api/hr/payroll",
+      };
+      const route = routeMap[module] || `/api/crud/${module}`;
+      const res = await fetch(route, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
@@ -208,9 +215,22 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
   // ── Refresh helpers ───────────────────────────────────────────────────────
   const refresh = useCallback(async (module: string, setter: (r: Row[]) => void) => {
     try {
-      const res = await fetch(`/api/crud/${module}`);
+      const routeMap: Record<string,string> = {
+        employees: "/api/hr/employees",
+        attendance: "/api/hr/attendance",
+        leave: "/api/hr/leave-requests",
+        payroll: "/api/hr/payroll",
+      };
+      const route = routeMap[module] || `/api/crud/${module}`;
+      const res = await fetch(route);
       const json = await res.json();
-      setter(Array.isArray(json.data) ? json.data : json.data ? [json.data] : []);
+      const rows = Array.isArray(json) ? json
+        : Array.isArray(json?.data) ? json.data
+        : Array.isArray(json?.employees) ? json.employees
+        : Array.isArray(json?.results) ? json.results
+        : Array.isArray(json?.message) ? json.message
+        : [];
+      setter(rows);
     } catch { /* silent */ }
   }, []);
 
@@ -496,7 +516,7 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
   const MODALS: Record<string, { title: string; module: string; fields: ModalField[]; onSuccess: (r: Row) => void }> = {
     employee: {
       title: "Add Employee",
-      module: "employees",
+      module: "employees",  // → /api/hr/employees
       fields: [
         { name:"first_name", label:"First Name", required:true },
         { name:"last_name", label:"Last Name" },
@@ -512,7 +532,7 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
     },
     attendance: {
       title: "Mark Attendance",
-      module: "attendance",
+      module: "attendance",  // → /api/hr/attendance
       fields: [
         { name:"employee", label:"Employee ID", required:true },
         { name:"attendance_date", label:"Date", type:"date", required:true },
@@ -523,7 +543,7 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
     },
     leave: {
       title: "New Leave Application",
-      module: "leave",
+      module: "leave",  // → /api/hr/leave-requests
       fields: [
         { name:"employee", label:"Employee ID", required:true },
         { name:"leave_type", label:"Leave Type", required:true, options:["Annual Leave","Sick Leave","Maternity Leave","Paternity Leave","Study Leave","Unpaid Leave","Family Responsibility Leave"] },
@@ -536,7 +556,7 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
     },
     payroll: {
       title: "Create Salary Slip",
-      module: "payroll",
+      module: "payroll",  // → /api/hr/payroll
       fields: [
         { name:"employee", label:"Employee ID", required:true },
         { name:"start_date", label:"Period Start", type:"date", required:true },
