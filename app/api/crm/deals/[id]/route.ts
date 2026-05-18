@@ -12,7 +12,7 @@ type Params = { params: { id: string } };
 
 export async function GET(_req: Request, { params }: Params) {
   try {
-    const result = await erpMethod("crm.get_deal", { deal: params.id });
+    const result = await erpMethod("fuze_suite.api.crm.get_deal", { deal: params.id });
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(
@@ -28,7 +28,7 @@ export async function PUT(req: Request, { params }: Params) {
 
     // Support marking a deal as lost via PUT with _action: "lost"
     if (body._action === "lost") {
-      const result = await erpMethod("crm.mark_deal_lost", {
+      const result = await erpMethod("fuze_suite.api.crm.mark_deal_lost", {
         deal: params.id,
         lost_reason: body.lost_reason ?? null,
         notes: body.notes ?? null,
@@ -36,7 +36,7 @@ export async function PUT(req: Request, { params }: Params) {
       return NextResponse.json(result);
     }
 
-    const result = await erpMethod("crm.update_deal", { deal: params.id, data: body });
+    const result = await erpMethod("fuze_suite.api.crm.update_deal", { deal: params.id, data: body });
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(

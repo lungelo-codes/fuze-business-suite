@@ -28,7 +28,7 @@ export async function GET(req: Request) {
   if (owner)  args.owner  = owner;
 
   try {
-    const result = await erpMethod("crm.get_leads", args);
+    const result = await erpMethod("fuze_suite.api.crm.get_leads", args);
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(
@@ -41,7 +41,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const result = await erpMethod("crm.create_lead", { data: body });
+    const result = await erpMethod("fuze_suite.api.crm.create_lead", { data: body });
     return NextResponse.json(result, { status: 201 });
   } catch (error: any) {
     return NextResponse.json(

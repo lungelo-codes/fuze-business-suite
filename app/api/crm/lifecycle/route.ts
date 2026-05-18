@@ -29,7 +29,7 @@ export async function GET(req: Request) {
   if (typeof offset === 'number' && !isNaN(offset)) args.offset = offset;
 
   try {
-    const result = await erpMethod('crm.get_lead_lifecycle', args);
+    const result = await erpMethod('fuze_suite.api.crm.get_lead_lifecycle', args);
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('Failed to fetch lead lifecycle', error);

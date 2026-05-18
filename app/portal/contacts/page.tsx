@@ -1,10 +1,5 @@
-import CrudModulePage from "@/components/crud/CrudModulePage";
-import { getCrudConfig } from "@/lib/crudConfig";
-import { getCrudRows } from "@/lib/server/crudData";
+import { redirect } from "next/navigation";
 
-export default async function ContactsPage() {
-  const config = getCrudConfig("contacts");
-  const rows = await getCrudRows("contacts");
-  if (!config) return <div>Unknown module</div>;
-  return <CrudModulePage moduleId="contacts" config={config} initialRows={rows} />;
+export default function ContactsRedirect() {
+  redirect("/portal/crm?tab=contacts");
 }

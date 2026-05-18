@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   if (offset) args.offset = Number(offset);
   if (unreadOnly) args.unread_only = unreadOnly === "1" || unreadOnly === "true";
   try {
-    const result = await erpMethod("crm.get_notifications", args);
+    const result = await erpMethod("fuze_suite.api.crm.get_notifications", args);
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || "Failed to fetch notifications" }, { status: 500 });
@@ -22,8 +22,8 @@ export async function PATCH(req: Request) {
   try {
     const body = await req.json();
     const result = body?.notification_id
-      ? await erpMethod("crm.mark_notification_read", { notification_id: body.notification_id })
-      : await erpMethod("crm.mark_all_notifications_read", {});
+      ? await erpMethod("fuze_suite.api.crm.mark_notification_read", { notification_id: body.notification_id })
+      : await erpMethod("fuze_suite.api.crm.mark_all_notifications_read", {});
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || "Failed to update notifications" }, { status: 500 });

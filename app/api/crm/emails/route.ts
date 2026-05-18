@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     if (limit)  args.limit  = Number(limit);
     if (offset) args.offset = Number(offset);
 
-    const result = await erpMethod("crm.get_communications", args);
+    const result = await erpMethod("fuze_suite.api.crm.get_communications", args);
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = await erpMethod("crm.send_email", {
+    const result = await erpMethod("fuze_suite.api.crm.send_email", {
       reference_doctype,
       reference_name,
       to,

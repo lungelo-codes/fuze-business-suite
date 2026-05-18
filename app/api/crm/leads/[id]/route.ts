@@ -11,7 +11,7 @@ type Params = { params: { id: string } };
 
 export async function GET(_req: Request, { params }: Params) {
   try {
-    const result = await erpMethod("crm.get_lead", { lead: params.id });
+    const result = await erpMethod("fuze_suite.api.crm.get_lead", { lead: params.id });
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(
@@ -24,7 +24,7 @@ export async function GET(_req: Request, { params }: Params) {
 export async function PUT(req: Request, { params }: Params) {
   try {
     const body = await req.json();
-    const result = await erpMethod("crm.update_lead", { lead: params.id, data: body });
+    const result = await erpMethod("fuze_suite.api.crm.update_lead", { lead: params.id, data: body });
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(
@@ -36,7 +36,7 @@ export async function PUT(req: Request, { params }: Params) {
 
 export async function DELETE(_req: Request, { params }: Params) {
   try {
-    const result = await erpMethod("crm.delete_lead", { lead: params.id });
+    const result = await erpMethod("fuze_suite.api.crm.delete_lead", { lead: params.id });
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(

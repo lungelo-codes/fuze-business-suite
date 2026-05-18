@@ -3,8 +3,8 @@ import { erpMethod } from "@/lib/server/erpnext";
 
 export async function GET() {
   const [sla, assignmentRules] = await Promise.allSettled([
-    erpMethod("crm.get_sla_settings", {}),
-    erpMethod("crm.get_assignment_rules", {}),
+    erpMethod("fuze_suite.api.crm.get_sla_settings", {}),
+    erpMethod("fuze_suite.api.crm.get_assignment_rules", {}),
   ]);
   return NextResponse.json({
     sla: sla.status === "fulfilled" ? sla.value : null,

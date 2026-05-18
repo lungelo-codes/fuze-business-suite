@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     args[key] = key === "limit" ? Number(value) : value;
   }
   try {
-    const result = await erpMethod("crm.get_customer_360", args);
+    const result = await erpMethod("fuze_suite.api.crm.get_customer_360", args);
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || "Failed to load customer 360" }, { status: 500 });

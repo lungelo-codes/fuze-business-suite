@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     if (limit)  args.limit  = Number(limit);
     if (offset) args.offset = Number(offset);
 
-    const result = await erpMethod("crm.get_comments", args);
+    const result = await erpMethod("fuze_suite.api.crm.get_comments", args);
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = await erpMethod("crm.add_comment", {
+    const result = await erpMethod("fuze_suite.api.crm.add_comment", {
       reference_doctype,
       reference_name,
       content,

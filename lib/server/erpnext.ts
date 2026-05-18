@@ -270,7 +270,8 @@ function methodCandidates(method: string): string[] {
     if (configured && configured !== "fuze_suite.api" && configured !== "business_suite.api") {
       candidates.push(`${configured}.${clean}`);
     }
-    candidates.push(clean);
+    // Never fall back to app-less crm.*. On Frappe that is interpreted as an
+    // app called `crm`, which causes: App crm is not installed.
     return Array.from(new Set(candidates));
   }
 
