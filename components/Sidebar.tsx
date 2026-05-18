@@ -67,16 +67,12 @@ const GROUPS: NavGroup[] = [
       { label: "Invoices", href: "/portal/finance?tab=invoices", icon: "invoice", module: "invoices" },
       { label: "Payments", href: "/portal/finance?tab=payments", icon: "card", module: "payments" },
       { label: "Banking", href: "/portal/finance?tab=banking", icon: "bank", module: "payments" },
-      { label: "Compliance", href: "/portal/compliance", icon: "shield", module: "compliance" },
+      { label: "Compliance", href: "/portal/finance?tab=compliance", icon: "shield", module: "compliance" },
     ],
   },
   {
     title: "Operations", items: [
-      { label: "Documents", href: "/portal/documents", icon: "folder", module: "documents" },
-      { label: "Procurement", href: "/portal/procurement", icon: "procurement", module: "suppliers" },
-      { label: "Inventory", href: "/portal/items", icon: "box", module: "items" },
-      { label: "Projects", href: "/portal/projects", icon: "project", module: "projects" },
-      { label: "Tasks", href: "/portal/tasks", icon: "task", module: "tasks" },
+      { label: "Operations Dashboard", href: "/portal/operations", icon: "project", module: "operations" },
     ],
   },
   {
@@ -114,7 +110,8 @@ function moduleAliases(module?: string): string[] {
     case "contracts": return ["contracts", "crm", "sales"];
     case "invoices": return ["invoices", "finance", "accounting", "sales"];
     case "payments": return ["payments", "finance", "accounting"];
-    case "compliance": return ["compliance", "sa-compliance", "sars", "vat", "paye", "uif", "sdl", "cipc"];
+    case "compliance": return ["compliance", "finance", "sa-compliance"];
+    case "operations": return ["operations", "procurement", "buying", "inventory", "stock", "projects", "tasks", "quality", "data-management", "documents"];
     case "documents": return ["documents", "operations"];
     case "suppliers": return ["suppliers", "procurement", "buying", "operations"];
     case "items": return ["items", "inventory", "stock", "operations"];

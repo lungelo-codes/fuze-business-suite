@@ -22,11 +22,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-export async function POST(req: Request) {
-  try {
-    const body = await req.json().catch(() => ({}));
-    return NextResponse.json(await erpMethod("compliance.create_paye_return", { data: body }));
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || "Could not create PAYE return" }, { status: 500 });
-  }
-}
