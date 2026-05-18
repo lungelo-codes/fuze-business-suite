@@ -55,8 +55,6 @@ const GROUPS: NavGroup[] = [
   {
     title: "CRM & Sales", items: [
       { label: "CRM Workspace", href: "/portal/crm", icon: "crm" },
-      { label: "Leads", href: "/portal/leads", icon: "target", module: "leads" },
-      { label: "Opportunities", href: "/portal/opportunities", icon: "chart", module: "opportunities" },
       { label: "Customers", href: "/portal/customers", icon: "users", module: "customers" },
       { label: "Contacts", href: "/portal/contacts", icon: "users", module: "customers" },
       { label: "Quotes", href: "/portal/quotes", icon: "quote", module: "quotes" },

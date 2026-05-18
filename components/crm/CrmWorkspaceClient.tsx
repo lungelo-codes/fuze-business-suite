@@ -451,7 +451,7 @@ function CreateLeadModal({ statuses, sources, onClose, onCreated }: {
   );
 }
 
-// ─── Create Deal Modal ────────────────────────────────────────────────────────
+// ─── Create Opportunity Modal ────────────────────────────────────────────────────────
 
 function CreateDealModal({ dealStatuses, onClose, onCreated }: {
   dealStatuses: Status[]; onClose: () => void; onCreated: () => void;
@@ -526,7 +526,7 @@ function CreateDealModal({ dealStatuses, onClose, onCreated }: {
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 20 }}>
           <button onClick={onClose} className="btn">Cancel</button>
           <button onClick={submit} disabled={saving} className="btn btn-primary">
-            {saving ? "Creating…" : "Create Deal"}
+            {saving ? "Creating…" : "Create Opportunity"}
           </button>
         </div>
       </div>
@@ -541,7 +541,7 @@ function DashboardTab({ cards, activity, currency }: {
 }) {
   const metrics = [
     { label: "Open Leads",      value: cards.leads,         hint: "Total leads",          color: "" },
-    { label: "Active Deals",    value: cards.deals,         hint: "Pipeline deals",       color: "teal" },
+    { label: "Opportunities",   value: cards.deals,         hint: "Pipeline value",      color: "teal" },
     { label: "Contacts",        value: cards.contacts,      hint: "CRM contacts",         color: "" },
     { label: "Organizations",   value: cards.organizations, hint: "Tracked orgs",         color: "" },
     { label: "Pipeline Value",  value: cards.pipeline_value,hint: "All deal values",      color: "warn" },
@@ -551,18 +551,23 @@ function DashboardTab({ cards, activity, currency }: {
 
   return (
     <>
-      <div className="kpi-grid">
-        {metrics.map((m) => (
-          <div key={m.label} className={`kpi ${m.color}`}>
-            <div className="label">{m.label}</div>
-            <div className="val">{typeof m.value === "number" ? m.value.toLocaleString("en-ZA") : m.value}</div>
-            <div className="hint">{m.hint}</div>
-          </div>
+      <section className="demo-stat-grid crm-stat-grid">
+        {metrics.map((m, index) => (
+          <button key={m.label} type="button" className={`demo-stat-card demo-interactive-card crm-stat-card ${m.color}`} style={{ animationDelay: `${index * 45}ms` }}>
+            <div className="demo-stat-top">
+              <div>
+                <div className="demo-stat-label">{m.label}</div>
+                <div className="demo-stat-value">{typeof m.value === "number" ? m.value.toLocaleString("en-ZA") : m.value}</div>
+                <div className="demo-stat-hint">{m.hint}</div>
+              </div>
+              <div className="demo-stat-icon">↗</div>
+            </div>
+          </button>
         ))}
-      </div>
+      </section>
 
-      <div className="card card-pad" style={{ marginTop: 16 }}>
-        <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 700, color: "var(--fg)" }}>Recent Activity</h3>
+      <section className="demo-panel crm-activity-panel">
+        <div className="demo-panel-head"><div><h3>Recent Activity</h3><p>Latest CRM communication and follow-ups.</p></div></div>
         {activity.length === 0 ? (
           <div style={{ opacity: 0.5, fontSize: 13 }}>No recent communications.</div>
         ) : (
@@ -587,7 +592,7 @@ function DashboardTab({ cards, activity, currency }: {
             ))}
           </div>
         )}
-      </div>
+      </section>
     </>
   );
 }
@@ -646,7 +651,7 @@ function LeadsTab({ statuses, sources }: { statuses: Status[]; sources: string[]
     try {
       const r = await apiFetch(`/api/crm/leads/${lead.id}/convert`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
       const data = (r as any).data ?? r;
-      setConvMsg(`✓ ${lead.name} converted → Deal ${(data as any)?.deal?.id ?? ""}`);
+      setConvMsg(`✓ ${lead.name} converted → Opportunity ${(data as any)?.deal?.id ?? ""}`);
       load();
     } catch (e: any) { setConvMsg(`Error: ${e.message}`); } finally { setConverting(null); }
   }
@@ -737,7 +742,7 @@ function LeadsTab({ statuses, sources }: { statuses: Status[]; sources: string[]
   );
 }
 
-// ─── Deals / Kanban Tab ───────────────────────────────────────────────────────
+// ─── Opportunities / Kanban Tab ───────────────────────────────────────────────────────
 
 function DealsTab({ dealStatuses }: { dealStatuses: Status[] }) {
   const [deals, setDeals]           = useState<Deal[]>([]);
@@ -1074,10 +1079,20 @@ function OrgsTab() {
 
 // ─── Main CRM Workspace ───────────────────────────────────────────────────────
 
-type Tab = "Dashboard" | "Leads" | "Deals" | "Contacts" | "Organizations";
+type Tab = "Dashboard" | "Leads" | "Opportunities" | "Contacts" | "Organizations";
+const CRM_TABS: Tab[] = ["Dashboard", "Leads", "Opportunities", "Contacts", "Organizations"];
 
-export default function CrmWorkspaceClient() {
-  const [tab, setTab]                 = useState<Tab>("Dashboard");
+function normalizeCrmTab(value?: string): Tab {
+  const cleaned = String(value || "").trim().toLowerCase();
+  if (["lead", "leads"].includes(cleaned)) return "Leads";
+  if (["deal", "deals", "opportunity", "opportunities", "pipeline"].includes(cleaned)) return "Opportunities";
+  if (["contact", "contacts"].includes(cleaned)) return "Contacts";
+  if (["organization", "organizations", "organisations"].includes(cleaned)) return "Organizations";
+  return "Dashboard";
+}
+
+export default function CrmWorkspaceClient({ initialTab }: { initialTab?: string } = {}) {
+  const [tab, setTab]                 = useState<Tab>(() => normalizeCrmTab(initialTab));
   const [loading, setLoading]         = useState(true);
   const [cards, setCards]             = useState<DashboardCards | null>(null);
   const [activity, setActivity]       = useState<Activity[]>([]);
@@ -1119,51 +1134,32 @@ export default function CrmWorkspaceClient() {
     }).finally(() => setLoading(false));
   }, []);
 
-  const tabs: Tab[] = ["Dashboard", "Leads", "Deals", "Contacts", "Organizations"];
+  const tabs = CRM_TABS;
 
   return (
-    <div>
+    <div className="demo-workspace crm-workspace animate-fade-up">
       {/* Page head */}
-      <div className="page-head">
+      <section className="demo-module-titlebar crm-titlebar">
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5, marginBottom: 4 }}>
-            CRM &amp; Sales
-          </div>
-          <h1 className="page-title">CRM Workspace</h1>
-          <div className="page-sub">
-            Manage leads, deals, contacts and organizations. Live data from your ERPNext backend.
-          </div>
+          <div className="demo-eyebrow">CRM &amp; Sales</div>
+          <h1>CRM Workspace</h1>
+          <p>Manage leads, opportunities, contacts and organizations from one clean workspace. Live data from your ERPNext backend.</p>
         </div>
-        <div className="row" style={{ gap: 8 }}>
-          {currency !== "ZAR" && (
-            <span style={{ fontSize: 12, opacity: 0.5, padding: "0 8px" }}>Currency: {currency}</span>
-          )}
+        <div className="demo-module-actions">
+          <button type="button" onClick={() => setTab("Leads")} className="btn btn-teal">New Lead</button>
+          <button type="button" onClick={() => setTab("Opportunities")} className="btn">View Opportunities</button>
+          {currency !== "ZAR" && <span className="crm-currency-pill">Currency: {currency}</span>}
         </div>
-      </div>
+      </section>
 
       {/* Tab navigation */}
-      <div style={{ display: "flex", gap: 0, marginBottom: 20, borderBottom: "1px solid var(--border)" }}>
+      <section className="demo-tabbar crm-tabbar" aria-label="CRM workspace sections">
         {tabs.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            style={{
-              padding: "10px 18px",
-              fontSize: 13,
-              fontWeight: 600,
-              background: "none",
-              border: "none",
-              borderBottom: tab === t ? "2px solid var(--accent)" : "2px solid transparent",
-              color: tab === t ? "var(--accent)" : "var(--muted)",
-              cursor: "pointer",
-              transition: "color 0.15s",
-              whiteSpace: "nowrap",
-            }}
-          >
+          <button key={t} type="button" onClick={() => setTab(t)} className={tab === t ? "active" : ""}>
             {t}
           </button>
         ))}
-      </div>
+      </section>
 
       {/* Tab content */}
       {loading ? <Spinner /> : (
@@ -1180,7 +1176,7 @@ export default function CrmWorkspaceClient() {
             <LeadsTab statuses={leadStatuses} sources={sources} />
           )}
 
-          {tab === "Deals" && (
+          {tab === "Opportunities" && (
             <DealsTab dealStatuses={dealStatuses} />
           )}
 

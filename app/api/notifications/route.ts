@@ -28,8 +28,8 @@ function stripHtml(value: unknown): string {
 function recordHref(doctype?: string, name?: string): string | undefined {
   if (!doctype || !name) return undefined;
   const map: Record<string, string> = {
-    Lead: "/portal/leads",
-    Opportunity: "/portal/opportunities",
+    Lead: "/portal/crm?tab=leads",
+    Opportunity: "/portal/crm?tab=opportunities",
     Customer: "/portal/customers",
     Quotation: "/portal/quotes",
     "Sales Invoice": "/portal/invoices",
