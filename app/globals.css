@@ -710,3 +710,5 @@ body:has(.modal-back.open) .sidebar-edge-pill,body:has(.drawer-back.open) .sideb
 .crm-line-row input, .crm-line-row select { min-width: 0; }
 .crm-doc-total { display: flex; justify-content: flex-end; font-weight: 900; color: var(--navy-ink, #10233f); padding-top: 8px; border-top: 1px solid var(--line, #e5e7eb); }
 @media (max-width: 760px) { .crm-line-row { grid-template-columns: 1fr; } }
+
+.crm-storage-panel{display:flex;align-items:center;justify-content:space-between;gap:1rem;border:1px solid rgba(15,23,42,.08);background:#f8fafc;border-radius:18px;padding:1rem;margin-bottom:.75rem}.crm-storage-panel p{margin:.25rem 0 0;color:#64748b;font-size:.85rem}.crm-storage-panel select{border:1px solid rgba(15,23,42,.12);border-radius:12px;padding:.65rem .85rem;background:#fff;font-weight:700}.crm-help-text{margin:.35rem 0 1rem;color:#64748b;font-size:.84rem;line-height:1.4}
