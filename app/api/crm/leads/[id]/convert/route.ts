@@ -18,6 +18,7 @@ export async function POST(req: Request, { params }: Params) {
       contact:              body.contact              ?? null,
       create_organization:  body.create_organization  ?? true,
       create_contact:       body.create_contact       ?? true,
+      data:                 body,
     });
     return NextResponse.json(result);
   } catch (error: any) {
