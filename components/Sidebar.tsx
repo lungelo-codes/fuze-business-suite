@@ -67,18 +67,7 @@ const GROUPS: NavGroup[] = [
       { label: "Invoices", href: "/portal/finance?tab=invoices", icon: "invoice", module: "invoices" },
       { label: "Payments", href: "/portal/finance?tab=payments", icon: "card", module: "payments" },
       { label: "Banking", href: "/portal/finance?tab=banking", icon: "bank", module: "payments" },
-    ],
-  },
-  {
-    title: "Compliance", items: [
-      { label: "Compliance Workspace", href: "/portal/compliance", icon: "shield", module: "compliance" },
-      { label: "SARS Profile", href: "/portal/compliance?tab=sars", icon: "settings", module: "compliance" },
-      { label: "VAT", href: "/portal/compliance?tab=vat", icon: "invoice", module: "compliance" },
-      { label: "PAYE", href: "/portal/compliance?tab=paye", icon: "card", module: "compliance" },
-      { label: "UIF", href: "/portal/compliance?tab=uif", icon: "users", module: "compliance" },
-      { label: "SDL", href: "/portal/compliance?tab=sdl", icon: "chart", module: "compliance" },
-      { label: "CIPC", href: "/portal/compliance?tab=cipc", icon: "folder", module: "compliance" },
-      { label: "Calendar", href: "/portal/compliance?tab=calendar", icon: "calendar", module: "compliance" },
+      { label: "Compliance", href: "/portal/compliance", icon: "shield", module: "compliance" },
     ],
   },
   {
