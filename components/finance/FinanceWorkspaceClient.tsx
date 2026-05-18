@@ -105,7 +105,7 @@ export default function FinanceWorkspaceClient() {
   const [reconciliation, setReconciliation] = useState<Any>({});
   const [modal, setModal] = useState<ModalType>(null);
   const [saving, setSaving] = useState(false);
-  const [selected, setSelected] = useState<Any>(null);
+  const [selected, setSelected] = useState<Any | null>(null);
   const [form, setForm] = useState<Any>({ ...blankForm });
   const [notice, setNotice] = useState("");
 
