@@ -7,7 +7,7 @@ export async function GET(req: Request) {
   try {
     const params = new URL(req.url).searchParams;
     const company = params.get("company") || undefined;
-    const result = await erpMethod("sales.get_dashboard", company ? { company } : {});
+    const result = await erpMethod("fuze_suite.api.sales.get_dashboard", company ? { company } : {});
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch sales dashboard";

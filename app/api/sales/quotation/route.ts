@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     if (!name) {
       return NextResponse.json({ error: "Parameter 'name' is required" }, { status: 400 });
     }
-    const result = await erpMethod("sales.get_quotation", { name });
+    const result = await erpMethod("fuze_suite.api.sales.get_quotation", { name });
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch quotation";

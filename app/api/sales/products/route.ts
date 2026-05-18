@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     if (item_group) args.item_group = item_group;
     if (limitStr) args.limit = parseInt(limitStr, 10);
     if (offsetStr) args.offset = parseInt(offsetStr, 10);
-    const result = await erpMethod("sales.get_products", args);
+    const result = await erpMethod("fuze_suite.api.sales.get_products", args);
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch products";

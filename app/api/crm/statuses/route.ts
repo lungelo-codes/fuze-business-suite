@@ -10,7 +10,7 @@ export async function GET(req: Request) {
   const type = searchParams.get("type") || "lead";
 
   try {
-    const method = type === "deal" ? "crm.get_deal_statuses" : "crm.get_lead_statuses";
+    const method = type === "deal" ? "fuze_suite.api.crm.get_deal_statuses" : "fuze_suite.api.crm.get_lead_statuses";
     const result = await erpMethod(method, {});
     return NextResponse.json(result);
   } catch (error: any) {
@@ -18,8 +18,9 @@ export async function GET(req: Request) {
     if (type === "deal") {
       return NextResponse.json({
         statuses: [
-          { name: "Qualification",      color: "blue",   position: 1 },
-          { name: "Demo/Presentation",  color: "yellow", position: 2 },
+          { name: "Prospecting",        color: "blue",   position: 1 },
+          { name: "Qualification",      color: "yellow", position: 2 },
+          { name: "Needs Analysis",     color: "orange", position: 3 },
           { name: "Proposal/Quotation", color: "orange", position: 3 },
           { name: "Negotiation",        color: "purple", position: 4 },
           { name: "Ready to Close",     color: "teal",   position: 5 },

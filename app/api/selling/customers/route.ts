@@ -8,13 +8,13 @@ export async function GET(req: Request) {
   if (p.get("customer_group")) args.customer_group = p.get("customer_group");
   if (p.get("limit"))  args.limit  = Number(p.get("limit") || 50);
   if (p.get("offset")) args.offset = Number(p.get("offset") || 0);
-  try { return NextResponse.json(await erpMethod("selling.get_customers", args)); }
+  try { return NextResponse.json(await erpMethod("fuze_suite.api.selling.get_customers", args)); }
   catch (e: any) { return NextResponse.json({ error: e?.message }, { status: 500 }); }
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    return NextResponse.json(await erpMethod("selling.create_customer", { data: body }), { status: 201 });
+    return NextResponse.json(await erpMethod("fuze_suite.api.selling.create_customer", { data: body }), { status: 201 });
   } catch (e: any) { return NextResponse.json({ error: e?.message }, { status: 500 }); }
 }

@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     if (status && status !== "all") args.status = status;
     if (limitStr) args.limit = parseInt(limitStr, 10);
     if (offsetStr) args.offset = parseInt(offsetStr, 10);
-    const result = await erpMethod("sales.get_sales_orders", args);
+    const result = await erpMethod("fuze_suite.api.sales.get_sales_orders", args);
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch sales orders";
