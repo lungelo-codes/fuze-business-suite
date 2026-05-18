@@ -5,7 +5,8 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const company = searchParams.get("company") || undefined;
   try {
-    const result = await erpMethod("accounting.get_dashboard", company ? { company } : {});
-    return NextResponse.json(result);
-  } catch (e: any) { return NextResponse.json({ error: e?.message }, { status: 500 }); }
+    return NextResponse.json(await erpMethod("fuze_suite.api.accounting.get_dashboard", company ? { company } : {}));
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || "Could not load finance dashboard" }, { status: 500 });
+  }
 }

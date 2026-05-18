@@ -64,10 +64,10 @@ const GROUPS: NavGroup[] = [
   {
     title: "Finance", items: [
       { label: "Finance Dashboard", href: "/portal/finance", icon: "chart", module: "payments" },
-      { label: "Invoices", href: "/portal/invoices", icon: "invoice", module: "invoices" },
-      { label: "Payments", href: "/portal/payments", icon: "card", module: "payments" },
-      { label: "Banking", href: "/portal/bank-reconciliation", icon: "bank", module: "payments" },
-      { label: "Compliance", href: "/portal/compliance", icon: "shield", module: "compliance" },
+      { label: "Invoices", href: "/portal/finance?tab=invoices", icon: "invoice", module: "invoices" },
+      { label: "Payments", href: "/portal/finance?tab=payments", icon: "card", module: "payments" },
+      { label: "Banking", href: "/portal/finance?tab=banking", icon: "bank", module: "payments" },
+      { label: "Compliance", href: "/portal/finance?tab=compliance", icon: "shield", module: "compliance" },
     ],
   },
   {
