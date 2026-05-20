@@ -76,7 +76,7 @@ export async function GET(req: Request) {
   const limit = Number(p.get("limit") || 80);
   const offset = Number(p.get("offset") || 0);
   try {
-    let rows = rowsFrom(await erpMethod("selling.get_customers", { limit, offset }).catch(() => []));
+    let rows = rowsFrom(await erpMethod("crm.get_customers", { limit, offset }).catch(() => []));
     if (!rows.length) rows = await listDocs("Customer", ["name", "customer_name", "customer_type", "customer_group", "territory", "disabled", "modified"], limit, offset);
     const data = rows.map(normalise);
     return NextResponse.json({ success: true, data, customers: data, records: data, count: data.length });

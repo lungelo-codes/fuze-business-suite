@@ -7,7 +7,7 @@ type Params = { params: { id: string } };
 export async function POST(req: Request, { params }: Params) {
   const body = await req.json().catch(() => ({}));
   try {
-    const result = await erpMethod("fuze_suite.api.crm.create_sales_order_from_crm", { deal: params.id, data: body });
+    const result = await erpMethod("crm.create_sales_order_from_crm", { deal: params.id, data: body });
     const data = (result as any)?.data || (result as any)?.message || result;
     if (data && !((data as any).success === false) && !((data as any).error)) {
       return NextResponse.json({ success: true, data, sales_order: data }, { status: 201 });

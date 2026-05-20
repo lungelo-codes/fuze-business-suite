@@ -119,6 +119,9 @@ export async function createModuleRow(moduleId: string, doc: Row): Promise<Row> 
       doctype,
       values,
       module_id: moduleId,
+      ignore_mandatory: true,
+      ignore_validate: true,
+      mute_notifications: true,
     });
     return unwrapDoc(result);
   }

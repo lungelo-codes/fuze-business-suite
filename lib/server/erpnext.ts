@@ -10,11 +10,13 @@ const ROLE_COOKIE = "fuze_role";
 
 export class BusinessSuiteError extends Error {
   status: number;
+  rawMessage?: string;
 
-  constructor(message: string, status = 500) {
+  constructor(message: string, status = 500, rawMessage?: string) {
     super(message);
     this.name = "BusinessSuiteError";
     this.status = status;
+    this.rawMessage = rawMessage;
   }
 }
 
@@ -154,7 +156,7 @@ async function parseResponse<T>(res: Response, fallbackMessage: string): Promise
       data.exc_type ||
       fallbackMessage;
 
-    throw new BusinessSuiteError(publicBackendMessage(message, fallbackMessage), res.status);
+    throw new BusinessSuiteError(publicBackendMessage(message, fallbackMessage), res.status, String(message || fallbackMessage));
   }
 
   return json as T;
@@ -246,25 +248,31 @@ function unwrapERPMethodResponse<T>(response: ERPDocumentResponse<T> | T): T | n
 
 function methodCandidates(method: string): string[] {
   const clean = String(method || "").trim().replace(/^\/+/, "");
-  const configured = (process.env.ERPNEXT_API_METHOD_PREFIX || process.env.NEXT_PUBLIC_API_METHOD_PREFIX || "fuze_suite.api")
+  const configured = (process.env.ERPNEXT_API_METHOD_PREFIX || process.env.NEXT_PUBLIC_API_METHOD_PREFIX || "")
     .trim()
     .replace(/\.$/, "");
+
+  const namespaces = Array.from(new Set([
+    configured,
+    "fuze_suite.api",
+    "business_suite.api",
+    "fuze_saas.api",
+  ].filter(Boolean)));
+
   const candidates: string[] = [];
-  const isFullyQualified = clean.split(".").length >= 3;
-  const isShortBusinessMethod = clean.split(".").length === 2;
+  const parts = clean.split(".").filter(Boolean);
 
-  // All Business Suite methods are namespaced under fuze_suite.api on the tenant.
-  // Trying app-less methods first causes empty tabs and generic save failures.
-  if (isShortBusinessMethod) {
-    candidates.push(`fuze_suite.api.${clean}`);
-    if (configured && configured !== "fuze_suite.api" && configured !== "business_suite.api") {
-      candidates.push(`${configured}.${clean}`);
-    }
-    return Array.from(new Set(candidates));
+  // If a route accidentally passes a fully qualified method with the wrong app
+  // prefix, also try the same module.method under the known SaaS namespaces.
+  if (parts.length >= 3) {
+    candidates.push(clean);
+    const suffix = parts.slice(-2).join(".");
+    for (const ns of namespaces) candidates.push(`${ns}.${suffix}`);
+  } else if (parts.length === 2) {
+    for (const ns of namespaces) candidates.push(`${ns}.${clean}`);
+  } else if (clean) {
+    for (const ns of namespaces) candidates.push(`${ns}.${clean}`);
   }
-
-  if (isFullyQualified) candidates.push(clean);
-  else if (clean) candidates.push(`fuze_suite.api.${clean}`);
 
   return Array.from(new Set(candidates));
 }
@@ -277,8 +285,12 @@ export async function erpMethod<T>(method: string, body: Record<string, unknown>
       return unwrapERPMethodResponse<T>(response);
     } catch (error) {
       lastError = error;
-      const msg = error instanceof Error ? error.message : String(error || "");
-      const missing = /not found|failed to get method|module.*has no attribute|no module named|does not exist|app .* is not installed|not installed/i.test(msg);
+      const msg = error instanceof BusinessSuiteError
+        ? `${error.message} ${error.rawMessage || ""}`
+        : error instanceof Error
+          ? error.message
+          : String(error || "");
+      const missing = /not found|failed to get method|module.*has no attribute|no module named|does not exist|app .* is not installed|not installed|has no attribute|no module/i.test(msg);
       if (!missing) throw error;
     }
   }

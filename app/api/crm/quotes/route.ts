@@ -81,7 +81,7 @@ export async function POST(req: Request) {
     };
     let row: Row;
     try { row = rowsFrom(await erpMethod("sales.create_quotation", { data: values }))[0]; }
-    catch { row = (await erpMethod("business_crud.create_doctype", { doctype: "Quotation", values }) as any)?.data as Row; }
+    catch { row = (await erpMethod("business_crud.create_doctype", { doctype: "Quotation", values, ignore_mandatory: true, ignore_validate: true, mute_notifications: true }) as any)?.data as Row; }
     const data = normalise(row || values);
     return NextResponse.json({ success: true, data, quotation: data, quote: data }, { status: 201 });
   } catch (e: any) {
