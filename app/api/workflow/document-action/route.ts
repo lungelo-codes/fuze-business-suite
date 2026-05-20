@@ -17,9 +17,9 @@ export async function POST(req: Request) {
     const action = String(body.action || "submit");
     assertWorkflowAction(action);
     if (!ALLOWED.has(doctype) || !name) return NextResponse.json({ ok: false, error: "Unsupported document action" }, { status: 400 });
-    const result = await erpMethod("workflow.apply_document_action", tenantArgs({ doctype, name, action }, session));
+    const result = await erpMethod("business_crud.submit_or_cancel", tenantArgs({ doctype, name, action }, session));
     return NextResponse.json({ ok: true, data: result });
   } catch (e: unknown) {
-    return safeJsonError(e, "Could not apply workflow action.");
+    return safeJsonError(e, "Could not submit document.");
   }
 }

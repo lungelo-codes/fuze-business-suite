@@ -10,7 +10,7 @@ export async function PUT(req: Request, { params }: Params) {
     const body = await req.json().catch(() => ({}));
     const action = String(body.action || body._action || "submit");
     assertWorkflowAction(action);
-    const result = await erpMethod("workflow.apply_document_action", tenantArgs({ doctype: "Payment Entry", name: params.id, action }, session));
+    const result = await erpMethod("business_crud.submit_or_cancel", tenantArgs({ doctype: "Payment Entry", name: params.id, action }, session));
     return NextResponse.json({ ok: true, data: result });
   } catch (e: unknown) {
     return safeJsonError(e, "Could not update payment.");
