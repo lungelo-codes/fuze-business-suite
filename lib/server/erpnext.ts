@@ -250,31 +250,21 @@ function methodCandidates(method: string): string[] {
     .trim()
     .replace(/\.$/, "");
   const candidates: string[] = [];
+  const isFullyQualified = clean.split(".").length >= 3;
+  const isShortBusinessMethod = clean.split(".").length === 2;
 
-  // CRM is installed on the server in the fuze_suite app. Do not let an old
-  // Vercel/env prefix such as business_suite.api break CRM calls.
-  if (clean.startsWith("crm.")) {
+  // All Business Suite methods are namespaced under fuze_suite.api on the tenant.
+  // Trying app-less methods first causes empty tabs and generic save failures.
+  if (isShortBusinessMethod) {
     candidates.push(`fuze_suite.api.${clean}`);
     if (configured && configured !== "fuze_suite.api" && configured !== "business_suite.api") {
       candidates.push(`${configured}.${clean}`);
     }
-    // Never fall back to app-less crm.*. On Frappe that is interpreted as an
-    // app called `crm`, which causes: App crm is not installed.
     return Array.from(new Set(candidates));
   }
 
-  // Fully-qualified methods should be attempted as provided first.
-  if (clean) candidates.push(clean);
-
-  // Short app methods like selling.get_customers live under fuze_suite.api.*
-  // on this server. Keep a custom configured prefix only when it is not the old
-  // missing business_suite app.
-  if (clean.split(".").length === 2) {
-    candidates.push(`fuze_suite.api.${clean}`);
-    if (configured && configured !== "fuze_suite.api" && configured !== "business_suite.api") {
-      candidates.push(`${configured}.${clean}`);
-    }
-  }
+  if (isFullyQualified) candidates.push(clean);
+  else if (clean) candidates.push(`fuze_suite.api.${clean}`);
 
   return Array.from(new Set(candidates));
 }
