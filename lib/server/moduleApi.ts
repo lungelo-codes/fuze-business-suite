@@ -111,16 +111,33 @@ export async function createModuleRow(moduleId: string, doc: Row): Promise<Row> 
   const config = getCrudConfig(moduleId);
   if (!config) throw new BusinessSuiteError("Unknown module", 404);
   const method = METHODS[moduleId];
-  if (method?.create) {
-    const result = await erpMethod<unknown>(method.create, methodPayload(moduleId, method, doc));
+  const doctype = config.doctype;
+  const values = toERPDoc(moduleId, { ...(config.defaults || {}), ...doc });
+
+  async function createViaBusinessCrud(): Promise<Row> {
+    const result = await erpMethod<unknown>("business_crud.create_doctype", {
+      doctype,
+      values,
+      module_id: moduleId,
+    });
     return unwrapDoc(result);
   }
-  const result = await erpMethod<unknown>("business_crud.create_doctype", {
-    doctype: config.doctype,
-    values: toERPDoc(moduleId, { ...(config.defaults || {}), ...doc }),
-    module_id: moduleId,
-  });
-  return unwrapDoc(result);
+
+  if (method?.create) {
+    try {
+      const result = await erpMethod<unknown>(method.create, methodPayload(moduleId, method, doc));
+      return unwrapDoc(result);
+    } catch (error) {
+      // Keep the SaaS UI stable: when a specialised backend workflow is not yet
+      // available for this tenant, fall back to the controlled Business Suite wrapper.
+      if (["customers", "quotes", "sales-orders", "contracts", "invoices", "payments"].includes(moduleId)) {
+        return createViaBusinessCrud();
+      }
+      throw error;
+    }
+  }
+
+  return createViaBusinessCrud();
 }
 
 export async function updateModuleRow(moduleId: string, id: string, doc: Row): Promise<Row> {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { erpList, erpMethod } from "@/lib/server/erpnext";
+import { createModuleRow } from "@/lib/server/moduleApi";
 
 type Row = Record<string, any>;
 
@@ -57,9 +58,15 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    return NextResponse.json(await erpMethod("selling.create_customer", { data: body }), { status: 201 });
+    const body = await req.json().catch(() => ({}));
+    try {
+      const result = await erpMethod("selling.create_customer", { data: body });
+      return NextResponse.json(result, { status: 201 });
+    } catch {
+      const created = await createModuleRow("customers", body || {});
+      return NextResponse.json({ success: true, data: normalise(created), customer: normalise(created) }, { status: 201 });
+    }
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Could not create customer" }, { status: e?.status || 500 });
+    return NextResponse.json({ error: e?.message || "Could not create customer. Check the name, group and territory." }, { status: e?.status || 500 });
   }
 }
