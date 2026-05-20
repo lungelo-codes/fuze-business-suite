@@ -81,7 +81,11 @@ const GROUPS: NavGroup[] = [
   },
   {
     title: "HR", items: [
-      { label: "HR Workspace", href: "/portal/hr", icon: "hr", module: "employees" },
+      { label: "HR Overview", href: "/portal/hr", icon: "hr", module: "employees", exact: true },
+      { label: "Employees", href: "/portal/hr?tab=employees", icon: "person", module: "employees" },
+      { label: "Attendance", href: "/portal/hr?tab=attendance", icon: "calendar", module: "employees" },
+      { label: "Leave", href: "/portal/hr?tab=leave", icon: "task", module: "employees" },
+      { label: "Payroll", href: "/portal/hr?tab=payroll", icon: "invoice", module: "employees" },
     ],
   },
   {

@@ -6,7 +6,7 @@ const storyStats = [
   ["1 workspace", "CRM, finance, documents, HR, support and projects"],
   ["14-day trial", "Customers can test the system before paying"],
   ["SA-ready", "VAT, PAYE, UIF, SDL and CIPC workflows"],
-  ["ERPNext power", "Hidden behind a simple SaaS experience"],
+  ["Business Suite engine", "Hidden behind a simple SaaS experience"],
 ];
 
 const moduleSuites = [
@@ -28,7 +28,7 @@ const moduleSuites = [
     image: "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1200&q=85",
     gradient: "from-violet-500 to-indigo-500",
     story: "For teams that need every lead, quote, call, file and follow-up to move together instead of getting lost in chats and notebooks.",
-    copy: "Move leads through a modern pipeline, manage opportunities, schedule follow-ups, add contacts and turn quotes into real business without confusing ERP screens.",
+    copy: "Move leads through a modern pipeline, manage opportunities, schedule follow-ups, add contacts and turn quotes into real business without confusing backend screens.",
     bullets: ["Visual sales pipeline", "Lead and opportunity tracking", "Customer 360 timeline", "Quotes and sales activities"],
     modules: ["crm", "leads", "opportunities", "quotes", "customers"],
   },
@@ -60,7 +60,7 @@ const testimonials = [
   {
     name: "N. Mkhize",
     company: "Retail & Services",
-    quote: "The dashboard makes it easy to see invoices, customers and tasks without opening complicated ERP screens.",
+    quote: "The dashboard makes it easy to see invoices, customers and tasks without opening complicated backend screens.",
     result: "Invoices and follow-ups became easier to manage every morning.",
   },
   {
@@ -129,7 +129,7 @@ function FloatingPreview() {
       <div className="orbit-card orbit-card-c">
         <span>Documents</span>
         <b>342 files</b>
-        <small>Drive · Dropbox · ERPNext</small>
+        <small>Drive · Dropbox · Business records</small>
       </div>
 
       <div className="modern-dashboard-preview premium-preview">
@@ -175,14 +175,14 @@ export default function HomePage() {
             <div className="modern-badge">🇿🇦 Business software for South African SMEs</div>
             <h1>Give every growing business a premium operating system.</h1>
             <p>
-              Business Suite turns ERPNext power into a clean SaaS experience your clients can understand immediately — from sales and invoices to documents, HR, support and compliance.
+              Business Suite turns powerful business workflows into a clean SaaS experience your clients can understand immediately — from sales and invoices to documents, HR, support and compliance.
             </p>
             <div className="modern-hero-actions">
               <Link className="modern-primary" href="/signup">Start Free Trial</Link>
               <Link className="modern-secondary" href="#story">See how it works</Link>
             </div>
             <div className="modern-trust-row">
-              <span>14-day trial</span><span>No credit card</span><span>Private tenant workspace</span><span>ERPNext-powered</span>
+              <span>14-day trial</span><span>No credit card</span><span>Private tenant workspace</span><span>Business Suite powered</span>
             </div>
             <div className="hero-proof-grid">
               {storyStats.map(([value, label]) => (

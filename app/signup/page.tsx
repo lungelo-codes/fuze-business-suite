@@ -64,7 +64,7 @@ function SignupForm() {
           <div className="auth-badge">14-day guided trial</div>
           <h1>Build the exact business suite your company needs.</h1>
           <p>Select your plan, choose modules, create your tenant, then log in to a modern workspace with only the tools you selected.</p>
-          <div className="signup-proof-grid"><span>✓ Tenant isolated</span><span>✓ ERPNext powered</span><span>✓ Module controlled</span><span>✓ SA compliance ready</span></div>
+          <div className="signup-proof-grid"><span>✓ Tenant isolated</span><span>✓ Workflow powered</span><span>✓ Module controlled</span><span>✓ SA compliance ready</span></div>
         </aside>
         <section className="signup-flow-card">
           {step < 5 && <div className="signup-progress-modern">{["Business", "Plan", "Modules", "Password"].map((label, i) => <button key={label} type="button" className={step === i + 1 ? "active" : step > i + 1 ? "done" : ""}><b>{step > i + 1 ? "✓" : i + 1}</b><span>{label}</span></button>)}</div>}

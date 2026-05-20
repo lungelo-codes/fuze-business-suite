@@ -7,7 +7,7 @@ async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   try { return await fn(); } catch { return fallback; }
 }
 
-export default async function HRPage() {
+export default async function HRPage({ searchParams }: { searchParams?: { tab?: string } }) {
   const [employees, attendance, leave, payroll, dashRaw] = await Promise.all([
     safe(() => erpList<Row>("Employee", {
       fields: ["name","employee_name","first_name","last_name","department","designation",
@@ -29,12 +29,9 @@ export default async function HRPage() {
                "net_pay","total_deduction","status","docstatus","payroll_frequency","modified"],
       limit: 100, orderBy: "modified desc",
     }), []),
-    // hr.get_dashboard returns ok({cards:{...}, departments:[...], period:{...}})
-    // erpMethod unwraps ok() → returns {cards, departments, period}
     safe(() => erpMethod<Record<string, unknown>>("hr.get_dashboard", {}), null),
   ]);
 
-  // Parse the dashboard response — ok() is unwrapped by erpMethod already
   const dash = (dashRaw && typeof dashRaw === "object") ? dashRaw : {};
   const cards = (dash.cards && typeof dash.cards === "object")
     ? dash.cards as Record<string, unknown>
@@ -60,6 +57,7 @@ export default async function HRPage() {
 
   return (
     <HRWorkspaceClient
+      initialTab={searchParams?.tab}
       initialEmployees={Array.isArray(employees) ? employees : []}
       initialAttendance={Array.isArray(attendance) ? attendance : []}
       initialLeave={Array.isArray(leave) ? leave : []}

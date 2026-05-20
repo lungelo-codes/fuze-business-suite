@@ -557,7 +557,7 @@ body:has(.modal-back.open) .sidebar-edge-pill,body:has(.drawer-back.open) .sideb
 /* ──────────────────────────────────────────────────────────────
    Demo-style SaaS UI rebuild layer
    Applies the canvas/demo visual system across portal pages without
-   changing auth, module filtering, or ERPNext API logic.
+   changing auth, module filtering, or backend API logic.
 ────────────────────────────────────────────────────────────── */
 .demo-shell{--demo-bg:#F5F6FA;--demo-card:#fff;--demo-panel:#fff;--demo-line:#E6E8EF;--demo-text:#15132E;--demo-muted:#6B7086;--demo-soft:#F1F3F7;--demo-shadow:0 18px 45px rgba(22,26,45,.08);display:grid;grid-template-columns:260px minmax(0,1fr);background:var(--demo-bg);color:var(--demo-text)}
 .demo-shell.theme-dark{--demo-bg:#0b1020;--demo-card:#111827;--demo-panel:#0f172a;--demo-line:rgba(255,255,255,.1);--demo-text:#fff;--demo-muted:#94A3B8;--demo-soft:rgba(255,255,255,.06);--demo-shadow:0 18px 45px rgba(0,0,0,.28)}

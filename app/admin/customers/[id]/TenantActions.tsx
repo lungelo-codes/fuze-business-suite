@@ -76,22 +76,6 @@ export default function TenantActions({ tenantId, currentStatus }: TenantActions
         </div>
       )}
 
-      <div style={{ marginTop: 20, borderTop: "1px solid var(--line-2)", paddingTop: 16 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".5px", color: "var(--muted)", marginBottom: 10 }}>
-          Quick Links
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <a
-            href={`${process.env.NEXT_PUBLIC_ERPNEXT_URL || "https://business-suite.fuzedigital.co.za"}/Fuze SaaS Tenant/${tenantId}`}
-            target="_blank"
-            rel="noreferrer"
-            className="btn"
-            style={{ justifyContent: "center", fontSize: 12 }}
-          >
-            Open in Business Suite ↗
-          </a>
-        </div>
-      </div>
     </div>
   );
 }

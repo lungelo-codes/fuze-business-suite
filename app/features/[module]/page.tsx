@@ -11,7 +11,7 @@ export default function ModuleLandingPage({ params }: { params: { module: string
   const flows = [
     `Create and manage ${mod.label.toLowerCase()} records`,
     "Link activity back to customers and business documents",
-    "Use dashboards and tables instead of raw ERP screens",
+    "Use dashboards and tables instead of raw backend screens",
     "Keep staff focused on what needs attention today",
   ];
   return (

@@ -33,7 +33,7 @@ const STORAGE_GUIDE = [
   "Approve access using your business storage account.",
   "Return to Business Suite and open the Documents module.",
   "Attach cloud files to customers, invoices, quotations, projects or support tickets.",
-  "Files linked here are saved as ERPNext File records so they can be used across the system.",
+  "Files linked here are saved as Business Suite engine File records so they can be used across the system.",
 ];
 
 function providerLabel(provider: "google" | "dropbox") {
@@ -93,7 +93,7 @@ export default function DocumentWorkspaceClient({ initialFiles, googleConnected 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not attach Google Drive file");
       setFiles((current) => [json.data, ...current]);
-      setNotice("Google Drive file linked to ERPNext successfully.");
+      setNotice("Google Drive file linked to Business Suite engine successfully.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not attach file.");
     } finally {
@@ -118,7 +118,7 @@ export default function DocumentWorkspaceClient({ initialFiles, googleConnected 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not attach Dropbox file");
       setFiles((current) => [json.data, ...current]);
-      setNotice("Dropbox file linked to ERPNext successfully.");
+      setNotice("Dropbox file linked to Business Suite engine successfully.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not attach file.");
     } finally {
@@ -141,7 +141,7 @@ export default function DocumentWorkspaceClient({ initialFiles, googleConnected 
       if (!res.ok) throw new Error(json.error || "Upload failed");
       const uploaded = json.message || json.data || json;
       setFiles((current) => [uploaded, ...current]);
-      setNotice("File uploaded to ERPNext successfully.");
+      setNotice("File uploaded to Business Suite engine successfully.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not upload file.");
     } finally {
@@ -165,7 +165,7 @@ export default function DocumentWorkspaceClient({ initialFiles, googleConnected 
           <div>
         {/* Removed paid badge from documents – all tenants can now access this module */}
             <h1 className="demo-hero-title">Document Management</h1>
-            <p className="demo-hero-copy">Connect Google Drive or Dropbox, upload documents into ERPNext, and attach files to customers, invoices, quotations, projects and support tickets.</p>
+            <p className="demo-hero-copy">Connect Google Drive or Dropbox, upload documents into Business Suite engine, and attach files to customers, invoices, quotations, projects and support tickets.</p>
             <div className="demo-hero-actions">
               <a className="btn btn-teal" href="/api/documents/google/connect">Connect Google Drive</a>
               <a className="btn btn-primary" href="/api/documents/dropbox/connect">Connect Dropbox</a>
@@ -187,11 +187,11 @@ export default function DocumentWorkspaceClient({ initialFiles, googleConnected 
       {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">{notice}</div> : null}
 
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        {[{ key: "google", title: "Google Drive", connected: googleConnected }, { key: "dropbox", title: "Dropbox", connected: dropboxConnected }, { key: "erpnext", title: "ERPNext Files", connected: true }].map((item) => (
+        {[{ key: "google", title: "Google Drive", connected: googleConnected }, { key: "dropbox", title: "Dropbox", connected: dropboxConnected }, { key: "erpnext", title: "Business Suite engine Files", connected: true }].map((item) => (
           <button key={item.key} type="button" onClick={() => setProvider(item.key as "google" | "dropbox" | "erpnext")} className={`demo-panel p-5 text-left hover:-translate-y-1 transition ${provider === item.key ? "ring-4 ring-emerald-500/20" : ""}`}>
             <div className="w-12 h-12 rounded-xl bg-purple-600 text-white grid place-items-center mb-4">▣</div>
             <h3 className="font-black text-lg">{item.title}</h3>
-            <p className="text-sm text-slate-500 mt-2 leading-6">{item.key === "erpnext" ? "Files saved directly in ERPNext and available to all modules." : `Connect ${item.title} and link cloud files into Business Suite.`}</p>
+            <p className="text-sm text-slate-500 mt-2 leading-6">{item.key === "erpnext" ? "Files saved directly in Business Suite engine and available to all modules." : `Connect ${item.title} and link cloud files into Business Suite.`}</p>
             <span className={`chip ${item.connected ? "ok" : "warn"}`}>{item.connected ? "Ready" : "Connect"}</span>
           </button>
         ))}
@@ -218,7 +218,7 @@ export default function DocumentWorkspaceClient({ initialFiles, googleConnected 
 
       {provider === "erpnext" ? (
         <section className="demo-panel">
-          <div className="demo-panel-head"><div><h3>ERPNext Files</h3><p>Files already linked into your tenant system.</p></div><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search files..." className="rounded-xl border border-slate-200 px-4 py-2 text-sm" /></div>
+          <div className="demo-panel-head"><div><h3>Business Suite engine Files</h3><p>Files already linked into your tenant system.</p></div><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search files..." className="rounded-xl border border-slate-200 px-4 py-2 text-sm" /></div>
           <div className="overflow-auto">
             <table className="demo-table"><thead><tr><th>File</th><th>Attached To</th><th>Record</th><th>Modified</th><th>Open</th></tr></thead><tbody>
               {visibleErpFiles.length ? visibleErpFiles.map((file) => <tr key={file.name || file.file_url || file.file_name}><td><b>{file.file_name || file.name}</b></td><td>{file.attached_to_doctype || '-'}</td><td>{file.attached_to_name || '-'}</td><td>{file.modified?.split(' ')[0] || '-'}</td><td>{file.file_url ? <a href={file.file_url} target="_blank" rel="noreferrer" className="btn btn-sm">Open</a> : '-'}</td></tr>) : <tr><td colSpan={5}>No files found yet.</td></tr>}
@@ -227,7 +227,7 @@ export default function DocumentWorkspaceClient({ initialFiles, googleConnected 
         </section>
       ) : (
         <section className="demo-panel">
-          <div className="demo-panel-head"><div><h3>{providerLabel(provider)} Files</h3><p>Choose a file to link into ERPNext so it can be used across the system.</p></div><button className="btn btn-sm" onClick={() => loadCloud(provider)} disabled={loading}>Refresh</button></div>
+          <div className="demo-panel-head"><div><h3>{providerLabel(provider)} Files</h3><p>Choose a file to link into Business Suite engine so it can be used across the system.</p></div><button className="btn btn-sm" onClick={() => loadCloud(provider)} disabled={loading}>Refresh</button></div>
           <div className="overflow-auto">
             <table className="demo-table"><thead><tr><th>File</th><th>Type</th><th>Modified</th><th>Action</th></tr></thead><tbody>
               {cloudList.length ? cloudList.map((file) => <tr key={file.id || file.path_lower || file.name}><td><b>{file.name}</b></td><td>{file.mimeType || file['.tag'] || 'File'}</td><td>{file.modifiedTime?.split('T')[0] || file.client_modified?.split('T')[0] || '-'}</td><td><button className="btn btn-sm" disabled={loading} onClick={() => provider === 'google' ? attachGoogle(file) : attachDropbox(file)}>Use in system</button></td></tr>) : <tr><td colSpan={4}>{loading ? 'Loading files...' : 'No cloud files loaded. Connect or refresh this provider.'}</td></tr>}

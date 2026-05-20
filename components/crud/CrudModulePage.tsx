@@ -15,7 +15,7 @@ type MetadataResponse = {
   tableFields: CrudField[]
   listFields: string[]
   defaults: Record<string, unknown>
-  fromERPNext: boolean
+  fromBusiness Suite engine: boolean
 }
 
 const SYSTEM_FIELDS = new Set(['owner', 'creation', 'modified_by', 'parent', 'parentfield', 'parenttype', 'idx'])
@@ -164,7 +164,7 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
         if (!res.ok) throw new Error(json.error || 'Could not load fields')
         if (!active) return
         setMeta(json.data)
-        if (json.data?.fromERPNext) setMetaNotice(`${config.doctype} fields are loaded from your tenant backend.`)
+        if (json.data?.fromBusiness Suite engine) setMetaNotice(`${config.doctype} fields are loaded from your tenant backend.`)
       } catch (err) {
         if (active) setMetaNotice(err instanceof Error ? `Using fallback fields: ${err.message}` : 'Using fallback fields.')
       }
@@ -345,7 +345,7 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
           <div className="demo-hero-plan">
             <div className="demo-eyebrow">Workspace summary</div>
             <h3>{rows.length} records</h3>
-            <p className="demo-hero-copy">Tenant-safe records from ERPNext with modern daily workflows.</p>
+            <p className="demo-hero-copy">Tenant-safe records from Business Suite engine with modern daily workflows.</p>
             <div className="demo-pill-row">
               <div className="demo-pill-box"><span>Active</span><b>{activeCount}</b></div>
               <div className="demo-pill-box"><span>Value</span><b>{money(totalValue)}</b></div>
@@ -412,7 +412,7 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
         <section className="demo-grid crud-record-grid">
           <div className="demo-panel crud-record-panel">
             <div className="demo-panel-head">
-              <div><h3>{stageFilter ? `${stageFilter} Records` : `${visibleRows.length} Records`}</h3><p>Search, filter and open working ERPNext records without leaving the portal.</p></div>
+              <div><h3>{stageFilter ? `${stageFilter} Records` : `${visibleRows.length} Records`}</h3><p>Search, filter and open working Business Suite engine records without leaving the portal.</p></div>
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`Search ${activeConfig.title.toLowerCase()}...`} className="crud-search-input" />
             </div>
             {stageFilter ? <div className="crud-active-filter">Showing {visibleRows.length} record{visibleRows.length === 1 ? '' : 's'} with {stageLabel} <b>{stageFilter}</b>. <button type="button" onClick={() => setStageFilter('')}>Clear</button></div> : null}
@@ -435,7 +435,7 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
           <div className="demo-panel">
             <div className="demo-panel-head"><div><h3>Smart Actions</h3><p>Quick actions for this workspace.</p></div></div>
             <div className="demo-alert-list">
-              <button type="button" onClick={openCreate} className="demo-alert">Add {singularTitle(activeConfig.title)}<span>Create a record using ERPNext fields</span></button>
+              <button type="button" onClick={openCreate} className="demo-alert">Add {singularTitle(activeConfig.title)}<span>Create a record using Business Suite engine fields</span></button>
               <button type="button" onClick={reloadRecords} className="demo-alert">Refresh live data<span>Load latest tenant records</span></button>
               <button type="button" onClick={() => setTab('Activity')} className="demo-alert">Open activity<span>Review recent records</span></button>
               {stageCards.slice(0, 4).map((card) => <button key={card.stage} type="button" onClick={() => { setStageFilter(card.stage); setTab('Records') }} className="demo-alert">{card.stage}<span>{card.count} record{card.count === 1 ? '' : 's'}</span></button>)}

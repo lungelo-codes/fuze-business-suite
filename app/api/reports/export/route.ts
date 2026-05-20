@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { erpMethod } from "@/lib/server/erpnext";
 
 /**
- * API route for exporting ERPNext reports.
+ * API route for exporting reports.
  *
  * Query parameters:
  *   report_name – the name of the report to export (required)

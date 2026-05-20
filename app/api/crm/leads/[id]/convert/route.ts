@@ -7,7 +7,7 @@ type Params = { params: { id: string } };
  * POST /api/crm/leads/[id]/convert
  * body: { organization?, contact?, create_organization?, create_contact? }
  *
- * Converts a CRM Lead → CRM Deal (Frappe CRM) or Opportunity (ERPNext).
+ * Converts a CRM Lead → CRM Deal (CRM engine) or Opportunity.
  */
 export async function POST(req: Request, { params }: Params) {
   try {

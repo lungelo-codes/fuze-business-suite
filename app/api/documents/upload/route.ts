@@ -18,6 +18,6 @@ export async function POST(req: Request) {
   const text = await res.text();
   let json: unknown = {};
   try { json = text ? JSON.parse(text) : {}; } catch { json = { raw: text }; }
-  if (!res.ok) return NextResponse.json({ error: "ERPNext upload failed", details: json }, { status: res.status });
+  if (!res.ok) return NextResponse.json({ error: "Document upload failed", details: json }, { status: res.status });
   return NextResponse.json(json);
 }

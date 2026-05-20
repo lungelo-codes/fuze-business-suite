@@ -1,5 +1,5 @@
 export default function AdminSettingsPage() {
-  const erpnextUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL || "https://business-suite.fuzedigital.co.za";
+  const backendUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL || "https://business-suite.fuzedigital.co.za";
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
   return (
@@ -18,17 +18,17 @@ export default function AdminSettingsPage() {
           <div className="list">
             <div className="list-row">
               <div>
-                <div className="t">Business Suite URL</div>
+                <div className="t">Backend URL</div>
                 <div className="s">
-                  <a href={erpnextUrl} target="_blank" rel="noreferrer" style={{ color: "var(--teal)", wordBreak: "break-all" }}>
-                    {erpnextUrl}
+                  <a href={backendUrl} target="_blank" rel="noreferrer" style={{ color: "var(--teal)", wordBreak: "break-all" }}>
+                    {backendUrl}
                   </a>
                 </div>
               </div>
             </div>
             <div className="list-row">
               <div>
-                <div className="t">Frontend Base URL</div>
+                <div className="t">Portal Base URL</div>
                 <div className="s" style={{ wordBreak: "break-all" }}>{baseUrl}</div>
               </div>
             </div>
@@ -85,13 +85,13 @@ export default function AdminSettingsPage() {
               💳 Plan Overview
             </a>
             <a
-              href={`${erpnextUrl}/app`}
+              href={`${backendUrl}/app`}
               target="_blank"
               rel="noreferrer"
               className="btn"
               style={{ justifyContent: "center" }}
             >
-              🔗 Open Business Suite ↗
+              🔗 Open Backend Console ↗
             </a>
             <a
               href="/api/auth/logout"
@@ -118,11 +118,11 @@ export default function AdminSettingsPage() {
             </thead>
             <tbody>
               {[
-                { name: "ERPNEXT_URL", required: true, desc: "Server-side Business Suite base URL (e.g. https://erp.yourdomain.com)" },
-                { name: "NEXT_PUBLIC_ERPNEXT_URL", required: true, desc: "Client-visible Business Suite URL" },
+                { name: "Backend URL", required: true, desc: "Server-side backend base URL" },
+                { name: "Public backend URL", required: true, desc: "Public backend URL used by server routes" },
                 { name: "NEXT_PUBLIC_BASE_URL", required: true, desc: "This app's public URL (used in redirects)" },
-                { name: "ERPNEXT_API_KEY", required: false, desc: "Business Suite API key for token authentication" },
-                { name: "ERPNEXT_API_SECRET", required: false, desc: "Business Suite API secret for token authentication" },
+                { name: "Backend API key", required: false, desc: "API key for token authentication" },
+                { name: "Backend API secret", required: false, desc: "API secret for token authentication" },
                 { name: "VERIFICATION_SECRET", required: true, desc: "Secret for signing email verification tokens" },
                 { name: "NEXTAUTH_SECRET", required: true, desc: "NextAuth session secret" },
                 { name: "ADMIN_EMAILS", required: false, desc: "Comma-separated list of admin email addresses" },

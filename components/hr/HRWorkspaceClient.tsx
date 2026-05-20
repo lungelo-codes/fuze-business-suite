@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, LineChart, Line,
@@ -109,13 +110,22 @@ const tt = {
 };
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
-const TABS = ["Overview", "Employees", "Attendance", "Leave", "Payroll"];
+type HrTab = "overview" | "employees" | "attendance" | "leave" | "payroll";
+const TABS: { id: HrTab; label: string; description: string }[] = [
+  { id: "overview", label: "Overview", description: "People command centre" },
+  { id: "employees", label: "Employees", description: "Employee profiles and departments" },
+  { id: "attendance", label: "Attendance", description: "Daily attendance and working hours" },
+  { id: "leave", label: "Leave", description: "Leave requests and approvals" },
+  { id: "payroll", label: "Payroll", description: "Salary slips and payroll totals" },
+];
+function normalizeTab(value?: string | null): HrTab { const v = String(value || "").toLowerCase(); return ["employees","attendance","leave","payroll"].includes(v) ? v as HrTab : "overview"; }
 
 interface Props {
   initialEmployees: Row[];
   initialAttendance: Row[];
   initialLeave: Row[];
   initialPayroll: Row[];
+  initialTab?: string;
   dashMetrics: {
     active_employees?: number;
     present_today?: number;
@@ -125,8 +135,9 @@ interface Props {
   };
 }
 
-export default function HRWorkspaceClient({ initialEmployees, initialAttendance, initialLeave, initialPayroll, dashMetrics }: Props) {
-  const [tab, setTab] = useState("Overview");
+export default function HRWorkspaceClient({ initialTab, initialEmployees, initialAttendance, initialLeave, initialPayroll, dashMetrics }: Props) {
+  const params = useSearchParams();
+  const [tab, setTab] = useState<HrTab>(() => normalizeTab(initialTab || params.get("tab")));
   const [employees, setEmployees] = useState<Row[]>(initialEmployees);
   const [attendance, setAttendance] = useState<Row[]>(initialAttendance);
   const [leave, setLeave] = useState<Row[]>(initialLeave);
@@ -265,7 +276,7 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
     return (
       <>
         {/* KPI Row */}
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:18 }}>
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:14,marginBottom:18 }}>
           <KPI label="Active Employees" value={activeEmp} hint="Current headcount" color="teal" />
           <KPI label="Present Today" value={presentToday} hint="Attendance today" color="navy" />
           <KPI label="Pending Leave" value={pendingLeave} hint="Awaiting approval" color="warn" />
@@ -273,7 +284,7 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
         </div>
 
         {/* Charts Row */}
-        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16 }}>
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:16,marginBottom:16 }}>
           <div className="demo-panel">
             <div className="demo-panel-head"><div><h3>Employees by Department</h3><p>Headcount distribution across departments</p></div></div>
             <div style={{ height:240,padding:"8px 16px 16px" }}>
@@ -333,8 +344,8 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
                 { label: "Mark Attendance", desc: "Record employee attendance", action: () => setModal("attendance") },
                 { label: "Submit Leave Request", desc: "Apply for leave on behalf", action: () => setModal("leave") },
                 { label: "Process Payroll", desc: "Generate salary slips", action: () => setModal("payroll") },
-                { label: "View All Employees", desc: "Browse headcount", action: () => setTab("Employees") },
-                { label: "Approve Pending Leave", desc: "Review open leave requests", action: () => setTab("Leave") },
+                { label: "View All Employees", desc: "Browse headcount", action: () => { setTab("employees"); history.replaceState(null, "", "/portal/hr?tab=employees"); } },
+                { label: "Approve Pending Leave", desc: "Review open leave requests", action: () => { setTab("leave"); history.replaceState(null, "", "/portal/hr?tab=leave"); } },
               ].map((a) => (
                 <button key={a.label} type="button" className="demo-alert text-left" onClick={a.action}>
                   {a.label}<span>{a.desc}</span>
@@ -364,7 +375,7 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
     return (
       <div className="demo-panel">
         <div className="demo-panel-head">
-          <div><h3>Employees <span style={{ fontSize:12,fontWeight:600,color:"var(--muted)" }}>({employees.length})</span></h3><p>All staff records from ERPNext</p></div>
+          <div><h3>Employees <span style={{ fontSize:12,fontWeight:600,color:"var(--muted)" }}>({employees.length})</span></h3><p>All staff records from your company workspace</p></div>
           <div style={{ display:"flex",gap:8,alignItems:"center" }}>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search employees…" style={{ padding:"8px 12px",border:"1px solid var(--line)",borderRadius:9,fontSize:13 }} />
             <button type="button" className="btn btn-teal" onClick={() => setModal("employee")}>+ Add Employee</button>
@@ -386,7 +397,7 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
   function AttendanceTab() {
     return (
       <>
-        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:16 }}>
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14,marginBottom:16 }}>
           <div className="demo-panel">
             <div className="demo-panel-head"><div><h3>Attendance Overview</h3><p>All records by status</p></div></div>
             <div style={{ height:220,padding:"8px 16px 16px" }}>
@@ -436,7 +447,7 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
   function LeaveTab() {
     return (
       <>
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:16 }}>
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:14,marginBottom:16 }}>
           <KPI label="Total Applications" value={leave.length} hint="All leave requests" color="navy" />
           <KPI label="Approved" value={leave.filter((l) => String(l.status).toLowerCase() === "approved").length} hint="Approved leave" color="teal" />
           <KPI label="Pending" value={pendingLeave} hint="Awaiting approval" color="warn" />
@@ -468,7 +479,7 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
     const totalNet = payroll.reduce((s, p) => s + Number(p.net_pay || 0), 0);
     return (
       <>
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:16 }}>
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:14,marginBottom:16 }}>
           <KPI label="Salary Slips" value={payroll.length} hint="Total slips" color="navy" />
           <KPI label="Total Gross Pay" value={money(totalGross)} hint="Sum of gross salaries" color="teal" />
           <KPI label="Total Net Pay" value={money(totalNet)} hint="Sum of net salaries" color="blue" />
@@ -578,8 +589,8 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
       <section className="demo-module-titlebar">
         <div>
           <div className="demo-eyebrow">People Workspace</div>
-          <h1>HR & Payroll</h1>
-          <p>Manage employees, attendance, leave, and payroll in one unified workspace.</p>
+          <h1>{TABS.find((t) => t.id === tab)?.label === "Overview" ? "HR Overview" : `${TABS.find((t) => t.id === tab)?.label} Dashboard`}</h1>
+          <p>{TABS.find((t) => t.id === tab)?.description}. Each area stays under HR but has its own focused dashboard.</p>
         </div>
         <div className="demo-module-actions">
           <button type="button" className="btn btn-teal" onClick={() => setModal("employee")}>+ Add Employee</button>
@@ -595,21 +606,24 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
         </div>
       )}
 
-      {/* Tab bar */}
+      {/* Dashboard switcher */}
       <section className="demo-tabbar">
-        {TABS.map((t) => (
-          <button key={t} type="button" onClick={() => { setTab(t); setQuery(""); }} className={tab === t ? "active" : ""}>
-            {t === "Employees" ? `Employees (${employees.length})` : t === "Attendance" ? `Attendance (${attendance.length})` : t === "Leave" ? `Leave (${leave.length})` : t === "Payroll" ? `Payroll (${payroll.length})` : t}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const count = t.id === "employees" ? employees.length : t.id === "attendance" ? attendance.length : t.id === "leave" ? leave.length : t.id === "payroll" ? payroll.length : 0;
+          return (
+            <button key={t.id} type="button" onClick={() => { setTab(t.id); setQuery(""); history.replaceState(null, "", t.id === "overview" ? "/portal/hr" : `/portal/hr?tab=${t.id}`); }} className={tab === t.id ? "active" : ""}>
+              {t.label}{count ? ` (${count})` : ""}
+            </button>
+          );
+        })}
       </section>
 
       {/* Tab content */}
-      {tab === "Overview" && <OverviewTab />}
-      {tab === "Employees" && <EmployeesTab />}
-      {tab === "Attendance" && <AttendanceTab />}
-      {tab === "Leave" && <LeaveTab />}
-      {tab === "Payroll" && <PayrollTab />}
+      {tab === "overview" && <OverviewTab />}
+      {tab === "employees" && <EmployeesTab />}
+      {tab === "attendance" && <AttendanceTab />}
+      {tab === "leave" && <LeaveTab />}
+      {tab === "payroll" && <PayrollTab />}
 
       {/* Modal */}
       {currentModal && (
