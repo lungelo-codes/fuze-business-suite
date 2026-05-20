@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { erpMethod } from "@/lib/server/erpnext";
 
 function getBaseUrl(req: Request) {
   return process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
@@ -38,26 +39,22 @@ export async function GET(req: Request) {
   }
 
   const token = await tokenRes.json() as { access_token?: string; refresh_token?: string; expires_in?: number };
+  let accountEmail = "";
+  try {
+    const profile = await fetch("https://openidconnect.googleapis.com/v1/userinfo", { headers: { Authorization: `Bearer ${token.access_token}` }, cache: "no-store" }).then((r) => r.json());
+    accountEmail = String(profile?.email || "");
+  } catch {}
+
+  const expiresAt = new Date(Date.now() + Math.max(60, Number(token.expires_in || 3600) - 60) * 1000).toISOString().slice(0, 19).replace("T", " ");
+  await erpMethod("documents.save_storage_connection", {
+    provider: "google",
+    access_token: token.access_token,
+    refresh_token: token.refresh_token,
+    expires_at: expiresAt,
+    account_email: accountEmail,
+  });
+
   const res = NextResponse.redirect(`${getBaseUrl(req)}/portal/documents?provider=google&status=connected`);
   res.cookies.delete("gdrive_oauth_state");
-  if (token.access_token) {
-    res.cookies.set("gdrive_access_token", token.access_token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: Math.max(60, Number(token.expires_in || 3600) - 60),
-    });
-  }
-  if (token.refresh_token) {
-    res.cookies.set("gdrive_refresh_token", token.refresh_token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 90,
-    });
-  }
-  res.cookies.set("gdrive_connected", "1", { path: "/", sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 60 * 60 * 24 * 90 });
   return res;
 }
