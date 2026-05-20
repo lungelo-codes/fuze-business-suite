@@ -15,7 +15,7 @@ type MetadataResponse = {
   tableFields: CrudField[]
   listFields: string[]
   defaults: Record<string, unknown>
-  fromBusiness Suite engine: boolean
+  fromERPNext: boolean
 }
 
 const SYSTEM_FIELDS = new Set(['owner', 'creation', 'modified_by', 'parent', 'parentfield', 'parenttype', 'idx'])
@@ -164,7 +164,7 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
         if (!res.ok) throw new Error(json.error || 'Could not load fields')
         if (!active) return
         setMeta(json.data)
-        if (json.data?.fromBusiness Suite engine) setMetaNotice(`${config.doctype} fields are loaded from your tenant backend.`)
+        if (json.data?.fromERPNext) setMetaNotice(`${config.doctype} fields are loaded from your tenant backend.`)
       } catch (err) {
         if (active) setMetaNotice(err instanceof Error ? `Using fallback fields: ${err.message}` : 'Using fallback fields.')
       }
