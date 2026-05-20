@@ -319,11 +319,145 @@ function Customer360Panel({ life }: { life: Customer360 | null }) {
 }
 function MiniList({ title, rows, valueKey, dateKey }: { title: string; rows: Record<string, any>[]; valueKey: string; dateKey: string }) { return <div className="crm-mini-card"><b>{title}</b>{rows.length ? rows.slice(0, 5).map((r) => <span key={r.name}>{r.name} · {fmt(r.status)} · {dateText(r[dateKey])} · {money(r[valueKey] || 0, r.currency || "ZAR")}</span>) : <span>No {title.toLowerCase()} yet.</span>}</div>; }
 
-function CrmRecordModal({ title, record, onClose }: { title: string; record: Record<string, any>; onClose: () => void }) {
-  const entries = Object.entries(record || {}).filter(([_, value]) => value !== undefined && value !== null && value !== "" && typeof value !== "object").slice(0, 28);
-  return <Modal title={title} subtitle={String(record?.name || record?.id || "CRM record")} onClose={onClose} width={820}>
-    <div className="crm-record-modal-summary"><div><span>Customer / Party</span><b>{fmt(record.customer_name || record.customer || record.party_name || record.company || record.company_name)}</b></div><div><span>Status</span><StatusBadge status={String(record.status || record.workflow_state || "Draft")} /></div><div><span>Amount</span><b>{record.grand_total !== undefined || record.total !== undefined ? money(record.grand_total ?? record.total, record.currency || "ZAR") : "—"}</b></div></div>
-    <div className="crm-record-detail-grid">{entries.map(([key, value]) => <div key={key} className="crm-record-detail"><span>{key.replace(/_/g, " ")}</span><b>{fmt(value)}</b></div>)}</div>
+
+function doctypeForModule(module?: string, record?: Record<string, any>) {
+  const m = String(module || "").toLowerCase();
+  if (m.includes("contact")) return "Contact";
+  if (m.includes("customer")) return "Customer";
+  if (m.includes("sales-order")) return "Sales Order";
+  if (m.includes("quote")) return "Quotation";
+  if (m.includes("contract")) return "Contract";
+  if (record?.doctype) return String(record.doctype);
+  return "Customer";
+}
+function editableFieldsFor(doctype: string) {
+  if (doctype === "Customer") return ["customer_name", "customer_type", "customer_group", "territory"];
+  if (doctype === "Contact") return ["first_name", "last_name", "full_name", "email_id", "mobile_no", "phone", "company_name", "designation"];
+  if (doctype === "Quotation") return ["status", "transaction_date", "valid_till", "party_name", "customer_name", "currency", "selling_price_list", "tc_name", "terms"];
+  if (doctype === "Sales Order") return ["status", "transaction_date", "delivery_date", "customer", "customer_name", "currency", "selling_price_list", "tc_name", "terms"];
+  if (doctype === "Sales Invoice") return ["status", "posting_date", "due_date", "customer", "customer_name", "currency", "selling_price_list", "tc_name", "terms"];
+  if (doctype === "Contract") return ["status", "party_type", "party_name", "start_date", "end_date", "contract_terms"];
+  return ["status"];
+}
+function CrmRecordModal({ title, record, module, onClose, onSaved }: { title: string; record: Record<string, any>; module?: string; onClose: () => void; onSaved?: () => void }) {
+  const doctype = doctypeForModule(module, record);
+  const recordName = String(record?.name || record?.id || "");
+  const [full, setFull] = useState<Record<string, any>>(record || {});
+  const [form, setForm] = useState<Record<string, any>>(record || {});
+  const [items, setItems] = useState<Record<string, any>[]>(Array.isArray(record?.items) ? record.items : []);
+  const [templates, setTemplates] = useState<Record<string, any>[]>([]);
+  const [printFormats, setPrintFormats] = useState<Record<string, any>[]>([]);
+  const [users, setUsers] = useState<Record<string, any>[]>([]);
+  const [employees, setEmployees] = useState<Record<string, any>[]>([]);
+  const [assignTo, setAssignTo] = useState("");
+  const [assignNote, setAssignNote] = useState("");
+  const [emailTo, setEmailTo] = useState(String(record.email || record.email_id || ""));
+  const [emailTemplate, setEmailTemplate] = useState("");
+  const [printFormat, setPrintFormat] = useState("");
+  const [emailSubject, setEmailSubject] = useState(`${title} ${recordName}`);
+  const [emailBody, setEmailBody] = useState(`Good day,
+
+Please find attached ${title.toLowerCase()} ${recordName}.
+
+Kind regards`);
+  const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const salesDoc = ["Quotation", "Sales Order", "Sales Invoice", "Contract"].includes(doctype);
+  const editable = editableFieldsFor(doctype);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    Promise.allSettled([
+      apiFetch(`/api/crm/record?doctype=${encodeURIComponent(doctype)}&name=${encodeURIComponent(recordName)}`),
+      apiFetch("/api/crm/assignable-users?limit=80"),
+    ]).then(([rec, people]) => {
+      if (!active) return;
+      if (rec.status === "fulfilled") {
+        const data = unwrap<any>(rec.value);
+        const r = data?.record || data?.data?.record || data || record;
+        setFull(r);
+        setForm(r);
+        setItems(Array.isArray(r?.items) ? r.items : []);
+        const tpl = arrayFrom<Record<string, any>>(data, ["templates"]);
+        const pf = arrayFrom<Record<string, any>>(data, ["print_formats"]);
+        setTemplates(tpl);
+        setPrintFormats(pf);
+        const customerEmail = r?.email_id || r?.email || r?.contact_email || emailTo;
+        if (customerEmail) setEmailTo(String(customerEmail));
+      }
+      if (people.status === "fulfilled") {
+        const pdata = unwrap<any>(people.value);
+        setUsers(arrayFrom<Record<string, any>>(pdata, ["users", "records"]));
+        setEmployees(arrayFrom<Record<string, any>>(pdata, ["employees"]));
+      }
+    }).catch(() => undefined).finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, [doctype, recordName]);
+
+  function setField(key: string, value: any) { setForm((f) => ({ ...f, [key]: value })); }
+  function setItem(i: number, key: string, value: any) { setItems((rows) => rows.map((row, idx) => idx === i ? { ...row, [key]: value } : row)); }
+  function addItem() { setItems((rows) => [...rows, { item_code: "", item_name: "Service", description: "Service", qty: 1, rate: 0, uom: "Nos" }]); }
+  function removeItem(i: number) { setItems((rows) => rows.filter((_, idx) => idx !== i)); }
+  function applyTemplate(name: string) {
+    setEmailTemplate(name);
+    const tpl = templates.find((t) => t.name === name);
+    if (!tpl) return;
+    if (tpl.subject) setEmailSubject(String(tpl.subject));
+    const body = cleanText(tpl.response || tpl.message || "");
+    if (body) setEmailBody(body);
+  }
+  async function saveRecord() {
+    setSaving(true); setMessage("");
+    try {
+      const values: Record<string, any> = {};
+      editable.forEach((k) => { if (form[k] !== undefined) values[k] = form[k]; });
+      if (salesDoc && items.length) values.items = items.map((row) => ({
+        item_code: row.item_code || undefined,
+        item_name: row.item_name || row.description || "Service",
+        description: row.description || row.item_name || "Service",
+        qty: Number(row.qty || 1),
+        rate: Number(row.rate || 0),
+        uom: row.uom || row.stock_uom || "Nos",
+        delivery_date: row.delivery_date || form.delivery_date,
+      }));
+      const json = await apiFetch(`/api/crm/record?doctype=${encodeURIComponent(doctype)}&name=${encodeURIComponent(recordName)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ doctype, name: recordName, values }) });
+      const data = unwrap<any>(json);
+      const r = data?.record || data?.data?.record || data || form;
+      setFull(r); setForm(r); setItems(Array.isArray(r?.items) ? r.items : items); setMessage("Saved successfully"); onSaved?.();
+    } catch (e) { setMessage(e instanceof Error ? e.message : "Could not save record"); }
+    finally { setSaving(false); }
+  }
+  async function assignRecord() {
+    if (!assignTo) { setMessage("Select a user or employee to assign."); return; }
+    setSaving(true); setMessage("");
+    try {
+      await apiFetch("/api/crm/assign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ doctype, name: recordName, user: assignTo, employee: assignTo, description: assignNote }) });
+      setMessage("Assignment created"); onSaved?.();
+    } catch (e) { setMessage(e instanceof Error ? e.message : "Could not assign record"); }
+    finally { setSaving(false); }
+  }
+  async function sendPdfEmail() {
+    setSaving(true); setMessage("");
+    try {
+      const json = await apiFetch("/api/crm/sales-email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ doctype, name: recordName, to: emailTo, subject: emailSubject, content: emailBody, template: emailTemplate || undefined, print_format: printFormat || undefined }) });
+      const data = unwrap<any>(json);
+      setMessage(data?.message || "Email sent using the configured company email account");
+    } catch (e) { setMessage(e instanceof Error ? e.message : "Could not send email"); }
+    finally { setSaving(false); }
+  }
+  const entries = Object.entries(full || {}).filter(([_, value]) => value !== undefined && value !== null && value !== "" && typeof value !== "object").slice(0, 18);
+  return <Modal title={title} subtitle={`${doctype} · ${recordName}`} onClose={onClose} width={1100}>
+    {loading ? <LoadingBlock /> : <div className="crm-interactive-record">
+      {message && <div className="crm-banner">{message}</div>}
+      <div className="crm-record-modal-summary"><div><span>Customer / Party</span><b>{fmt(form.customer_name || form.customer || form.party_name || form.company || form.company_name)}</b></div><div><span>Status</span><StatusBadge status={String(form.status || form.workflow_state || "Draft")} /></div><div><span>Amount</span><b>{form.grand_total !== undefined || form.total !== undefined ? money(form.grand_total ?? form.total, form.currency || "ZAR") : "—"}</b></div></div>
+      <div className="crm-editor-grid">
+        <section className="crm-editor-panel"><h3>Edit record</h3><div className="crm-form-grid">{editable.map((key) => <Field key={key} label={key.replace(/_/g, " ")}><input value={String(form[key] ?? "")} onChange={(e) => setField(key, e.target.value)} /></Field>)}</div>{salesDoc && <div className="crm-line-items compact"><div className="crm-line-head"><div><b>Items</b><span>Edit line quantities and rates using the normal document fields.</span></div><button className="btn btn-small" onClick={addItem}>Add item</button></div>{items.map((row, i) => <div className="crm-line-card" key={row.name || i}><div className="crm-line-row top"><Field label="Item code"><input value={String(row.item_code || "")} onChange={(e) => setItem(i, "item_code", e.target.value)} /></Field><Field label="Description"><input value={String(row.description || row.item_name || "")} onChange={(e) => setItem(i, "description", e.target.value)} /></Field><Field label="Qty"><input type="number" value={String(row.qty || 1)} onChange={(e) => setItem(i, "qty", e.target.value)} /></Field><Field label="Rate"><input type="number" value={String(row.rate || 0)} onChange={(e) => setItem(i, "rate", e.target.value)} /></Field><button className="btn btn-small danger" onClick={() => removeItem(i)}>Remove</button></div></div>)}</div>}<div className="crm-modal-actions"><button className="btn btn-primary" disabled={saving} onClick={saveRecord}>{saving ? "Saving…" : "Save Changes"}</button></div></section>
+        <aside className="crm-editor-panel"><h3>Assign & follow up</h3><Field label="Assign to user / employee"><select value={assignTo} onChange={(e) => setAssignTo(e.target.value)}><option value="">Select assignee</option>{users.map((u) => <option key={u.name || u.email} value={u.name || u.email}>{u.full_name || u.name || u.email}</option>)}{employees.map((e) => <option key={e.name} value={e.user_id || e.name}>{e.employee_name || e.name}</option>)}</select></Field><Field label="Assignment note"><textarea rows={3} value={assignNote} onChange={(e) => setAssignNote(e.target.value)} placeholder="Follow up, prepare quote, call customer…" /></Field><button className="btn" disabled={saving} onClick={assignRecord}>Assign</button>{salesDoc && <div className="crm-email-box"><h3>Send document email</h3><Field label="Template"><select value={emailTemplate} onChange={(e) => applyTemplate(e.target.value)}><option value="">Use custom message</option>{templates.map((t) => <option key={t.name} value={t.name}>{t.subject || t.name}</option>)}</select></Field><Field label="Print format"><select value={printFormat} onChange={(e) => setPrintFormat(e.target.value)}><option value="">Default print format</option>{printFormats.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}</select></Field><Field label="Recipient"><input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} /></Field><Field label="Subject"><input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} /></Field><Field label="Message"><textarea rows={6} value={emailBody} onChange={(e) => setEmailBody(e.target.value)} /></Field><button className="btn btn-primary" disabled={saving} onClick={sendPdfEmail}>Send PDF Email</button><p className="crm-help-text">Email uses the tenant's configured outgoing email account and selected template.</p></div>}</aside>
+      </div>
+      <div className="crm-record-detail-grid">{entries.map(([key, value]) => <div key={key} className="crm-record-detail"><span>{key.replace(/_/g, " ")}</span><b>{fmt(value)}</b></div>)}</div>
+    </div>}
   </Modal>;
 }
 
@@ -363,7 +497,7 @@ function RevenueDocsView({ module, title, subtitle, refreshSignal }: { module: s
   const [selected, setSelected] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  useEffect(() => {
+  function loadRows() {
     setLoading(true); setError("");
     apiFetch(module === "customers" ? "/api/crm/customers?limit=80" : `/api/crm/${module}?limit=80`).then((json) => {
       const MODULE_KEYS: Record<string, string[]> = {
@@ -375,12 +509,13 @@ function RevenueDocsView({ module, title, subtitle, refreshSignal }: { module: s
       };
       setRows(arrayFrom<Record<string, any>>(json, MODULE_KEYS[module] ?? ["data", "records"]));
     }).catch((e) => setError(e instanceof Error ? e.message : `Could not load ${title.toLowerCase()}.`)).finally(() => setLoading(false));
-  }, [module, title, refreshSignal]);
+  }
+  useEffect(() => { void loadRows(); const h = () => void loadRows(); window.addEventListener("crm-refresh", h); return () => window.removeEventListener("crm-refresh", h); }, [module, title, refreshSignal]);
   return <section className="demo-panel">
     <div className="demo-panel-head"><div><h3>{title}</h3><p>{subtitle}</p></div></div>
     <ErrorBanner message={error} />
     {loading ? <LoadingBlock /> : <div className="crm-table-wrap"><table className="demo-table crm-table clickable"><thead><tr><th>Record</th><th>Customer / Party</th><th>Status</th><th>Date</th><th>Amount</th></tr></thead><tbody>{rows.map((r, index) => <tr key={String(r.name || r.id || index)} onClick={() => setSelected(r)}><td><b>{fmt(r.name || r.id)}</b><small>{fmt(r.title || r.subject || r.contract_name)}</small></td><td>{fmt(r.customer_name || r.customer || r.party_name || r.company_name)}</td><td><StatusBadge status={String(r.status || r.workflow_state || "Draft")} /></td><td>{dateText(String(r.transaction_date || r.posting_date || r.start_date || r.modified || ""))}</td><td>{r.grand_total !== undefined || r.total !== undefined ? money(r.grand_total ?? r.total, r.currency || "ZAR") : "—"}</td></tr>)}</tbody></table>{!rows.length && <EmptyState title={`No ${title.toLowerCase()} yet`} body="Create records from a lead or opportunity using the CRM drawer." />}</div>}
-    {selected && <CrmRecordModal title={title.slice(0, -1) || title} record={selected} onClose={() => setSelected(null)} />}
+    {selected && <CrmRecordModal title={title.slice(0, -1) || title} module={module} record={selected} onClose={() => setSelected(null)} onSaved={() => window.dispatchEvent(new Event("crm-refresh"))} />}
   </section>;
 }
 function ContactsView({ refreshSignal }: { refreshSignal: number }) {
@@ -388,7 +523,7 @@ function ContactsView({ refreshSignal }: { refreshSignal: number }) {
   const [selected, setSelected] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => { setLoading(true); apiFetch("/api/crm/contacts?limit=80").then((j) => setRows(arrayFrom<Contact>(j, ["contacts", "data", "records"]))).finally(() => setLoading(false)); }, [refreshSignal]);
-  return <section className="demo-panel"><div className="demo-panel-head"><div><h3>Contacts</h3><p>People linked to leads, opportunities and customers.</p></div></div>{loading ? <LoadingBlock /> : <div className="crm-card-grid">{rows.map((c) => <button className="crm-person-card" key={c.id || c.name} onClick={() => setSelected(c as Record<string, any>)}><div className="crm-avatar">{(c.name || "?").slice(0, 1)}</div><div><b>{c.name || c.id}</b><span>{fmt(c.company)} · {fmt(c.designation)}</span><small>{fmt(c.email || c.phone)}</small></div></button>)}{!rows.length && <EmptyState title="No contacts" body="Contacts are created directly or during conversion." />}</div>}{selected && <CrmRecordModal title="Contact" record={selected} onClose={() => setSelected(null)} />}</section>;
+  return <section className="demo-panel"><div className="demo-panel-head"><div><h3>Contacts</h3><p>People linked to leads, opportunities and customers.</p></div></div>{loading ? <LoadingBlock /> : <div className="crm-card-grid">{rows.map((c) => <button className="crm-person-card" key={c.id || c.name} onClick={() => setSelected(c as Record<string, any>)}><div className="crm-avatar">{(c.name || "?").slice(0, 1)}</div><div><b>{c.name || c.id}</b><span>{fmt(c.company)} · {fmt(c.designation)}</span><small>{fmt(c.email || c.phone)}</small></div></button>)}{!rows.length && <EmptyState title="No contacts" body="Contacts are created directly or during conversion." />}</div>}{selected && <CrmRecordModal title="Contact" module="contacts" record={selected} onClose={() => setSelected(null)} onSaved={() => window.dispatchEvent(new Event("crm-refresh"))} />}</section>;
 }
 function maxValue(rows: Record<string, any>[]) { return Math.max(1, ...rows.map((r) => Number(r.value || r.total_value || r.weighted_value || 0))); }
 
