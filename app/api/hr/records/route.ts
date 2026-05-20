@@ -108,9 +108,11 @@ export async function GET(req: Request) {
     const group = url.searchParams.get("group") || "overview";
     const doctype = url.searchParams.get("doctype");
     const limit = Number(url.searchParams.get("limit") || 80);
-    const args = tenantArgs({ limit, offset: Number(url.searchParams.get("offset") || 0) }, session);
-    if (url.searchParams.get("employee")) args.employee = url.searchParams.get("employee");
-    if (url.searchParams.get("status")) args.status = url.searchParams.get("status");
+    const args: Record<string, unknown> = tenantArgs({ limit, offset: Number(url.searchParams.get("offset") || 0) }, session);
+    const employee = url.searchParams.get("employee");
+    const status = url.searchParams.get("status");
+    if (employee) args.employee = employee;
+    if (status) args.status = status;
 
     if (doctype) {
       const source = Object.values(GROUPS).flat().find((s) => s.doctype === doctype) || { doctype, key: "records", fields: ["name","modified"], orderBy: "modified desc" };
