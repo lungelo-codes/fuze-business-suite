@@ -255,8 +255,6 @@ function methodCandidates(method: string): string[] {
   const namespaces = Array.from(new Set([
     configured,
     "fuze_suite.api",
-    "business_suite.api",
-    "fuze_saas.api",
   ].filter(Boolean)));
 
   const candidates: string[] = [];
