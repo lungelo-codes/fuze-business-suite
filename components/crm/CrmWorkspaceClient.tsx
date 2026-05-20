@@ -80,19 +80,7 @@ function dealStageName(value?: string) {
   return stage || "Qualification";
 }
 function unwrap<T = any>(json: any, key?: string): T { const data = json?.data ?? json?.message ?? json ?? {}; return (key ? data?.[key] : data) as T; }
-function arrayFrom<T = any>(json: any, keys: string[]): T[] {
-  // If the top-level response IS an array, return it directly.
-  if (Array.isArray(json)) return json as T[];
-  // Unwrap Frappe's message/data envelope.
-  const unwrapped = json?.message ?? json?.data ?? json ?? {};
-  // If the unwrapped value is already an array, return it.
-  if (Array.isArray(unwrapped)) return unwrapped as T[];
-  // Otherwise look for a named key inside the unwrapped object.
-  for (const key of keys) if (Array.isArray(unwrapped?.[key])) return unwrapped[key] as T[];
-  // Last-ditch: check if any of the keys exist directly on the top-level json.
-  for (const key of keys) if (Array.isArray(json?.[key])) return json[key] as T[];
-  return [];
-}
+function arrayFrom<T = any>(json: any, keys: string[]): T[] { const data = json?.data ?? json?.message ?? json ?? {}; for (const key of keys) if (Array.isArray(data?.[key])) return data[key] as T[]; return []; }
 async function apiFetch(url: string, init?: RequestInit) { const res = await fetch(url, init); const json = await res.json().catch(() => ({})); if (!res.ok) throw new Error(json?.error || json?.message || `Request failed (${res.status})`); return json; }
 function fileToBase64(file: File): Promise<{ file_name: string; content: string }> { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve({ file_name: file.name, content: String(reader.result || "") }); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file); }); }
 function StatusBadge({ status }: { status?: string }) { return <span className="crm-status-badge" style={{ ["--s" as string]: statusColor(status) }}>{fmt(status)}</span>; }
@@ -316,15 +304,8 @@ function RevenueDocsView({ module, title, subtitle, refreshSignal }: { module: s
   const [error, setError] = useState("");
   useEffect(() => {
     setLoading(true); setError("");
-    apiFetch(module === "customers" ? "/api/selling/customers?limit=80" : module === "contacts" ? "/api/crm/contacts?limit=80" : `/api/crm/${module}?limit=80`).then((json) => {
-      const MODULE_KEYS: Record<string, string[]> = {
-        customers: ["customers", "data", "records"],
-        contacts: ["contacts", "data", "records"],
-        quotes: ["quotes", "quotations", "data", "records"],
-        "sales-orders": ["sales_orders", "orders", "data", "records"],
-        contracts: ["contracts", "data", "records"],
-      };
-      const data = arrayFrom<Record<string, any>>(json, MODULE_KEYS[module] ?? ["data", "records"]);
+    apiFetch(module === "customers" ? "/api/crm/customers?limit=80" : module === "contacts" ? "/api/crm/contacts?limit=80" : `/api/crm/${module}?limit=80`).then((json) => {
+      const data = arrayFrom<Record<string, any>>(json, ["data", "customers", "quotes", "quotations", "sales_orders", "orders", "contracts"]);
       setRows(data);
     }).catch((e) => setError(e instanceof Error ? e.message : `Could not load ${title.toLowerCase()}.`)).finally(() => setLoading(false));
   }, [module, title, refreshSignal]);
