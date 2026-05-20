@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 type CrmMode = "erpnext" | "frappe_crm";
 type Tab = "Command Center" | "Reports" | "Leads" | "Opportunities" | "Customers" | "Contacts" | "Quotes" | "Sales Orders" | "Contracts" | "Activities" | "Automation" | "Production Readiness";
@@ -67,6 +68,35 @@ function cleanText(value: unknown) {
 }
 function dateText(value?: string) { if (!value) return "—"; const d = new Date(value); return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }); }
 function money(value: unknown, currency = "ZAR") { if (typeof value === "string" && value.match(/[A-Z]{3}|R|\d/)) return value; return new Intl.NumberFormat("en-ZA", { style: "currency", currency, maximumFractionDigits: 0 }).format(Number(value || 0)); }
+
+function downloadBlob(filename: string, content: string, type = "text/csv") {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+function csvEscape(value: unknown) {
+  const raw = String(value ?? "");
+  return /[",\n]/.test(raw) ? `"${raw.replace(/"/g, '""')}"` : raw;
+}
+function exportCsv(filename: string, rows: Record<string, any>[]) {
+  const keys = Array.from(rows.reduce((set, row) => { Object.keys(row || {}).forEach((k) => set.add(k)); return set; }, new Set<string>()));
+  const csv = [keys.join(","), ...rows.map((row) => keys.map((k) => csvEscape(row?.[k])).join(","))].join("\n");
+  downloadBlob(filename, csv || "No data");
+}
+const CHART_COLORS = ["#2563eb", "#14b8a6", "#f97316", "#8b5cf6", "#22c55e", "#ef4444", "#0f172a", "#06b6d4"];
+function chartLabel(row: Record<string, any>) { return String(row.label || row.stage || row.status || row.month || row.name || "Not Set"); }
+function chartValue(row: Record<string, any>) { return Number(row.value ?? row.total_value ?? row.total ?? row.count ?? 0); }
+function ChartTooltip({ active, payload, label, currency, moneyValues }: any) {
+  if (!active || !payload?.length) return null;
+  return <div className="crm-chart-tooltip"><b>{label}</b>{payload.map((p: any, i: number) => <span key={i}>{p.name}: {moneyValues ? money(p.value, currency || "ZAR") : fmt(p.value)}</span>)}</div>;
+}
+
 function statusColor(status?: string) { return STATUS_COLOR[String(status || "").toLowerCase()] || "#64748B"; }
 function statusLabel(s: Status) { return s.label || s.name; }
 function uniqueStatuses(rows: Status[], fallback: Status[]) { const seen = new Set<string>(); return [...rows, ...fallback].filter((s) => s?.name && !seen.has(s.name) && seen.add(s.name)); }
@@ -81,7 +111,19 @@ function dealStageName(value?: string) {
   return stage || "Qualification";
 }
 function unwrap<T = any>(json: any, key?: string): T { const data = json?.data ?? json?.message ?? json ?? {}; return (key ? data?.[key] : data) as T; }
-function arrayFrom<T = any>(json: any, keys: string[]): T[] { const data = json?.data ?? json?.message ?? json ?? {}; for (const key of keys) if (Array.isArray(data?.[key])) return data[key] as T[]; return []; }
+function arrayFrom<T = any>(json: any, keys: string[]): T[] {
+  if (Array.isArray(json)) return json as T[];
+  if (Array.isArray(json?.data)) return json.data as T[];
+  if (Array.isArray(json?.message)) return json.message as T[];
+  if (Array.isArray(json?.records)) return json.records as T[];
+  const data = json?.data ?? json?.message ?? json ?? {};
+  if (Array.isArray(data)) return data as T[];
+  for (const key of keys) {
+    if (Array.isArray(data?.[key])) return data[key] as T[];
+    if (Array.isArray(json?.[key])) return json[key] as T[];
+  }
+  return [];
+}
 async function apiFetch(url: string, init?: RequestInit) { const res = await fetch(url, init); const json = await res.json().catch(() => ({})); if (!res.ok) throw new Error(json?.error || json?.message || `Request failed (${res.status})`); return json; }
 function fileToBase64(file: File): Promise<{ file_name: string; content: string }> { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve({ file_name: file.name, content: String(reader.result || "") }); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file); }); }
 function StatusBadge({ status }: { status?: string }) { return <span className="crm-status-badge" style={{ ["--s" as string]: statusColor(status) }}>{fmt(status)}</span>; }
@@ -320,9 +362,25 @@ function RevenueDocsView({ module, title, subtitle, refreshSignal }: { module: s
 function ContactsView({ refreshSignal }: { refreshSignal: number }) { const [rows, setRows] = useState<Contact[]>([]); const [loading, setLoading] = useState(true); useEffect(() => { apiFetch("/api/crm/contacts?limit=80").then((j) => setRows(arrayFrom<Contact>(j, ["contacts", "data", "records"]))).finally(() => setLoading(false)); }, [refreshSignal]); return <section className="demo-panel"><div className="demo-panel-head"><div><h3>Contacts</h3><p>People linked to leads, opportunities and customers.</p></div></div>{loading ? <LoadingBlock /> : <div className="crm-card-grid">{rows.map((c) => <div className="crm-person-card" key={c.id}><div className="crm-avatar">{(c.name || "?").slice(0, 1)}</div><div><b>{c.name || c.id}</b><span>{fmt(c.company)} · {fmt(c.designation)}</span><small>{fmt(c.email || c.phone)}</small></div></div>)}{!rows.length && <EmptyState title="No contacts" body="Contacts are created directly or during conversion." />}</div>}</section>; }
 
 function maxValue(rows: Record<string, any>[]) { return Math.max(1, ...rows.map((r) => Number(r.value || r.total_value || r.weighted_value || 0))); }
-function ReportBarList({ title, rows, moneyValues = false }: { title: string; rows: Record<string, any>[]; moneyValues?: boolean }) {
-  const max = maxValue(rows);
-  return <section className="demo-panel"><div className="demo-panel-head"><div><h3>{title}</h3><p>Live CRM reporting from tenant records.</p></div></div><div className="crm-report-list">{rows.length ? rows.map((r, i) => { const value = Number(r.value || r.total_value || r.weighted_value || 0); return <div className="crm-report-row" key={String(r.label || r.stage || i)}><div><b>{fmt(r.label || r.stage || "Not Set")}</b><span>{r.count ? `${r.count} record(s)` : ""}</span></div><div className="crm-report-meter"><span style={{ width: `${Math.max(6, Math.round((value / max) * 100))}%` }} /></div><strong>{moneyValues ? money(value) : value}</strong></div>; }) : <EmptyState title={`No ${title.toLowerCase()} data yet`} body="Create CRM records to populate this report." />}</div></section>;
+
+function MetricCard({ label, value, hint }: { label: string; value: ReactNode; hint: string }) {
+  return <div className="crm-report-metric"><span>{label}</span><b>{value}</b><small>{hint}</small></div>;
+}
+function ModernChartCard({ title, subtitle, rows, type = "bar", currency = "ZAR", moneyValues = false, exportName }: { title: string; subtitle: string; rows: Record<string, any>[]; type?: "bar" | "area" | "pie" | "combo"; currency?: string; moneyValues?: boolean; exportName: string }) {
+  const data = (rows || []).map((row) => ({ ...row, label: chartLabel(row), value: chartValue(row), weighted_value: Number(row.weighted_value || 0), count: Number(row.count || row.value || 0) }));
+  const total = data.reduce((sum, r) => sum + Number(r.value || 0), 0);
+  return <section className="crm-chart-card">
+    <div className="crm-chart-head"><div><h3>{title}</h3><p>{subtitle}</p></div><button className="btn btn-small" onClick={() => exportCsv(`${exportName}.csv`, data)}>Export</button></div>
+    <div className="crm-chart-body">
+      {!data.length ? <EmptyState title="No report data yet" body="Create CRM records and this chart will update automatically." /> : <ResponsiveContainer width="100%" height={300}>
+        {type === "pie" ? <PieChart><Tooltip content={<ChartTooltip currency={currency} moneyValues={moneyValues} />} /><Pie data={data} dataKey="value" nameKey="label" innerRadius={70} outerRadius={105} paddingAngle={3}>{data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}</Pie><Legend /></PieChart>
+        : type === "area" ? <AreaChart data={data}><defs><linearGradient id={`${exportName}-fill`} x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.35}/><stop offset="95%" stopColor="#2563eb" stopOpacity={0.02}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip content={<ChartTooltip currency={currency} moneyValues={moneyValues} />} /><Area type="monotone" dataKey="value" name={moneyValues ? "Value" : "Count"} stroke="#2563eb" fill={`url(#${exportName}-fill)`} strokeWidth={3} /></AreaChart>
+        : type === "combo" ? <ComposedChart data={data}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip content={<ChartTooltip currency={currency} moneyValues />} /><Legend /><Bar dataKey="value" name="Pipeline value" radius={[8,8,0,0]} fill="#2563eb" /><Line type="monotone" dataKey="weighted_value" name="Weighted forecast" stroke="#14b8a6" strokeWidth={3} /></ComposedChart>
+        : <BarChart data={data}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip content={<ChartTooltip currency={currency} moneyValues={moneyValues} />} /><Bar dataKey="value" name={moneyValues ? "Value" : "Count"} radius={[8,8,0,0]}>{data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}</Bar></BarChart>}
+      </ResponsiveContainer>}
+    </div>
+    <div className="crm-chart-total"><span>Total</span><b>{moneyValues ? money(total, currency) : total}</b></div>
+  </section>;
 }
 function CrmReportsView() {
   const [data, setData] = useState<Record<string, any> | null>(null);
@@ -331,10 +389,18 @@ function CrmReportsView() {
   useEffect(() => { setLoading(true); apiFetch("/api/crm/reports").then((json) => setData(unwrap<Record<string, any>>(json))).catch((e) => setError(e instanceof Error ? e.message : "Could not load CRM reports")).finally(() => setLoading(false)); }, []);
   const cards = data?.cards || {};
   const pipeline = (data?.pipeline || []) as Record<string, any>[];
+  const currency = data?.currency || "ZAR";
   const weighted = pipeline.reduce((sum, r) => sum + Number(r.weighted_value || 0), 0);
   const totalPipeline = pipeline.reduce((sum, r) => sum + Number(r.value || r.total_value || 0), 0);
+  const exportAll = () => exportCsv("crm-report-summary.csv", [cards, ...pipeline.map((r) => ({ section: "pipeline", ...r })), ...((data?.lead_status || []) as Record<string, any>[]).map((r) => ({ section: "lead_status", ...r }))]);
   if (loading) return <LoadingBlock />;
-  return <div className="crm-command crm-reports"><ErrorBanner message={error} /><div className="crm-stat-grid"><div className="crm-stat-card"><span>Leads</span><b>{cards.leads || 0}</b><small>Lead database</small></div><div className="crm-stat-card"><span>Opportunities</span><b>{cards.opportunities || 0}</b><small>Active pipeline</small></div><div className="crm-stat-card"><span>Customers</span><b>{cards.customers || 0}</b><small>Accounts</small></div><div className="crm-stat-card"><span>Contacts</span><b>{cards.contacts || 0}</b><small>People</small></div><div className="crm-stat-card"><span>Pipeline Value</span><b>{money(totalPipeline, data?.currency || "ZAR")}</b><small>Total opportunity value</small></div><div className="crm-stat-card"><span>Forecast</span><b>{money(weighted, data?.currency || "ZAR")}</b><small>Probability weighted</small></div></div><div className="crm-split-grid"><ReportBarList title="Lead funnel by status" rows={(data?.lead_status || []) as Record<string, any>[]} /><ReportBarList title="Pipeline value by stage" rows={pipeline.map((r) => ({ ...r, value: r.value || r.total_value }))} moneyValues /></div><div className="crm-split-grid"><ReportBarList title="Quotes by status" rows={(data?.quotes_by_status || []) as Record<string, any>[]} /><ReportBarList title="Contracts by status" rows={(data?.contracts_by_status || []) as Record<string, any>[]} /></div><div className="crm-split-grid"><ReportBarList title="Monthly quote value" rows={(data?.monthly_quotes || []) as Record<string, any>[]} moneyValues /><ReportBarList title="Monthly sales order value" rows={(data?.monthly_sales_orders || []) as Record<string, any>[]} moneyValues /></div></div>;
+  return <div className="crm-reports-modern"><ErrorBanner message={error} />
+    <section className="crm-report-hero"><div><span className="demo-eyebrow">Sales intelligence</span><h2>CRM Reports & Forecasting</h2><p>Interactive sales reports for pipeline health, lead conversion, revenue forecast, contracts and customer growth.</p></div><button className="btn btn-primary" onClick={exportAll}>Export Full Report</button></section>
+    <div className="crm-report-metrics"><MetricCard label="Leads" value={cards.leads || 0} hint="Total prospects" /><MetricCard label="Opportunities" value={cards.opportunities || 0} hint="Pipeline records" /><MetricCard label="Customers" value={cards.customers || 0} hint="Active accounts" /><MetricCard label="Contacts" value={cards.contacts || 0} hint="People in CRM" /><MetricCard label="Pipeline" value={money(totalPipeline, currency)} hint="Open value" /><MetricCard label="Forecast" value={money(weighted, currency)} hint="Weighted value" /></div>
+    <div className="crm-chart-grid featured"><ModernChartCard title="Pipeline value by stage" subtitle="Compare total opportunity value against weighted forecast." rows={pipeline.map((r) => ({ ...r, value: r.value || r.total_value }))} type="combo" moneyValues currency={currency} exportName="crm-pipeline-value" /><ModernChartCard title="Lead funnel" subtitle="Where prospects sit before conversion." rows={(data?.lead_status || []) as Record<string, any>[]} type="pie" exportName="crm-lead-funnel" /></div>
+    <div className="crm-chart-grid"><ModernChartCard title="Quote value trend" subtitle="Monthly quotation value created by the sales team." rows={(data?.monthly_quotes || []) as Record<string, any>[]} type="area" moneyValues currency={currency} exportName="crm-monthly-quotes" /><ModernChartCard title="Sales order trend" subtitle="Confirmed sales order value by month." rows={(data?.monthly_sales_orders || []) as Record<string, any>[]} type="area" moneyValues currency={currency} exportName="crm-monthly-sales-orders" /></div>
+    <div className="crm-chart-grid three"><ModernChartCard title="Lead sources" subtitle="Which channels generate demand." rows={(data?.lead_source || []) as Record<string, any>[]} exportName="crm-lead-sources" /><ModernChartCard title="Quotes by status" subtitle="Draft, open and converted quotation status." rows={(data?.quotes_by_status || []) as Record<string, any>[]} exportName="crm-quotes-status" /><ModernChartCard title="Contracts by status" subtitle="Agreement status and renewals visibility." rows={(data?.contracts_by_status || []) as Record<string, any>[]} exportName="crm-contracts-status" /></div>
+  </div>;
 }
 
 function ActivitiesView() {
