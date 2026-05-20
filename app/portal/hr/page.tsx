@@ -8,7 +8,7 @@ async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
 }
 
 export default async function HRPage({ searchParams }: { searchParams?: { tab?: string } }) {
-  const [employees, attendance, leave, payroll, dashRaw] = await Promise.all([
+  const [employees, attendance, leave, payroll, expenses, recruitment, appraisals, dashRaw] = await Promise.all([
     safe(() => erpList<Row>("Employee", {
       fields: ["name","employee_name","first_name","last_name","department","designation",
                "status","company_email","cell_number","date_of_joining","modified"],
@@ -29,6 +29,19 @@ export default async function HRPage({ searchParams }: { searchParams?: { tab?: 
                "net_pay","total_deduction","status","docstatus","payroll_frequency","modified"],
       limit: 100, orderBy: "modified desc",
     }), []),
+    safe(() => erpList<Row>("Expense Claim", {
+      fields: ["name","employee","employee_name","posting_date","total_claimed_amount",
+               "total_sanctioned_amount","approval_status","status","docstatus","modified"],
+      limit: 100, orderBy: "modified desc",
+    }), []),
+    safe(() => erpList<Row>("Job Opening", {
+      fields: ["name","job_title","department","designation","status","modified"],
+      limit: 100, orderBy: "modified desc",
+    }), []),
+    safe(() => erpList<Row>("Appraisal", {
+      fields: ["name","employee","employee_name","appraisal_template","status","docstatus","modified"],
+      limit: 100, orderBy: "modified desc",
+    }), []),
     safe(() => erpMethod<Record<string, unknown>>("hr.get_dashboard", {}), null),
   ]);
 
@@ -43,6 +56,9 @@ export default async function HRPage({ searchParams }: { searchParams?: { tab?: 
   // payroll_total: compute from actual salary slips (gross_pay numbers)
   // because hr.get_dashboard returns monthly_payroll as a money string like "R 12,500"
   const payrollArr = Array.isArray(payroll) ? payroll : [];
+  const expensesArr = Array.isArray(expenses) ? expenses : [];
+  const recruitmentArr = Array.isArray(recruitment) ? recruitment : [];
+  const appraisalsArr = Array.isArray(appraisals) ? appraisals : [];
   const payrollTotal = payrollArr.reduce((s: number, p: Row) => s + Number(p.net_pay || 0), 0);
 
   const dashMetrics = {
@@ -53,6 +69,9 @@ export default async function HRPage({ searchParams }: { searchParams?: { tab?: 
     pending_leave: typeof cards.pending_leave === "number" ? cards.pending_leave : undefined,
     payroll_total: payrollTotal,
     departments: depts,
+    pending_expenses: expensesArr.filter((e: Row) => !String(e.approval_status || e.status || "").toLowerCase().includes("approved")).length,
+    open_jobs: recruitmentArr.filter((j: Row) => !String(j.status || "").toLowerCase().includes("closed")).length,
+    appraisals: appraisalsArr.length,
   };
 
   return (
@@ -62,6 +81,9 @@ export default async function HRPage({ searchParams }: { searchParams?: { tab?: 
       initialAttendance={Array.isArray(attendance) ? attendance : []}
       initialLeave={Array.isArray(leave) ? leave : []}
       initialPayroll={payrollArr}
+      initialExpenses={expensesArr}
+      initialRecruitment={recruitmentArr}
+      initialAppraisals={appraisalsArr}
       dashMetrics={dashMetrics}
     />
   );

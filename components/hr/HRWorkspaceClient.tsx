@@ -110,21 +110,27 @@ const tt = {
 };
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
-type HrTab = "overview" | "employees" | "attendance" | "leave" | "payroll";
+type HrTab = "overview" | "employees" | "attendance" | "leave" | "payroll" | "expenses" | "recruitment" | "performance";
 const TABS: { id: HrTab; label: string; description: string }[] = [
   { id: "overview", label: "Overview", description: "People command centre" },
   { id: "employees", label: "Employees", description: "Employee profiles and departments" },
   { id: "attendance", label: "Attendance", description: "Daily attendance and working hours" },
   { id: "leave", label: "Leave", description: "Leave requests and approvals" },
   { id: "payroll", label: "Payroll", description: "Salary slips and payroll totals" },
+  { id: "expenses", label: "Expenses", description: "Employee expense claims and approvals" },
+  { id: "recruitment", label: "Recruitment", description: "Job openings and hiring pipeline" },
+  { id: "performance", label: "Performance", description: "Appraisals and employee reviews" },
 ];
-function normalizeTab(value?: string | null): HrTab { const v = String(value || "").toLowerCase(); return ["employees","attendance","leave","payroll"].includes(v) ? v as HrTab : "overview"; }
+function normalizeTab(value?: string | null): HrTab { const v = String(value || "").toLowerCase(); return ["employees","attendance","leave","payroll","expenses","recruitment","performance"].includes(v) ? v as HrTab : "overview"; }
 
 interface Props {
   initialEmployees: Row[];
   initialAttendance: Row[];
   initialLeave: Row[];
   initialPayroll: Row[];
+  initialExpenses: Row[];
+  initialRecruitment: Row[];
+  initialAppraisals: Row[];
   initialTab?: string;
   dashMetrics: {
     active_employees?: number;
@@ -132,19 +138,25 @@ interface Props {
     pending_leave?: number;
     payroll_total?: number | string;
     departments?: { department: string; count: number }[];
+    pending_expenses?: number;
+    open_jobs?: number;
+    appraisals?: number;
   };
 }
 
-export default function HRWorkspaceClient({ initialTab, initialEmployees, initialAttendance, initialLeave, initialPayroll, dashMetrics }: Props) {
+export default function HRWorkspaceClient({ initialTab, initialEmployees, initialAttendance, initialLeave, initialPayroll, initialExpenses, initialRecruitment, initialAppraisals, dashMetrics }: Props) {
   const params = useSearchParams();
   const [tab, setTab] = useState<HrTab>(() => normalizeTab(initialTab || params.get("tab")));
   const [employees, setEmployees] = useState<Row[]>(initialEmployees);
   const [attendance, setAttendance] = useState<Row[]>(initialAttendance);
   const [leave, setLeave] = useState<Row[]>(initialLeave);
   const [payroll, setPayroll] = useState<Row[]>(initialPayroll);
+  const [expenses, setExpenses] = useState<Row[]>(initialExpenses);
+  const [recruitment, setRecruitment] = useState<Row[]>(initialRecruitment);
+  const [appraisals, setAppraisals] = useState<Row[]>(initialAppraisals);
 
   const [query, setQuery] = useState("");
-  const [modal, setModal] = useState<null | "employee" | "attendance" | "leave" | "payroll">(null);
+  const [modal, setModal] = useState<null | "employee" | "attendance" | "leave" | "payroll" | "expense" | "job" | "appraisal">(null);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
@@ -154,6 +166,9 @@ export default function HRWorkspaceClient({ initialTab, initialEmployees, initia
   const presentToday = dashMetrics.present_today ?? attendance.filter((a) => String(a.status || "").toLowerCase() === "present").length;
   const pendingLeave = dashMetrics.pending_leave ?? leave.filter((l) => String(l.status || "").toLowerCase() === "open").length;
   const payrollTotal = dashMetrics.payroll_total ?? payroll.reduce((s, p) => s + Number(p.net_pay || 0), 0);
+  const pendingExpenses = dashMetrics.pending_expenses ?? expenses.filter((e) => !String(e.approval_status || e.status || "").toLowerCase().includes("approved")).length;
+  const openJobs = dashMetrics.open_jobs ?? recruitment.filter((j) => !String(j.status || "").toLowerCase().includes("closed")).length;
+  const appraisalCount = dashMetrics.appraisals ?? appraisals.length;
 
   // ── Charts: department breakdown ───────────────────────────────────────────
   const deptData = useMemo(() => {
@@ -203,6 +218,9 @@ export default function HRWorkspaceClient({ initialTab, initialEmployees, initia
         attendance: "/api/hr/attendance",
         leave: "/api/hr/leave-requests",
         payroll: "/api/hr/payroll",
+        expenses: "/api/hr/expenses",
+        recruitment: "/api/hr/recruitment",
+        performance: "/api/hr/appraisals",
       };
       const route = routeMap[module];
       if (!route) throw new Error(`No SaaS API route configured for ${module}`);
@@ -232,6 +250,9 @@ export default function HRWorkspaceClient({ initialTab, initialEmployees, initia
         attendance: "/api/hr/attendance",
         leave: "/api/hr/leave-requests",
         payroll: "/api/hr/payroll",
+        expenses: "/api/hr/expenses",
+        recruitment: "/api/hr/recruitment",
+        performance: "/api/hr/appraisals",
       };
       const route = routeMap[module];
       if (!route) throw new Error(`No SaaS API route configured for ${module}`);
@@ -281,6 +302,9 @@ export default function HRWorkspaceClient({ initialTab, initialEmployees, initia
           <KPI label="Present Today" value={presentToday} hint="Attendance today" color="navy" />
           <KPI label="Pending Leave" value={pendingLeave} hint="Awaiting approval" color="warn" />
           <KPI label="Payroll (MTD)" value={typeof payrollTotal === "number" ? money(payrollTotal) : String(payrollTotal)} hint="Net pay this month" color="blue" />
+          <KPI label="Expense Claims" value={pendingExpenses} hint="Awaiting approval" color="warn" />
+          <KPI label="Open Jobs" value={openJobs} hint="Recruitment pipeline" color="navy" />
+          <KPI label="Appraisals" value={appraisalCount} hint="Performance reviews" color="teal" />
         </div>
 
         {/* Charts Row */}
@@ -344,6 +368,9 @@ export default function HRWorkspaceClient({ initialTab, initialEmployees, initia
                 { label: "Mark Attendance", desc: "Record employee attendance", action: () => setModal("attendance") },
                 { label: "Submit Leave Request", desc: "Apply for leave on behalf", action: () => setModal("leave") },
                 { label: "Process Payroll", desc: "Generate salary slips", action: () => setModal("payroll") },
+                { label: "Expense Claim", desc: "Record employee reimbursement", action: () => setModal("expense") },
+                { label: "Job Opening", desc: "Open a recruitment position", action: () => setModal("job") },
+                { label: "Performance Review", desc: "Capture an appraisal", action: () => setModal("appraisal") },
                 { label: "View All Employees", desc: "Browse headcount", action: () => { setTab("employees"); history.replaceState(null, "", "/portal/hr?tab=employees"); } },
                 { label: "Approve Pending Leave", desc: "Review open leave requests", action: () => { setTab("leave"); history.replaceState(null, "", "/portal/hr?tab=leave"); } },
               ].map((a) => (
@@ -473,6 +500,83 @@ export default function HRWorkspaceClient({ initialTab, initialEmployees, initia
     );
   }
 
+  // ── Expenses tab ──────────────────────────────────────────────────────────
+  function ExpensesTab() {
+    const totalClaimed = expenses.reduce((s, e) => s + Number(e.total_claimed_amount || 0), 0);
+    const totalApproved = expenses.reduce((s, e) => s + Number(e.total_sanctioned_amount || 0), 0);
+    return (
+      <>
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:14,marginBottom:16 }}>
+          <KPI label="Expense Claims" value={expenses.length} hint="Employee reimbursements" color="navy" />
+          <KPI label="Pending Approval" value={pendingExpenses} hint="Needs manager action" color="warn" />
+          <KPI label="Claimed Total" value={money(totalClaimed)} hint="Requested amount" color="blue" />
+          <KPI label="Approved Total" value={money(totalApproved)} hint="Sanctioned amount" color="teal" />
+        </div>
+        <div className="demo-panel">
+          <div className="demo-panel-head">
+            <div><h3>Expense Claims <span style={{ fontSize:12,fontWeight:600,color:"var(--muted)" }}>({expenses.length})</span></h3><p>Claim, approve, reject and submit employee expenses.</p></div>
+            <div style={{ display:"flex",gap:8 }}>
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" style={{ padding:"8px 12px",border:"1px solid var(--line)",borderRadius:9,fontSize:13 }} />
+              <button type="button" className="btn btn-teal" onClick={() => setModal("expense")}>+ Expense Claim</button>
+              <button type="button" className="btn" onClick={() => refresh("expenses", setExpenses)}>↺</button>
+            </div>
+          </div>
+          <Table rows={expenses} cols={[
+            { key:"employee_name", label:"Employee" },
+            { key:"posting_date", label:"Date" },
+            { key:"total_claimed_amount", label:"Claimed", money:true },
+            { key:"total_sanctioned_amount", label:"Approved", money:true },
+            { key:"approval_status", label:"Approval" },
+          ]} />
+        </div>
+      </>
+    );
+  }
+
+  // ── Recruitment tab ───────────────────────────────────────────────────────
+  function RecruitmentTab() {
+    return (
+      <div className="demo-panel">
+        <div className="demo-panel-head">
+          <div><h3>Recruitment <span style={{ fontSize:12,fontWeight:600,color:"var(--muted)" }}>({recruitment.length})</span></h3><p>Job openings and hiring pipeline.</p></div>
+          <div style={{ display:"flex",gap:8 }}>
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search jobs…" style={{ padding:"8px 12px",border:"1px solid var(--line)",borderRadius:9,fontSize:13 }} />
+            <button type="button" className="btn btn-teal" onClick={() => setModal("job")}>+ Job Opening</button>
+            <button type="button" className="btn" onClick={() => refresh("recruitment", setRecruitment)}>↺</button>
+          </div>
+        </div>
+        <Table rows={recruitment} cols={[
+          { key:"job_title", label:"Job Title" },
+          { key:"department", label:"Department" },
+          { key:"designation", label:"Designation" },
+          { key:"modified", label:"Updated" },
+        ]} />
+      </div>
+    );
+  }
+
+  // ── Performance tab ───────────────────────────────────────────────────────
+  function PerformanceTab() {
+    return (
+      <div className="demo-panel">
+        <div className="demo-panel-head">
+          <div><h3>Performance Reviews <span style={{ fontSize:12,fontWeight:600,color:"var(--muted)" }}>({appraisals.length})</span></h3><p>Appraisals, reviews and employee performance tracking.</p></div>
+          <div style={{ display:"flex",gap:8 }}>
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search appraisals…" style={{ padding:"8px 12px",border:"1px solid var(--line)",borderRadius:9,fontSize:13 }} />
+            <button type="button" className="btn btn-teal" onClick={() => setModal("appraisal")}>+ Appraisal</button>
+            <button type="button" className="btn" onClick={() => refresh("performance", setAppraisals)}>↺</button>
+          </div>
+        </div>
+        <Table rows={appraisals} cols={[
+          { key:"employee_name", label:"Employee" },
+          { key:"employee", label:"Employee ID" },
+          { key:"appraisal_template", label:"Template" },
+          { key:"modified", label:"Updated" },
+        ]} />
+      </div>
+    );
+  }
+
   // ── Payroll tab ───────────────────────────────────────────────────────────
   function PayrollTab() {
     const totalGross = payroll.reduce((s, p) => s + Number(p.gross_pay || 0), 0);
@@ -567,6 +671,39 @@ export default function HRWorkspaceClient({ initialTab, initialEmployees, initia
       ],
       onSuccess: (r) => setLeave((p) => [r, ...p]),
     },
+    expense: {
+      title: "New Expense Claim",
+      module: "expenses",
+      fields: [
+        { name:"employee", label:"Employee ID", required:true },
+        { name:"posting_date", label:"Posting Date", type:"date", required:true },
+        { name:"total_claimed_amount", label:"Claimed Amount", type:"number" },
+        { name:"approval_status", label:"Approval Status", options:["Draft","Approved","Rejected"] },
+        { name:"remark", label:"Remark", type:"textarea" },
+      ],
+      onSuccess: (r) => setExpenses((p) => [r, ...p]),
+    },
+    job: {
+      title: "New Job Opening",
+      module: "recruitment",
+      fields: [
+        { name:"job_title", label:"Job Title", required:true },
+        { name:"department", label:"Department" },
+        { name:"designation", label:"Designation" },
+        { name:"status", label:"Status", options:["Open","Closed"] },
+      ],
+      onSuccess: (r) => setRecruitment((p) => [r, ...p]),
+    },
+    appraisal: {
+      title: "New Appraisal",
+      module: "performance",
+      fields: [
+        { name:"employee", label:"Employee ID", required:true },
+        { name:"appraisal_template", label:"Appraisal Template" },
+        { name:"status", label:"Status", options:["Draft","Submitted","Completed","Cancelled"] },
+      ],
+      onSuccess: (r) => setAppraisals((p) => [r, ...p]),
+    },
     payroll: {
       title: "Create Salary Slip",
       module: "payroll",  // → /api/hr/payroll
@@ -596,6 +733,7 @@ export default function HRWorkspaceClient({ initialTab, initialEmployees, initia
           <button type="button" className="btn btn-teal" onClick={() => setModal("employee")}>+ Add Employee</button>
           <button type="button" className="btn" onClick={() => setModal("leave")}>+ Leave Request</button>
           <button type="button" className="btn" onClick={() => setModal("attendance")}>+ Attendance</button>
+          <button type="button" className="btn" onClick={() => setModal("expense")}>+ Expense</button>
         </div>
       </section>
 
@@ -609,7 +747,7 @@ export default function HRWorkspaceClient({ initialTab, initialEmployees, initia
       {/* Dashboard switcher */}
       <section className="demo-tabbar">
         {TABS.map((t) => {
-          const count = t.id === "employees" ? employees.length : t.id === "attendance" ? attendance.length : t.id === "leave" ? leave.length : t.id === "payroll" ? payroll.length : 0;
+          const count = t.id === "employees" ? employees.length : t.id === "attendance" ? attendance.length : t.id === "leave" ? leave.length : t.id === "payroll" ? payroll.length : t.id === "expenses" ? expenses.length : t.id === "recruitment" ? recruitment.length : t.id === "performance" ? appraisals.length : 0;
           return (
             <button key={t.id} type="button" onClick={() => { setTab(t.id); setQuery(""); history.replaceState(null, "", t.id === "overview" ? "/portal/hr" : `/portal/hr?tab=${t.id}`); }} className={tab === t.id ? "active" : ""}>
               {t.label}{count ? ` (${count})` : ""}
@@ -624,6 +762,9 @@ export default function HRWorkspaceClient({ initialTab, initialEmployees, initia
       {tab === "attendance" && <AttendanceTab />}
       {tab === "leave" && <LeaveTab />}
       {tab === "payroll" && <PayrollTab />}
+      {tab === "expenses" && <ExpensesTab />}
+      {tab === "recruitment" && <RecruitmentTab />}
+      {tab === "performance" && <PerformanceTab />}
 
       {/* Modal */}
       {currentModal && (

@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { erpMethod } from "@/lib/server/erpnext";
+import { erpList, erpMethod } from "@/lib/server/erpnext";
+import { requireSaaSUser, safeJsonError, tenantArgs } from "@/lib/server/apiGuard";
 
+type Row = Record<string, unknown>;
 type Any = Record<string, any>;
 
-async function safe<T = Any>(method: string, args: Any = {}, fallback: T): Promise<T> {
+async function safeMethod<T = Any>(method: string, args: Any = {}, fallback: T): Promise<T> {
   try {
     const res = await erpMethod<any>(method, args);
     return ((res as any)?.data ?? res ?? fallback) as T;
@@ -12,71 +14,131 @@ async function safe<T = Any>(method: string, args: Any = {}, fallback: T): Promi
   }
 }
 
-export async function GET(req: Request) {
-  const params = new URL(req.url).searchParams;
-  const company = params.get("company") || undefined;
-  const base = company ? { company } : {};
+async function list(doctype: string, fields: string[], limit = 25) {
+  return erpList<Row>(doctype, { fields, limit, orderBy: "modified desc" }).catch(() => []);
+}
 
-  const [procurement, projects, quality, data, finance, suppliers, materialRequests, rfqs, supplierQuotes, purchaseOrders, receipts, purchaseInvoices, supplierPayments, projectRows, taskRows, timesheets, expenses, profitability, qualityGoals, inspections, nonConformances, supplierQuality, qualityMeetings, qualityReviews, qualityActions, dataImports] = await Promise.all([
-    safe("procurement.get_dashboard", base, {}),
-    safe("projects.get_dashboard", base, {}),
-    safe("quality.get_dashboard", base, {}),
-    safe("data_management.get_dashboard", {}, {}),
-    safe("accounting.get_dashboard", base, {}),
-    safe("buying.get_suppliers", { limit: 25 }, { suppliers: [] }),
-    safe("buying.get_material_requests", { ...base, limit: 25 }, { material_requests: [] }),
-    safe("buying.get_rfqs", { ...base, limit: 25 }, { rfqs: [] }),
-    safe("buying.get_supplier_quotations", { ...base, limit: 25 }, { supplier_quotations: [] }),
-    safe("buying.get_purchase_orders", { ...base, limit: 25 }, { purchase_orders: [] }),
-    safe("buying.get_purchase_receipts", { ...base, limit: 25 }, { receipts: [] }),
-    safe("buying.get_purchase_invoices", { ...base, limit: 25 }, { purchase_invoices: [] }),
-    safe("buying.get_supplier_payments", { ...base, limit: 25 }, { payments: [] }),
-    safe("projects.get_projects", { ...base, limit: 25 }, { projects: [] }),
-    safe("projects.get_tasks", { limit: 25 }, { tasks: [] }),
-    safe("projects.get_timesheets", { ...base, limit: 25 }, { timesheets: [] }),
-    safe("projects.get_project_expenses", { ...base, limit: 25 }, { expenses: [] }),
-    safe("projects.get_project_profitability", base, { projects: [], totals: {} }),
-    safe("quality.get_quality_goals", { ...base, limit: 25 }, { quality_goals: [] }),
-    safe("quality.get_quality_inspections", { ...base, limit: 25 }, { inspections: [] }),
-    safe("quality.get_non_conformances", { ...base, limit: 25 }, { non_conformances: [] }),
-    safe("quality.get_supplier_quality", { ...base, limit: 25 }, { supplier_quality: [] }),
-    safe("quality.get_quality_meetings", { ...base, limit: 25 }, { quality_meetings: [] }),
-    safe("quality.get_quality_reviews", { ...base, limit: 25 }, { quality_reviews: [] }),
-    safe("quality.get_quality_actions", { ...base, limit: 25 }, { quality_actions: [] }),
-    safe("data_management.get_data_imports", { limit: 25 }, { data_imports: [] }),
-  ]);
+function moneyTotal(rows: Row[], field: string) {
+  return rows.reduce((sum, row) => sum + Number(row[field] || 0), 0);
+}
 
-  return NextResponse.json({
-    success: true,
-    data: {
-      dashboards: { procurement, projects, quality, data, finance },
-      procurement: {
-        suppliers: (suppliers as Any).suppliers || [],
-        material_requests: (materialRequests as Any).material_requests || [],
-        rfqs: (rfqs as Any).rfqs || [],
-        supplier_quotations: (supplierQuotes as Any).supplier_quotations || [],
-        purchase_orders: (purchaseOrders as Any).purchase_orders || [],
-        receipts: (receipts as Any).receipts || [],
-        purchase_invoices: (purchaseInvoices as Any).purchase_invoices || [],
-        supplier_payments: (supplierPayments as Any).payments || (supplierPayments as Any).supplier_payments || [],
+export async function GET() {
+  try {
+    const session = requireSaaSUser();
+    const base = tenantArgs({}, session);
+
+    const [
+      procurementDashboard,
+      projectsDashboard,
+      qualityDashboard,
+      dataDashboard,
+      financeDashboard,
+      suppliers,
+      materialRequests,
+      rfqs,
+      supplierQuotes,
+      purchaseOrders,
+      receipts,
+      purchaseInvoices,
+      supplierPayments,
+      projectRows,
+      taskRows,
+      timesheets,
+      expenses,
+      qualityGoals,
+      inspections,
+      nonConformances,
+      supplierQuality,
+      qualityMeetings,
+      qualityReviews,
+      qualityActions,
+      dataImports,
+    ] = await Promise.all([
+      safeMethod("procurement.get_dashboard", base, {}),
+      safeMethod("projects.get_dashboard", base, {}),
+      safeMethod("quality.get_dashboard", base, {}),
+      safeMethod("data_management.get_dashboard", base, {}),
+      safeMethod("accounting.get_dashboard", base, {}),
+      list("Supplier", ["name", "supplier_name", "supplier_group", "country", "disabled", "modified"]),
+      list("Material Request", ["name", "material_request_type", "schedule_date", "status", "docstatus", "modified"]),
+      list("Request for Quotation", ["name", "transaction_date", "status", "docstatus", "modified"]),
+      list("Supplier Quotation", ["name", "supplier", "supplier_name", "transaction_date", "grand_total", "status", "docstatus", "modified"]),
+      list("Purchase Order", ["name", "supplier", "supplier_name", "transaction_date", "schedule_date", "grand_total", "status", "docstatus", "modified"]),
+      list("Purchase Receipt", ["name", "supplier", "supplier_name", "posting_date", "status", "docstatus", "modified"]),
+      list("Purchase Invoice", ["name", "supplier", "supplier_name", "posting_date", "grand_total", "outstanding_amount", "status", "docstatus", "modified"]),
+      list("Payment Entry", ["name", "party_type", "party", "posting_date", "paid_amount", "payment_type", "status", "docstatus", "modified"]),
+      list("Project", ["name", "project_name", "customer", "status", "percent_complete", "expected_end_date", "total_costing_amount", "total_billable_amount", "total_billed_amount", "modified"]),
+      list("Task", ["name", "subject", "project", "status", "priority", "exp_start_date", "exp_end_date", "progress", "modified"]),
+      list("Timesheet", ["name", "employee", "employee_name", "start_date", "end_date", "total_hours", "total_billable_amount", "total_costing_amount", "status", "docstatus", "modified"]),
+      list("Expense Claim", ["name", "employee", "employee_name", "posting_date", "total_claimed_amount", "total_sanctioned_amount", "approval_status", "status", "docstatus", "modified"]),
+      list("Quality Goal", ["name", "goal", "status", "modified"]),
+      list("Quality Inspection", ["name", "inspection_type", "reference_type", "reference_name", "item_code", "sample_size", "status", "docstatus", "modified"]),
+      list("Non Conformance", ["name", "subject", "quality_procedure", "supplier", "status", "modified"]),
+      list("Supplier Scorecard", ["name", "supplier", "status", "modified"]),
+      list("Quality Meeting", ["name", "meeting_date", "status", "modified"]),
+      list("Quality Review", ["name", "reviewed_by", "status", "modified"]),
+      list("Quality Action", ["name", "action", "type", "status", "modified"]),
+      list("Data Import", ["name", "reference_doctype", "import_type", "status", "percent_complete", "modified"]),
+    ]);
+
+    const procurement = {
+      suppliers,
+      material_requests: materialRequests,
+      rfqs,
+      supplier_quotations: supplierQuotes,
+      purchase_orders: purchaseOrders,
+      receipts,
+      purchase_invoices: purchaseInvoices,
+      supplier_payments: supplierPayments,
+    };
+    const projects = {
+      projects: projectRows,
+      tasks: taskRows,
+      timesheets,
+      expenses,
+      profitability: {
+        projects: projectRows.map((p) => ({
+          project: p.project_name || p.name,
+          customer: p.customer,
+          billed: Number(p.total_billed_amount || 0),
+          billable: Number(p.total_billable_amount || 0),
+          cost: Number(p.total_costing_amount || 0),
+          profit: Number(p.total_billed_amount || 0) - Number(p.total_costing_amount || 0),
+        })),
+        totals: {
+          billable: moneyTotal(projectRows, "total_billable_amount") || moneyTotal(timesheets, "total_billable_amount"),
+          costing: moneyTotal(projectRows, "total_costing_amount") || moneyTotal(timesheets, "total_costing_amount") + moneyTotal(expenses, "total_sanctioned_amount"),
+          billed: moneyTotal(projectRows, "total_billed_amount"),
+        },
       },
-      projects: {
-        projects: (projectRows as Any).projects || [],
-        tasks: (taskRows as Any).tasks || [],
-        timesheets: (timesheets as Any).timesheets || [],
-        expenses: (expenses as Any).expenses || [],
-        profitability,
+    };
+    const quality = {
+      goals: qualityGoals,
+      inspections,
+      non_conformances: nonConformances,
+      supplier_quality: supplierQuality,
+      meetings: qualityMeetings,
+      reviews: qualityReviews,
+      actions: qualityActions,
+    };
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        dashboards: {
+          procurement: Object.keys(procurementDashboard as Any).length ? procurementDashboard : { cards: { suppliers: suppliers.length, material_requests: materialRequests.length, purchase_orders: purchaseOrders.length, purchase_invoices: purchaseInvoices.length } },
+          projects: Object.keys(projectsDashboard as Any).length ? projectsDashboard : { cards: { active_projects: projectRows.length, open_tasks: taskRows.length, timesheets: timesheets.length, expenses: expenses.length } },
+          quality: Object.keys(qualityDashboard as Any).length ? qualityDashboard : { cards: { inspections: inspections.length, non_conformances: nonConformances.length, actions: qualityActions.length, supplier_quality: supplierQuality.length } },
+          data: dataDashboard,
+          finance: financeDashboard,
+        },
+        procurement,
+        projects,
+        quality,
+        data_management: { imports: dataImports },
       },
-      quality: {
-        goals: (qualityGoals as Any).quality_goals || [],
-        inspections: (inspections as Any).inspections || [],
-        non_conformances: (nonConformances as Any).non_conformances || [],
-        supplier_quality: (supplierQuality as Any).supplier_quality || [],
-        meetings: (qualityMeetings as Any).quality_meetings || [],
-        reviews: (qualityReviews as Any).quality_reviews || [],
-        actions: (qualityActions as Any).quality_actions || [],
-      },
-      data_management: { imports: (dataImports as Any).data_imports || [] },
-    },
-  });
+    });
+  } catch (error: unknown) {
+    return safeJsonError(error, "Could not load operations workspace.");
+  }
 }

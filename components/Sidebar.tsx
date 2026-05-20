@@ -86,6 +86,9 @@ const GROUPS: NavGroup[] = [
       { label: "Attendance", href: "/portal/hr?tab=attendance", icon: "calendar", module: "employees" },
       { label: "Leave", href: "/portal/hr?tab=leave", icon: "task", module: "employees" },
       { label: "Payroll", href: "/portal/hr?tab=payroll", icon: "invoice", module: "employees" },
+      { label: "Expenses", href: "/portal/hr?tab=expenses", icon: "card", module: "employees" },
+      { label: "Recruitment", href: "/portal/hr?tab=recruitment", icon: "users", module: "employees" },
+      { label: "Performance", href: "/portal/hr?tab=performance", icon: "chart", module: "employees" },
     ],
   },
   {
