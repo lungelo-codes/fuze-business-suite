@@ -3,6 +3,7 @@ import { erpList, erpMethod } from "@/lib/server/erpnext";
 
 type Params = { params: { id: string } };
 type Row = Record<string, any>;
+type ActivityRow = Row & { type: string; title: string; creation?: string; modified?: string };
 
 function docFrom(value: unknown): Row { const v = value as any; if (v?.data && !Array.isArray(v.data)) return v.data; if (v?.message && !Array.isArray(v.message)) return v.message; if (v && typeof v === "object") return v as Row; return {}; }
 function rowsFrom(value: unknown, keys: string[] = []): Row[] { const v = value as any; if (Array.isArray(v)) return v; if (Array.isArray(v?.data)) return v.data; if (Array.isArray(v?.message)) return v.message; for (const key of keys) { if (Array.isArray(v?.[key])) return v[key]; if (Array.isArray(v?.data?.[key])) return v.data[key]; if (Array.isArray(v?.message?.[key])) return v.message[key]; } return []; }
@@ -10,7 +11,10 @@ async function safeList(doctype: string, filters: unknown[], fields: string[]): 
 async function linkedActivity(referenceName: string) {
   const communications = await safeList("Communication", [["reference_doctype", "=", "Opportunity"], ["reference_name", "=", referenceName]], ["name", "subject", "sender", "communication_type", "content", "reference_doctype", "reference_name", "creation", "modified"]);
   const tasks = await safeList("ToDo", [["reference_type", "=", "Opportunity"], ["reference_name", "=", referenceName]], ["name", "description", "status", "date", "priority", "reference_type", "reference_name", "creation", "modified"]);
-  const activity = [...communications.map((r) => ({ ...r, type: "Communication", title: r.subject || "Communication" })), ...tasks.map((r) => ({ ...r, type: "Task", title: r.description || "Task" }))].sort((a, b) => String(b.creation || b.modified || "").localeCompare(String(a.creation || a.modified || "")));
+  const activity: ActivityRow[] = [
+    ...communications.map((r): ActivityRow => ({ ...r, type: "Communication", title: String(r.subject || "Communication") })),
+    ...tasks.map((r): ActivityRow => ({ ...r, type: "Task", title: String(r.description || "Task") })),
+  ].sort((a, b) => String(b.creation || b.modified || "").localeCompare(String(a.creation || a.modified || "")));
   return { communications, tasks, activity };
 }
 
