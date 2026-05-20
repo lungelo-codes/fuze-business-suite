@@ -40,10 +40,13 @@ export async function GET(req: Request) {
     if (!activity.length && reference_doctype && reference_name) {
       const communications = await safeList("Communication", [["reference_doctype", "=", reference_doctype], ["reference_name", "=", reference_name]], ["name", "subject", "sender", "communication_type", "content", "reference_doctype", "reference_name", "creation", "modified"]);
       const tasks = await safeList("ToDo", [["reference_type", "=", reference_doctype], ["reference_name", "=", reference_name]], ["name", "description", "status", "date", "priority", "reference_type", "reference_name", "creation", "modified"]);
-      activity = [
-        ...communications.map((r) => ({ ...r, type: "Communication", title: r.subject || "Communication" })),
-        ...tasks.map((r) => ({ ...r, type: "Task", title: r.description || "Task" })),
-      ].sort((a, b) => String(b.creation || b.modified || "").localeCompare(String(a.creation || a.modified || "")));
+      const fallbackActivity: Row[] = [
+        ...communications.map((r): Row => ({ ...r, type: "Communication", title: r.subject || "Communication" })),
+        ...tasks.map((r): Row => ({ ...r, type: "Task", title: r.description || "Task" })),
+      ];
+      activity = fallbackActivity.sort((a: Row, b: Row) =>
+        String(b.creation || b.modified || "").localeCompare(String(a.creation || a.modified || ""))
+      );
     }
 
     return NextResponse.json({ success: true, data: activity, activity, timeline: activity, count: activity.length });
