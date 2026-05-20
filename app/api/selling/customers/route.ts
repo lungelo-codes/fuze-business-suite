@@ -30,42 +30,53 @@ function normalise(row: Row): Row {
   };
 }
 
+async function fallbackCustomers(limit: number): Promise<Row[]> {
+  return erpList<Row>("Customer", {
+    fields: ["name", "customer_name", "customer_type", "customer_group", "territory", "disabled", "modified"],
+    limit,
+    orderBy: "modified desc",
+  });
+}
+
+async function firstName(doctype: string, fallback: string): Promise<string> {
+  try {
+    const rows = await erpList<Row>(doctype, { fields: ["name"], limit: 1, orderBy: "modified desc" });
+    return String(rows?.[0]?.name || fallback);
+  } catch { return fallback; }
+}
+
 export async function GET(req: Request) {
   const p = new URL(req.url).searchParams;
-  const args: Record<string, unknown> = {};
+  const limit = Number(p.get("limit") || 80);
+  const args: Record<string, unknown> = { limit, offset: Number(p.get("offset") || 0) };
   if (p.get("company")) args.company = p.get("company");
   if (p.get("customer_group")) args.customer_group = p.get("customer_group");
-  if (p.get("limit")) args.limit = Number(p.get("limit") || 80);
-  if (p.get("offset")) args.offset = Number(p.get("offset") || 0);
 
   try {
-    let customers = rowsFrom(await erpMethod("selling.get_customers", args));
-
-    if (!customers.length) {
-      customers = await erpList<Row>("Customer", {
-        fields: ["name", "customer_name", "customer_type", "customer_group", "territory", "disabled", "modified"],
-        limit: Number(args.limit || 100),
-        orderBy: "modified desc",
-      });
-    }
-
+    let customers: Row[] = [];
+    try { customers = rowsFrom(await erpMethod("selling.get_customers", args)); } catch { customers = []; }
+    if (!customers.length) customers = await fallbackCustomers(limit);
     const data = customers.map(normalise);
     return NextResponse.json({ success: true, data, customers: data, count: data.length });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Could not load customers" }, { status: e?.status || 500 });
+  } catch {
+    return NextResponse.json({ success: true, data: [], customers: [], count: 0 });
   }
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    try {
-      const result = await erpMethod("selling.create_customer", { data: body });
-      return NextResponse.json(result, { status: 201 });
-    } catch {
-      const created = await createModuleRow("customers", body || {});
-      return NextResponse.json({ success: true, data: normalise(created), customer: normalise(created) }, { status: 201 });
-    }
+    const data = {
+      ...body,
+      customer_name: body.customer_name || body.name || body.title || body.company_name || "New Customer",
+      customer_type: body.customer_type || "Company",
+      customer_group: body.customer_group || await firstName("Customer Group", "All Customer Groups"),
+      territory: body.territory || await firstName("Territory", "All Territories"),
+    };
+    let created: Row;
+    try { created = normalise((await erpMethod("selling.create_customer", { data })) as Row); }
+    catch { created = normalise(await createModuleRow("customers", data)); }
+    return NextResponse.json({ success: true, data: created, customer: created }, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Could not create customer. Check the name, group and territory." }, { status: e?.status || 500 });
   }

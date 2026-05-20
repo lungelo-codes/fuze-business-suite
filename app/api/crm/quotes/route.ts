@@ -5,18 +5,19 @@ import { createModuleRow } from "@/lib/server/moduleApi";
 type Row = Record<string, any>;
 function rowsFrom(value: unknown): Row[] { const v = value as any; if (Array.isArray(v)) return v; if (Array.isArray(v?.data)) return v.data; if (Array.isArray(v?.message)) return v.message; if (Array.isArray(v?.quotations)) return v.quotations; if (Array.isArray(v?.quotes)) return v.quotes; if (Array.isArray(v?.records)) return v.records; if (Array.isArray(v?.data?.quotations)) return v.data.quotations; if (Array.isArray(v?.message?.quotations)) return v.message.quotations; return []; }
 function normalise(r: Row): Row { return { id: r.name || r.id, name: r.name || r.id, title: r.title || r.name, customer: r.customer || r.party_name, customer_name: r.customer_name || r.party_name, status: r.status || (r.docstatus === 1 ? "Submitted" : "Draft"), transaction_date: r.transaction_date, grand_total: r.grand_total || r.rounded_total || r.total, currency: r.currency || "ZAR", ...r }; }
+async function fallback(limit: number): Promise<Row[]> { return erpList<Row>("Quotation", { fields: ["name","quotation_to","party_name","customer_name","transaction_date","valid_till","status","docstatus","grand_total","rounded_total","currency","modified"], limit, orderBy: "modified desc" }); }
 
 export async function GET(req: Request) {
   const p = new URL(req.url).searchParams;
-  const args = { limit: Number(p.get("limit") || 80), offset: Number(p.get("offset") || 0), customer: p.get("customer") || undefined };
+  const limit = Number(p.get("limit") || 80);
+  const args = { limit, offset: Number(p.get("offset") || 0), customer: p.get("customer") || undefined };
   try {
-    let rows = rowsFrom(await erpMethod("sales.get_quotations", args));
-    if (!rows.length) rows = await erpList<Row>("Quotation", { fields: ["name","title","quotation_to","party_name","customer_name","transaction_date","valid_till","status","docstatus","grand_total","rounded_total","currency","modified"], limit: args.limit, orderBy: "modified desc" });
+    let rows: Row[] = [];
+    try { rows = rowsFrom(await erpMethod("sales.get_quotations", args)); } catch { rows = []; }
+    if (!rows.length) rows = await fallback(limit);
     const data = rows.map(normalise);
     return NextResponse.json({ success: true, data, quotations: data, quotes: data, count: data.length });
-  } catch {
-    return NextResponse.json({ success: true, data: [], quotations: [], quotes: [], count: 0 });
-  }
+  } catch { return NextResponse.json({ success: true, data: [], quotations: [], quotes: [], count: 0 }); }
 }
 
 export async function POST(req: Request) {
