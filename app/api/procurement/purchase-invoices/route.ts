@@ -7,15 +7,15 @@ export async function GET(req: Request) {
   for (const k of ["company", "status", "supplier"]) if (p.get(k)) args[k] = p.get(k);
   if (p.get("limit")) args.limit = Number(p.get("limit"));
   if (p.get("offset")) args.offset = Number(p.get("offset"));
-  try { return NextResponse.json(await erpMethod("buying.get_purchase_receipts", args)); }
-  catch (e: any) { return NextResponse.json({ error: e?.message || "Could not load purchase receipts" }, { status: 500 }); }
+  try { return NextResponse.json(await erpMethod("buying.get_purchase_invoices", args)); }
+  catch (e: any) { return NextResponse.json({ error: e?.message || "Could not load purchase invoices" }, { status: 500 }); }
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    return NextResponse.json(await erpMethod("buying.create_purchase_receipt", { data: body }), { status: 201 });
+    return NextResponse.json(await erpMethod("buying.create_purchase_invoice", { data: body }), { status: 201 });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Could not create purchase receipt" }, { status: 500 });
+    return NextResponse.json({ error: e?.message || "Could not create purchase invoice" }, { status: 500 });
   }
 }

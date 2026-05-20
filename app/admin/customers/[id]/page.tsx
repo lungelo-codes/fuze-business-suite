@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import SimpleTable, { StatusCell } from "@/components/SimpleTable";
-import { erpGet, erpList } from "@/lib/server/erpnext";
+import { erpList, erpMethod } from "@/lib/server/erpnext";
 import TenantActions from "./TenantActions";
 import TenantModules from "./TenantModules";
 
@@ -33,10 +33,9 @@ interface Job {
 
 async function getTenant(id: string): Promise<Tenant | null> {
   try {
-    const res = await erpGet<{ data?: Tenant; message?: Tenant }>(
-      `/api/resource/Fuze%20SaaS%20Tenant/${encodeURIComponent(id)}`
-    );
-    return res.data ?? res.message ?? null;
+    const res = await erpMethod<{ data?: Tenant; message?: Tenant } | Tenant>("business_crud.get_tenant", { name: id });
+    const boxed = res as { data?: Tenant; message?: Tenant };
+    return boxed?.data ?? boxed?.message ?? (res as Tenant) ?? null;
   } catch {
     return null;
   }

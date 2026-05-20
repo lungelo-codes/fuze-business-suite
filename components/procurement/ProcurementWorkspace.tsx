@@ -104,7 +104,10 @@ export default function ProcurementWorkspace({ initialSuppliers, initialPurchase
   }
 
   async function submit(module:string, values:Row, onSuccess:(r:Row)=>void) {
-    return submitRoute(`/api/crud/${module}`, values, onSuccess);
+    const routeMap: Record<string,string> = { suppliers: "/api/procurement/suppliers", "purchase-orders": "/api/procurement/purchase-orders" };
+    const route = routeMap[module];
+    if (!route) throw new Error(`No SaaS API route configured for ${module}`);
+    return submitRoute(route, values, onSuccess);
   }
 
   async function submitRoute(route:string, values:Row, onSuccess:(r:Row)=>void) {

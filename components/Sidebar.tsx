@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 interface SidebarProps {
   activeModules?: string[];
@@ -63,7 +63,7 @@ const GROUPS: NavGroup[] = [
   },
   {
     title: "Finance", items: [
-      { label: "Finance Dashboard", href: "/portal/finance", icon: "chart", module: "payments" },
+      { label: "Finance", href: "/portal/finance", icon: "chart", module: "payments" },
       { label: "Invoices", href: "/portal/finance?tab=invoices", icon: "invoice", module: "invoices" },
       { label: "Payments", href: "/portal/finance?tab=payments", icon: "card", module: "payments" },
       { label: "Banking", href: "/portal/finance?tab=banking", icon: "bank", module: "payments" },
@@ -72,7 +72,11 @@ const GROUPS: NavGroup[] = [
   },
   {
     title: "Operations", items: [
-      { label: "Operations Dashboard", href: "/portal/operations", icon: "project", module: "operations" },
+      { label: "Operations Overview", href: "/portal/operations", icon: "project", module: "operations", exact: true },
+      { label: "Procurement", href: "/portal/operations?tab=procurement", icon: "procurement", module: "suppliers" },
+      { label: "Projects", href: "/portal/operations?tab=projects", icon: "task", module: "projects" },
+      { label: "Quality", href: "/portal/operations?tab=quality", icon: "shield", module: "operations" },
+      { label: "Documents", href: "/portal/documents", icon: "folder", module: "documents" },
     ],
   },
   {
@@ -127,6 +131,8 @@ function moduleAliases(module?: string): string[] {
 
 export default function Sidebar({ activeModules = [], companyName, companyLogo, role, plan, onCollapse }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentHref = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
   const activeSet = new Set(activeModules.map((m) => m.trim().toLowerCase()));
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -138,8 +144,9 @@ export default function Sidebar({ activeModules = [], companyName, companyLogo, 
   }
 
   function isActive(href: string, exact?: boolean): boolean {
+    if (href.includes("?")) return currentHref === href;
     if (exact) return pathname === href;
-    return pathname.startsWith(href);
+    return pathname === href || pathname.startsWith(`${href}/`);
   }
 
   function groupHasActive(group: NavGroup): boolean {

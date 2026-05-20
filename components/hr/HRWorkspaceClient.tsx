@@ -193,7 +193,8 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
         leave: "/api/hr/leave-requests",
         payroll: "/api/hr/payroll",
       };
-      const route = routeMap[module] || `/api/crud/${module}`;
+      const route = routeMap[module];
+      if (!route) throw new Error(`No SaaS API route configured for ${module}`);
       const res = await fetch(route, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -221,7 +222,8 @@ export default function HRWorkspaceClient({ initialEmployees, initialAttendance,
         leave: "/api/hr/leave-requests",
         payroll: "/api/hr/payroll",
       };
-      const route = routeMap[module] || `/api/crud/${module}`;
+      const route = routeMap[module];
+      if (!route) throw new Error(`No SaaS API route configured for ${module}`);
       const res = await fetch(route);
       const json = await res.json();
       const rows = Array.isArray(json) ? json

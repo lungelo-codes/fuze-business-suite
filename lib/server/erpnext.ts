@@ -75,18 +75,9 @@ function encodeFilters(filters?: unknown[]): string {
 
 export function resourceListPath(
   doctype: string,
-  options: { fields?: string[]; filters?: unknown[]; limit?: number; orderBy?: string } = {}
+  _options: { fields?: string[]; filters?: unknown[]; limit?: number; orderBy?: string } = {}
 ): string {
-  const params = [
-    encodeFields(options.fields),
-    encodeFilters(options.filters),
-    `limit_page_length=${options.limit ?? 100}`,
-    options.orderBy ? `order_by=${encodeURIComponent(options.orderBy)}` : "",
-  ]
-    .filter(Boolean)
-    .join("&");
-
-  return `/api/resource/${encodeURIComponent(doctype)}?${params}`;
+  throw new BusinessSuiteError(`Raw ERPNext resource access is disabled for ${doctype}. Use the SaaS API wrapper.`);
 }
 
 async function parseResponse<T>(res: Response, fallbackMessage: string): Promise<T> {
@@ -190,36 +181,17 @@ export async function erpPost<T>(path: string, body: Record<string, unknown>): P
 }
 
 export async function erpPatch<T>(doctype: string, name: string, body: Record<string, unknown>): Promise<T> {
-  const baseUrl = getRuntimeBackendUrl();
-  const res = await fetch(
-    `${baseUrl}/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(),
-      },
-      body: JSON.stringify(body),
-      cache: "no-store",
-    }
-  );
-
-  const response = await parseResponse<ERPDocumentResponse<T>>(res, "Could not update record");
-  return (response.data ?? response.message) as T;
+  const response = await erpMethod<ERPDocumentResponse<T> | T>("business_crud.update_doctype", {
+    doctype,
+    name,
+    values: body,
+  });
+  const boxed = response as ERPDocumentResponse<T>;
+  return (boxed?.data ?? boxed?.message ?? response ?? {}) as T;
 }
 
 export async function erpDelete(doctype: string, name: string): Promise<boolean> {
-  const baseUrl = getRuntimeBackendUrl();
-  const res = await fetch(
-    `${baseUrl}/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`,
-    {
-      method: "DELETE",
-      headers: authHeaders(),
-      cache: "no-store",
-    }
-  );
-
-  await parseResponse<unknown>(res, "Could not delete record");
+  await erpMethod<unknown>("business_crud.delete_doctype", { doctype, name });
   return true;
 }
 
@@ -227,24 +199,31 @@ export async function erpList<T>(
   doctype: string,
   options: { fields?: string[]; filters?: unknown[]; limit?: number; orderBy?: string } = {}
 ): Promise<T[]> {
-  const response = await erpGet<ERPListResponse<T>>(resourceListPath(doctype, options));
-  return response.data ?? response.message ?? [];
+  const response = await erpMethod<ERPListResponse<T> | T[]>("business_crud.list_doctype", {
+    doctype,
+    fields: options.fields,
+    filters: options.filters || [],
+    limit: options.limit ?? 100,
+    order_by: options.orderBy || "modified desc",
+  });
+  const boxed = response as ERPListResponse<T>;
+  return (Array.isArray(response) ? response : boxed?.data ?? boxed?.message ?? []) as T[];
 }
 
 export async function erpCreate<T>(doctype: string, doc: Record<string, unknown>): Promise<T> {
-  const response = await erpPost<ERPDocumentResponse<T>>(
-    `/api/resource/${encodeURIComponent(doctype)}`,
-    doc
-  );
-
-  const created = response.data ?? response.message;
+  const response = await erpMethod<ERPDocumentResponse<T> | T>("business_crud.create_doctype", {
+    doctype,
+    values: doc,
+  });
+  const boxed = response as ERPDocumentResponse<T>;
+  const created = boxed?.data ?? boxed?.message ?? response;
   if (!created) throw new BusinessSuiteError(`Could not create ${doctype}`);
-  return created;
+  return created as T;
 }
 
 export async function erpExists(doctype: string, name: string): Promise<boolean> {
   try {
-    await erpGet(`/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`);
+    await erpMethod<unknown>("business_crud.get_doctype", { doctype, name });
     return true;
   } catch {
     return false;

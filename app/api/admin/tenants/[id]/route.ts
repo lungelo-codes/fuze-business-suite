@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
-import { erpPatch, erpGet } from "@/lib/server/erpnext";
+import { erpMethod } from "@/lib/server/erpnext";
 
 const ALLOWED_STATUSES = ["Draft", "Provisioning", "Active", "Suspended", "Failed", "Cancelled"];
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
-    const res = await erpGet<{ data?: unknown; message?: unknown }>(
-      `/api/resource/Fuze%20SaaS%20Tenant/${encodeURIComponent(params.id)}`
-    );
-    const tenant = res.data ?? res.message;
+    const res = await erpMethod<{ data?: unknown; message?: unknown } | unknown>("business_crud.get_tenant", { name: params.id });
+    const boxed = res as { data?: unknown; message?: unknown };
+    const tenant = boxed?.data ?? boxed?.message ?? res;
     if (!tenant) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
     return NextResponse.json(tenant);
   } catch (error) {
@@ -49,7 +48,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
 
-    const tenant = await erpPatch("Fuze SaaS Tenant", params.id, update);
+    const tenantRes = await erpMethod<{ data?: unknown; message?: unknown } | unknown>("business_crud.update_tenant", { name: params.id, values: update });
+    const boxed = tenantRes as { data?: unknown; message?: unknown };
+    const tenant = boxed?.data ?? boxed?.message ?? tenantRes;
     return NextResponse.json({
       success: true,
       message: `Tenant updated successfully`,

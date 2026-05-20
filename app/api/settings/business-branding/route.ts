@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { COMPANY_COOKIE } from "@/lib/modules";
-import { erpGet, erpList, erpPatch, BusinessSuiteError, getERPNextBaseUrl } from "@/lib/server/erpnext";
+import { erpList, erpPatch, erpMethod, BusinessSuiteError, getERPNextBaseUrl } from "@/lib/server/erpnext";
 
 type Any = Record<string, unknown>;
 const COMPANY_FIELDS = ["name","company_name","company_logo","default_letter_head","phone_no","email","website","tax_id","registration_details","default_bank_account","default_currency"];
@@ -28,8 +28,9 @@ export async function GET(req: Request) {
     const companyName = await resolveCompanyName(searchParams.get("company"));
     if (!companyName) return NextResponse.json({ error: "No company found" }, { status: 404 });
 
-    const companyRes = await erpGet<{ data?: Any; message?: Any }>(`/api/resource/Company/${encodeURIComponent(companyName)}`);
-    const company = companyRes.data || companyRes.message || {};
+    const companyRes = await erpMethod<{ data?: Any; message?: Any } | Any>("business_crud.get_doctype", { doctype: "Company", name: companyName });
+    const boxedCompany = companyRes as { data?: Any; message?: Any };
+    const company = boxedCompany?.data || boxedCompany?.message || companyRes || {};
 
     const profiles = await erpList<Any>("Fuze Business Profile", { fields: PROFILE_FIELDS, filters: [["company", "=", companyName]], limit: 1, orderBy: "modified desc" });
     const profile = profiles[0] || null;

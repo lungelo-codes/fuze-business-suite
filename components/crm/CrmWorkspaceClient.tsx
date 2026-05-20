@@ -299,7 +299,7 @@ function RevenueDocsView({ module, title, subtitle, refreshSignal }: { module: s
   const [error, setError] = useState("");
   useEffect(() => {
     setLoading(true); setError("");
-    apiFetch(`/api/crud/${module}?limit=80`).then((json) => {
+    apiFetch(module === "customers" ? "/api/selling/customers?limit=80" : module === "contacts" ? "/api/crm/contacts?limit=80" : `/api/crm/${module}?limit=80`).then((json) => {
       const data = json?.data ?? json?.message ?? [];
       setRows(Array.isArray(data) ? data : []);
     }).catch((e) => setError(e instanceof Error ? e.message : `Could not load ${title.toLowerCase()}.`)).finally(() => setLoading(false));

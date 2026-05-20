@@ -98,27 +98,28 @@ function cleanModules(modules: string[]) {
   return Array.from(new Set(modules.map(String).map((v) => v.trim()).filter((v) => VALID_MODULES.has(v))));
 }
 
+async function backendMethod<T>(backendUrl: string, method: string, body: Record<string, unknown>, sid?: string): Promise<T | null> {
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  if (sid) headers.Cookie = `sid=${sid}`;
+  else if (ERPNEXT_API_KEY && ERPNEXT_API_SECRET) headers.Authorization = `token ${ERPNEXT_API_KEY}:${ERPNEXT_API_SECRET}`;
+  const candidates = [`fuze_suite.api.${method}`, method];
+  for (const candidate of candidates) {
+    try {
+      const res = await fetch(`${backendUrl}/api/method/${candidate}`, { method: "POST", headers, body: JSON.stringify(body), cache: "no-store" });
+      if (!res.ok) continue;
+      const json = await res.json();
+      return (json.message ?? json.data ?? json) as T;
+    } catch {}
+  }
+  return null;
+}
+
 async function fetchUserRoles(backendUrl: string, email: string, sid?: string): Promise<string[]> {
   if (!backendUrl) return [];
   if (email === "Administrator") return ["Administrator", "System Manager"];
-
-  const filters = encodeURIComponent(JSON.stringify([["parent", "=", email], ["role", "in", ["Administrator", "System Manager"]]]));
-  const fields = encodeURIComponent(JSON.stringify(["role"]));
-
-  const headers: HeadersInit = {};
-  if (sid) headers.Cookie = `sid=${sid}`;
-
-  try {
-    const res = await fetch(`${backendUrl}/api/resource/Has%20Role?filters=${filters}&fields=${fields}`, {
-      headers,
-      cache: "no-store",
-    });
-    if (!res.ok) return [];
-    const json = (await res.json()) as { data?: { role?: string }[] };
-    return (json.data || []).map((row) => row.role).filter(Boolean) as string[];
-  } catch {
-    return [];
-  }
+  const result = await backendMethod<unknown>(backendUrl, "business_crud.get_user_roles", { email }, sid);
+  const rows = Array.isArray(result) ? result : Array.isArray((result as any)?.data) ? (result as any).data : [];
+  return rows.map(String).filter(Boolean);
 }
 
 async function fetchTenantContext(site?: string, email?: string): Promise<TenantContext> {
@@ -127,97 +128,24 @@ async function fetchTenantContext(site?: string, email?: string): Promise<Tenant
   const fallbackModules = getModulesForPlan(fallbackPlan);
 
   if (!MASTER_ERPNEXT_URL || !ERPNEXT_API_KEY || !ERPNEXT_API_SECRET) {
-    return {
-      companyName: companyFromSite(site),
-      plan: fallbackPlan,
-      modules: fallbackModules,
-    };
+    return { companyName: companyFromSite(site), plan: fallbackPlan, modules: fallbackModules };
   }
 
-  const headers: HeadersInit = {
-    Authorization: `token ${ERPNEXT_API_KEY}:${ERPNEXT_API_SECRET}`,
-  };
-
-  const fields = encodeURIComponent(JSON.stringify([
-    "name",
-    "company_name",
-    "site_name",
-    "email",
-    "plan",
-    "subscription_plan",
-    "requested_module",
-    "requested_modules",
-    "selected_modules",
-    "modules",
-  ]));
-
-  const filterCandidates = [
-    cleanSite ? [["site_name", "=", cleanSite]] : null,
-    email ? [["email", "=", email]] : null,
-  ].filter(Boolean) as unknown[][];
-
-  for (const filtersRaw of filterCandidates) {
-    try {
-      const filters = encodeURIComponent(JSON.stringify(filtersRaw));
-      const res = await fetch(
-        `${MASTER_ERPNEXT_URL}/api/resource/Fuze%20SaaS%20Tenant?filters=${filters}&fields=${fields}&limit_page_length=1`,
-        { headers, cache: "no-store" }
-      );
-
-      if (!res.ok) continue;
-
-      const json = (await res.json()) as { data?: Record<string, unknown>[] };
-      const tenant = json.data?.[0];
-      if (!tenant) continue;
-
-      const tenantId = String(tenant.name || "");
-      const plan = String(tenant.plan || tenant.subscription_plan || fallbackPlan).trim() || fallbackPlan;
-      const companyName = String(tenant.company_name || companyFromSite(site));
-
-      let modules = cleanModules([
-        ...parseModuleValue(tenant.selected_modules),
-        ...parseModuleValue(tenant.requested_modules),
-        ...parseModuleValue(tenant.requested_module),
-        ...parseModuleValue(tenant.modules),
-      ]);
-
-      if (!modules.length && tenantId) {
-        const childFilters = encodeURIComponent(JSON.stringify([["parent", "=", tenantId]]));
-        const childFields = encodeURIComponent(JSON.stringify(["module", "module_key", "saas_module", "enabled"]));
-        const childRes = await fetch(
-          `${MASTER_ERPNEXT_URL}/api/resource/Fuze%20SaaS%20Tenant%20Module?filters=${childFilters}&fields=${childFields}&limit_page_length=100`,
-          { headers, cache: "no-store" }
-        );
-        if (childRes.ok) {
-          const childJson = (await childRes.json()) as { data?: Record<string, unknown>[] };
-          modules = cleanModules(
-            (childJson.data || [])
-              .filter((row) => row.enabled === undefined || Number(row.enabled) === 1)
-              .map((row) => row.module_key || row.module || row.saas_module)
-              .map(String)
-          );
-        }
-      }
-
-      if (!modules.length) modules = getModulesForPlan(plan);
-      if (!modules.length) modules = fallbackModules;
-
-      return {
-        tenantId,
-        companyName,
-        plan,
-        modules,
-      };
-    } catch {
-      continue;
-    }
-  }
-
-  return {
-    companyName: companyFromSite(site),
-    plan: fallbackPlan,
-    modules: fallbackModules,
-  };
+  const result = await backendMethod<any>(MASTER_ERPNEXT_URL, "business_crud.get_tenant_context", { site: cleanSite, email });
+  const tenant = result?.tenant || result?.data?.tenant || {};
+  const tenantId = String(tenant.name || "");
+  const plan = String(tenant.plan || tenant.subscription_plan || fallbackPlan).trim() || fallbackPlan;
+  const companyName = String(tenant.company_name || companyFromSite(site));
+  let modules = cleanModules([
+    ...parseModuleValue(tenant.selected_modules),
+    ...parseModuleValue(tenant.requested_modules),
+    ...parseModuleValue(tenant.requested_module),
+    ...parseModuleValue(tenant.modules),
+    ...((Array.isArray(result?.modules) ? result.modules : Array.isArray(result?.data?.modules) ? result.data.modules : []) as unknown[]).map(String),
+  ]);
+  if (!modules.length) modules = getModulesForPlan(plan);
+  if (!modules.length) modules = fallbackModules;
+  return { tenantId, companyName, plan, modules };
 }
 
 export async function POST(req: Request) {

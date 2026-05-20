@@ -164,6 +164,16 @@ export default function FinanceWorkspaceClient() {
     setForm({ ...form, items });
   }
 
+  async function documentAction(doctype: string, name: string, action: "submit" | "cancel") {
+    try {
+      await api("/api/workflow/document-action", { method: "POST", body: JSON.stringify({ doctype, name, action }) });
+      setNotice(`${doctype} ${action} completed.`);
+      await load();
+    } catch (e: any) {
+      alert(e?.message || "Could not update document");
+    }
+  }
+
   async function submit(kind: string) {
     setSaving(true);
     setNotice("");
@@ -253,7 +263,7 @@ export default function FinanceWorkspaceClient() {
               </div>
               <div className="demo-panel" style={{ marginTop: 18 }}>
                 <div className="card-head"><h3>Recent invoices</h3></div>
-                <InvoiceTable rows={invoices.slice(0, 8)} openModal={openModal} />
+                <InvoiceTable rows={invoices.slice(0, 8)} openModal={openModal} onDocAction={documentAction} />
               </div>
             </>}
 
@@ -261,7 +271,7 @@ export default function FinanceWorkspaceClient() {
               <div className="demo-module-actions" style={{ marginBottom: 14 }}>
                 <button className="btn btn-teal" onClick={() => openModal("invoice")}>Create Invoice</button>
               </div>
-              <InvoiceTable rows={invoices} openModal={openModal} />
+              <InvoiceTable rows={invoices} openModal={openModal} onDocAction={documentAction} />
             </>}
 
             {tab === "payments" && <>
@@ -340,6 +350,6 @@ export default function FinanceWorkspaceClient() {
   );
 }
 
-function InvoiceTable({ rows, openModal }: { rows: Any[]; openModal: (kind: ModalType, row?: Any) => void }) {
-  return <Table cols={["Invoice", "Customer", "Date", "Due", "Total", "Outstanding", "Status", "Actions"]} rows={rows} render={(r) => <><td>{r.name}</td><td>{r.customer_name || r.customer}</td><td>{dateOnly(r.posting_date)}</td><td>{dateOnly(r.due_date)}</td><td>{money(r.grand_total)}</td><td>{money(r.outstanding_amount)}</td><td><StatusChip status={r.status} /></td><td><div className="demo-module-actions"><button className="btn btn-sm" onClick={() => openModal("paymentLink", r)}>Payment Link</button><button className="btn btn-sm" onClick={() => openModal("payment", r)}>Receive</button></div></td></>} />;
+function InvoiceTable({ rows, openModal, onDocAction }: { rows: Any[]; openModal: (kind: ModalType, row?: Any) => void; onDocAction: (doctype: string, name: string, action: "submit" | "cancel") => void }) {
+  return <Table cols={["Invoice", "Customer", "Date", "Due", "Total", "Outstanding", "Status", "Actions"]} rows={rows} render={(r) => <><td>{r.name}</td><td>{r.customer_name || r.customer}</td><td>{dateOnly(r.posting_date)}</td><td>{dateOnly(r.due_date)}</td><td>{money(r.grand_total)}</td><td>{money(r.outstanding_amount)}</td><td><StatusChip status={r.status} /></td><td><div className="demo-module-actions"><button className="btn btn-sm" onClick={() => onDocAction("Sales Invoice", r.name, "submit")}>Submit</button><button className="btn btn-sm" onClick={() => openModal("paymentLink", r)}>Payment Link</button><button className="btn btn-sm" onClick={() => openModal("payment", r)}>Receive</button><button className="btn btn-sm" onClick={() => onDocAction("Sales Invoice", r.name, "cancel")}>Cancel</button></div></td></>} />;
 }
