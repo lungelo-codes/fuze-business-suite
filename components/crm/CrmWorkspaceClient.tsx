@@ -85,8 +85,12 @@ function csvEscape(value: unknown) {
   return /[",\n]/.test(raw) ? `"${raw.replace(/"/g, '""')}"` : raw;
 }
 function exportCsv(filename: string, rows: Record<string, any>[]) {
-  const keys = Array.from(rows.reduce((set, row) => { Object.keys(row || {}).forEach((k) => set.add(k)); return set; }, new Set<string>()));
-  const csv = [keys.join(","), ...rows.map((row) => keys.map((k) => csvEscape(row?.[k])).join(","))].join("\n");
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const keys = Array.from(safeRows.reduce<Set<string>>((set, row) => {
+    Object.keys(row || {}).forEach((k) => set.add(k));
+    return set;
+  }, new Set<string>()));
+  const csv = [keys.join(","), ...safeRows.map((row) => keys.map((k) => csvEscape(row?.[k])).join(","))].join("\n");
   downloadBlob(filename, csv || "No data");
 }
 const CHART_COLORS = ["#2563eb", "#14b8a6", "#f97316", "#8b5cf6", "#22c55e", "#ef4444", "#0f172a", "#06b6d4"];
