@@ -122,7 +122,7 @@ function Modal({ mode, source, record, options, onClose, onSaved }: { mode: "cre
   const [doc, setDoc] = useState<Any>(() => ({ ...(record || {}) }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const editable = source.fields.length ? source.fields : Object.keys(doc).filter((k) => !["name","doctype","owner","creation","modified","modified_by","docstatus","idx"].includes(k)).slice(0, 18).map((name) => ({ name, label: title(name) }));
+  const editable: Field[] = source.fields.length ? source.fields : Object.keys(doc).filter((k) => !["name","doctype","owner","creation","modified","modified_by","docstatus","idx"].includes(k)).slice(0, 18).map((name): Field => ({ name, label: title(name) }));
   async function save() {
     setBusy(true); setError("");
     try {
