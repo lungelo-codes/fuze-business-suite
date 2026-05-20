@@ -1,782 +1,205 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, LineChart, Line,
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts";
 
-type Row = Record<string, unknown>;
+type Any = Record<string, any>;
+type HrTab = "overview" | "employees" | "shift" | "attendance" | "leave" | "recruitment" | "performance" | "payroll" | "benefits" | "training" | "lifecycle" | "fleet" | "reports";
 
-const COLORS = ["#28A486", "#242048", "#F59E0B", "#EF4444", "#6366F1", "#EC4899", "#14B8A6"];
-
-function money(v: unknown) {
-  const n = Number(v || 0);
-  if (!n) return "—";
-  return `R ${n.toLocaleString("en-ZA", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
-function text(v: unknown): string {
-  if (v === null || v === undefined || v === "") return "—";
-  return String(v);
-}
-function statusCls(v: unknown) {
-  const s = String(v || "").toLowerCase();
-  if (s.includes("absent") || s.includes("cancel") || s.includes("reject") || s.includes("inactive")) return "chip danger";
-  if (s.includes("leave") || s.includes("open") || s.includes("pending") || s.includes("draft")) return "chip warn";
-  if (s.includes("present") || s.includes("active") || s.includes("approved") || s.includes("paid") || s.includes("submit")) return "chip ok";
-  return "chip info";
-}
-
-// ── Modal ─────────────────────────────────────────────────────────────────────
-type ModalField = { name: string; label: string; type?: string; required?: boolean; options?: string[] };
-
-function Modal({ title, fields, onClose, onSubmit, busy, error }: {
-  title: string;
-  fields: ModalField[];
-  onClose: () => void;
-  onSubmit: (values: Row) => Promise<void>;
-  busy: boolean;
-  error: string;
-}) {
-  const [values, setValues] = useState<Row>({});
-  const set = (k: string, v: unknown) => setValues((p) => ({ ...p, [k]: v }));
-
-  return (
-    <div style={{ position:"fixed",inset:0,background:"rgba(20,20,40,.55)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(2px)" }}>
-      <div style={{ background:"var(--card)",borderRadius:18,padding:28,width:"100%",maxWidth:520,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(22,26,45,.22)" }}>
-        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20 }}>
-          <h2 style={{ margin:0,fontSize:18,fontWeight:800,color:"var(--navy-ink)" }}>{title}</h2>
-          <button type="button" onClick={onClose} style={{ border:"none",background:"none",fontSize:20,cursor:"pointer",color:"var(--muted)",lineHeight:1 }}>✕</button>
-        </div>
-        <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
-          {fields.map((f) => (
-            <div key={f.name}>
-              <label style={{ fontSize:12,fontWeight:700,color:"var(--muted)",display:"block",marginBottom:4 }}>
-                {f.label}{f.required && <span style={{ color:"var(--danger)" }}> *</span>}
-              </label>
-              {f.options ? (
-                <select value={String(values[f.name] ?? "")} onChange={(e) => set(f.name, e.target.value)}
-                  style={{ width:"100%",padding:"10px 12px",border:"1px solid var(--line)",borderRadius:9,fontSize:14,background:"#fff" }}>
-                  <option value="">Select…</option>
-                  {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
-                </select>
-              ) : f.type === "textarea" ? (
-                <textarea value={String(values[f.name] ?? "")} onChange={(e) => set(f.name, e.target.value)}
-                  rows={3} style={{ width:"100%",padding:"10px 12px",border:"1px solid var(--line)",borderRadius:9,fontSize:14,resize:"vertical",boxSizing:"border-box" }} />
-              ) : (
-                <input type={f.type || "text"} value={String(values[f.name] ?? "")} onChange={(e) => set(f.name, e.target.value)}
-                  style={{ width:"100%",padding:"10px 12px",border:"1px solid var(--line)",borderRadius:9,fontSize:14 }} />
-              )}
-            </div>
-          ))}
-        </div>
-        {error && <div style={{ color:"var(--danger)",fontSize:13,marginTop:12,padding:"8px 12px",background:"var(--danger-bg)",borderRadius:8 }}>{error}</div>}
-        <div style={{ display:"flex",gap:10,marginTop:20,justifyContent:"flex-end" }}>
-          <button type="button" onClick={onClose} className="btn">Cancel</button>
-          <button type="button" onClick={() => onSubmit(values)} disabled={busy} className="btn btn-teal">
-            {busy ? "Saving…" : "Save"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── KPI Card ──────────────────────────────────────────────────────────────────
-function KPI({ label, value, hint, color = "teal" }: { label: string; value: string | number; hint: string; color?: string }) {
-  const colors: Record<string, { bg: string; fg: string }> = {
-    teal: { bg: "#E3F6F0", fg: "#28a486" },
-    navy: { bg: "#EEEDF7", fg: "#242048" },
-    warn: { bg: "#FFF6E0", fg: "#E89B0E" },
-    danger: { bg: "#FDECEE", fg: "#DC3545" },
-    blue: { bg: "#E8EFFD", fg: "#2E6BE5" },
-  };
-  const c = colors[color] || colors.teal;
-  return (
-    <div style={{ background:"#fff",border:"1px solid var(--line)",borderRadius:12,padding:"16px 18px",boxShadow:"var(--shadow)" }}>
-      <div style={{ width:36,height:36,borderRadius:9,background:c.bg,color:c.fg,display:"grid",placeItems:"center",marginBottom:12,fontSize:18,fontWeight:800 }}>▸</div>
-      <div style={{ fontSize:10.5,fontWeight:800,color:"var(--muted)",letterSpacing:".7px",textTransform:"uppercase" }}>{label}</div>
-      <div style={{ fontSize:26,fontWeight:800,color:"var(--navy-ink)",letterSpacing:"-.5px",margin:"4px 0 2px" }}>{value}</div>
-      <div style={{ fontSize:11.5,color:"var(--muted-2)" }}>{hint}</div>
-    </div>
-  );
-}
-
-// ── Tooltip style ─────────────────────────────────────────────────────────────
-const tt = {
-  contentStyle: { background:"var(--card)",border:"1px solid var(--line)",borderRadius:12,boxShadow:"0 8px 24px rgba(22,26,45,.12)",fontSize:12,color:"var(--text)" },
-  cursor: { fill:"var(--demo-soft,#f5f6fa)" },
+type Props = {
+  initialTab?: string;
+  initialEmployees?: Any[];
+  initialAttendance?: Any[];
+  initialLeave?: Any[];
+  initialPayroll?: Any[];
+  initialExpenses?: Any[];
+  initialRecruitment?: Any[];
+  initialAppraisals?: Any[];
+  dashMetrics?: Any;
 };
 
-// ── TABS ──────────────────────────────────────────────────────────────────────
-type HrTab = "overview" | "employees" | "attendance" | "leave" | "payroll" | "expenses" | "recruitment" | "performance";
-const TABS: { id: HrTab; label: string; description: string }[] = [
-  { id: "overview", label: "Overview", description: "People command centre" },
-  { id: "employees", label: "Employees", description: "Employee profiles and departments" },
-  { id: "attendance", label: "Attendance", description: "Daily attendance and working hours" },
-  { id: "leave", label: "Leave", description: "Leave requests and approvals" },
-  { id: "payroll", label: "Payroll", description: "Salary slips and payroll totals" },
-  { id: "expenses", label: "Expenses", description: "Employee expense claims and approvals" },
-  { id: "recruitment", label: "Recruitment", description: "Job openings and hiring pipeline" },
-  { id: "performance", label: "Performance", description: "Appraisals and employee reviews" },
-];
-function normalizeTab(value?: string | null): HrTab { const v = String(value || "").toLowerCase(); return ["employees","attendance","leave","payroll","expenses","recruitment","performance"].includes(v) ? v as HrTab : "overview"; }
+type Source = { key: string; label: string; doctype: string; create?: string; columns: { key: string; label: string; money?: boolean; status?: boolean }[]; fields: Field[] };
+type Field = { name: string; label: string; type?: string; link?: string; options?: string[]; required?: boolean; readonly?: boolean };
 
-interface Props {
-  initialEmployees: Row[];
-  initialAttendance: Row[];
-  initialLeave: Row[];
-  initialPayroll: Row[];
-  initialExpenses: Row[];
-  initialRecruitment: Row[];
-  initialAppraisals: Row[];
-  initialTab?: string;
-  dashMetrics: {
-    active_employees?: number;
-    present_today?: number;
-    pending_leave?: number;
-    payroll_total?: number | string;
-    departments?: { department: string; count: number }[];
-    pending_expenses?: number;
-    open_jobs?: number;
-    appraisals?: number;
-  };
+const COLORS = ["#28A486", "#242048", "#F59E0B", "#EF4444", "#6366F1", "#14B8A6", "#EC4899"];
+const TABS: { id: HrTab; label: string; subtitle: string }[] = [
+  { id: "overview", label: "Overview", subtitle: "People, attendance, leave, payroll and lifecycle command centre" },
+  { id: "employees", label: "Employees", subtitle: "Employee master, profile, department, reporting line and user link" },
+  { id: "shift", label: "Shift", subtitle: "Shift types, assignments, requests and employee check-ins" },
+  { id: "attendance", label: "Attendance", subtitle: "Attendance, attendance requests and working hours" },
+  { id: "leave", label: "Leave", subtitle: "Leave types, allocations, applications, balances and encashment" },
+  { id: "recruitment", label: "Job Portal", subtitle: "Job openings, applicants, interviews, offers and requisitions" },
+  { id: "performance", label: "Performance", subtitle: "Appraisal cycles, appraisals, goals and feedback" },
+  { id: "payroll", label: "Payroll", subtitle: "Salary structures, assignments, slips, entries, overtime and corrections" },
+  { id: "benefits", label: "Benefits & Loans", subtitle: "Employee advances, loans, gratuity and flexible benefits" },
+  { id: "training", label: "Training", subtitle: "Training programs, events and results" },
+  { id: "lifecycle", label: "Lifecycle", subtitle: "Onboarding, promotions, transfers, separations and exits" },
+  { id: "fleet", label: "Fleet", subtitle: "Vehicles and vehicle logs assigned to employees" },
+  { id: "reports", label: "Reports", subtitle: "HR analytics, payroll, attendance and project profitability indicators" },
+];
+
+function normTab(value?: string | null): HrTab {
+  const v = String(value || "").toLowerCase();
+  const found = TABS.find((t) => t.id === v || t.label.toLowerCase().replace(/\s+/g, "-") === v);
+  return found?.id || "overview";
+}
+function title(s: string) { return s.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase()); }
+function txt(v: any) { return v === undefined || v === null || v === "" ? "—" : String(v); }
+function money(v: any) { const n = Number(v || 0); return n ? new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR", maximumFractionDigits: 0 }).format(n) : "—"; }
+function dateText(v: any) { if (!v) return "—"; const d = new Date(v); return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }); }
+function rowsFrom(json: any, keys: string[] = []) { const data = json?.data ?? json?.message ?? json ?? {}; if (Array.isArray(data)) return data; for (const k of keys) if (Array.isArray(data?.[k])) return data[k]; if (Array.isArray(json?.records)) return json.records; return []; }
+async function api(url: string, init?: RequestInit) { const res = await fetch(url, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers || {}) } }); const json = await res.json().catch(() => ({})); if (!res.ok) throw new Error(json?.error || json?.message || `Request failed (${res.status})`); return json; }
+function chipClass(v: any) { const s = String(v || "").toLowerCase(); if (s.includes("reject") || s.includes("absent") || s.includes("cancel") || s.includes("left")) return "chip danger"; if (s.includes("open") || s.includes("draft") || s.includes("pending")) return "chip warn"; if (s.includes("active") || s.includes("present") || s.includes("approved") || s.includes("submit")) return "chip ok"; return "chip info"; }
+
+const employeeFields: Field[] = [
+  { name: "first_name", label: "First Name", required: true }, { name: "last_name", label: "Last Name" }, { name: "gender", label: "Gender", link: "Gender" }, { name: "date_of_birth", label: "Date of Birth", type: "date" }, { name: "date_of_joining", label: "Date of Joining", type: "date", required: true }, { name: "status", label: "Status", options: ["Active", "Inactive", "Suspended", "Left"] }, { name: "department", label: "Department", link: "Department" }, { name: "designation", label: "Designation", link: "Designation" }, { name: "branch", label: "Branch", link: "Branch" }, { name: "grade", label: "Grade", link: "Employee Grade" }, { name: "employment_type", label: "Employment Type", link: "Employment Type" }, { name: "reports_to", label: "Reports To", link: "Employee" }, { name: "company_email", label: "Company Email", type: "email" }, { name: "cell_number", label: "Cell Number" }, { name: "user_id", label: "Linked User", link: "User" },
+];
+const SOURCES: Record<HrTab, Source[]> = {
+  overview: [],
+  employees: [{ key: "employees", label: "Employees", doctype: "Employee", create: "New Employee", columns: [{ key: "employee_name", label: "Employee" }, { key: "department", label: "Department" }, { key: "designation", label: "Designation" }, { key: "status", label: "Status", status: true }, { key: "date_of_joining", label: "Joined" }], fields: employeeFields }],
+  shift: [
+    { key: "shift_types", label: "Shift Types", doctype: "Shift Type", create: "New Shift Type", columns: [{ key: "name", label: "Shift" }, { key: "start_time", label: "Start" }, { key: "end_time", label: "End" }], fields: [{ name: "shift_type", label: "Shift Type" }, { name: "start_time", label: "Start Time", type: "time" }, { name: "end_time", label: "End Time", type: "time" }, { name: "enable_auto_attendance", label: "Auto Attendance", type: "checkbox" }] },
+    { key: "shift_assignments", label: "Shift Assignments", doctype: "Shift Assignment", create: "Assign Shift", columns: [{ key: "employee_name", label: "Employee" }, { key: "shift_type", label: "Shift" }, { key: "start_date", label: "Start" }, { key: "end_date", label: "End" }, { key: "status", label: "Status", status: true }], fields: [{ name: "employee", label: "Employee", link: "Employee", required: true }, { name: "shift_type", label: "Shift Type", link: "Shift Type", required: true }, { name: "start_date", label: "Start Date", type: "date", required: true }, { name: "end_date", label: "End Date", type: "date" }] },
+    { key: "checkins", label: "Employee Checkins", doctype: "Employee Checkin", create: "New Checkin", columns: [{ key: "employee_name", label: "Employee" }, { key: "time", label: "Time" }, { key: "log_type", label: "In/Out", status: true }, { key: "shift", label: "Shift" }], fields: [{ name: "employee", label: "Employee", link: "Employee", required: true }, { name: "time", label: "Time", type: "datetime-local", required: true }, { name: "log_type", label: "Log Type", options: ["IN", "OUT"] }, { name: "device_id", label: "Device ID" }] },
+  ],
+  attendance: [
+    { key: "attendance", label: "Attendance", doctype: "Attendance", create: "Mark Attendance", columns: [{ key: "employee_name", label: "Employee" }, { key: "attendance_date", label: "Date" }, { key: "shift", label: "Shift" }, { key: "status", label: "Status", status: true }, { key: "working_hours", label: "Hours" }], fields: [{ name: "employee", label: "Employee", link: "Employee", required: true }, { name: "attendance_date", label: "Date", type: "date", required: true }, { name: "shift", label: "Shift", link: "Shift Type" }, { name: "status", label: "Status", options: ["Present", "Absent", "On Leave", "Half Day", "Work From Home"], required: true }, { name: "working_hours", label: "Working Hours", type: "number" }] },
+    { key: "attendance_requests", label: "Attendance Requests", doctype: "Attendance Request", create: "New Request", columns: [{ key: "employee_name", label: "Employee" }, { key: "from_date", label: "From" }, { key: "to_date", label: "To" }, { key: "status", label: "Status", status: true }], fields: [{ name: "employee", label: "Employee", link: "Employee", required: true }, { name: "from_date", label: "From", type: "date" }, { name: "to_date", label: "To", type: "date" }, { name: "reason", label: "Reason", type: "textarea" }] },
+  ],
+  leave: [
+    { key: "leave_requests", label: "Leave Applications", doctype: "Leave Application", create: "Apply Leave", columns: [{ key: "employee_name", label: "Employee" }, { key: "leave_type", label: "Leave Type" }, { key: "from_date", label: "From" }, { key: "to_date", label: "To" }, { key: "status", label: "Status", status: true }], fields: [{ name: "employee", label: "Employee", link: "Employee", required: true }, { name: "leave_type", label: "Leave Type", link: "Leave Type", required: true }, { name: "from_date", label: "From", type: "date", required: true }, { name: "to_date", label: "To", type: "date", required: true }, { name: "description", label: "Reason", type: "textarea" }] },
+    { key: "leave_allocations", label: "Leave Allocations", doctype: "Leave Allocation", create: "Allocate Leave", columns: [{ key: "employee_name", label: "Employee" }, { key: "leave_type", label: "Type" }, { key: "from_date", label: "From" }, { key: "to_date", label: "To" }, { key: "total_leaves_allocated", label: "Allocated" }], fields: [{ name: "employee", label: "Employee", link: "Employee", required: true }, { name: "leave_type", label: "Leave Type", link: "Leave Type" }, { name: "from_date", label: "From", type: "date" }, { name: "to_date", label: "To", type: "date" }, { name: "new_leaves_allocated", label: "New Leaves", type: "number" }] },
+    { key: "leave_types", label: "Leave Types", doctype: "Leave Type", create: "New Leave Type", columns: [{ key: "name", label: "Leave Type" }, { key: "is_lwp", label: "LWP" }, { key: "is_earned_leave", label: "Earned" }], fields: [{ name: "leave_type_name", label: "Leave Type Name" }, { name: "is_lwp", label: "Is LWP", type: "checkbox" }, { name: "is_earned_leave", label: "Earned Leave", type: "checkbox" }] },
+  ],
+  recruitment: [
+    { key: "job_openings", label: "Job Openings", doctype: "Job Opening", create: "Post Job", columns: [{ key: "job_title", label: "Job Title" }, { key: "department", label: "Department" }, { key: "designation", label: "Designation" }, { key: "status", label: "Status", status: true }], fields: [{ name: "job_title", label: "Job Title", required: true }, { name: "department", label: "Department", link: "Department" }, { name: "designation", label: "Designation", link: "Designation" }, { name: "status", label: "Status", options: ["Open", "Closed"] }, { name: "description", label: "Description", type: "textarea" }] },
+    { key: "job_applicants", label: "Job Applicants", doctype: "Job Applicant", create: "Add Applicant", columns: [{ key: "applicant_name", label: "Applicant" }, { key: "email_id", label: "Email" }, { key: "job_title", label: "Job" }, { key: "status", label: "Status", status: true }], fields: [{ name: "applicant_name", label: "Applicant Name", required: true }, { name: "email_id", label: "Email", type: "email" }, { name: "phone_number", label: "Phone" }, { name: "job_title", label: "Job Opening", link: "Job Opening" }, { name: "status", label: "Status" }] },
+    { key: "interviews", label: "Interviews", doctype: "Interview", create: "Schedule Interview", columns: [{ key: "job_applicant", label: "Applicant" }, { key: "interview_round", label: "Round" }, { key: "scheduled_on", label: "Scheduled" }, { key: "status", label: "Status", status: true }], fields: [{ name: "job_applicant", label: "Applicant", link: "Job Applicant" }, { name: "interview_round", label: "Interview Round" }, { name: "scheduled_on", label: "Scheduled On", type: "datetime-local" }, { name: "status", label: "Status" }] },
+  ],
+  performance: [
+    { key: "appraisals", label: "Appraisals", doctype: "Appraisal", create: "New Appraisal", columns: [{ key: "employee_name", label: "Employee" }, { key: "appraisal_template", label: "Template" }, { key: "status", label: "Status", status: true }], fields: [{ name: "employee", label: "Employee", link: "Employee" }, { name: "appraisal_template", label: "Appraisal Template", link: "Appraisal Template" }, { name: "status", label: "Status" }] },
+    { key: "goals", label: "Goals", doctype: "Employee Performance Goal", create: "New Goal", columns: [{ key: "employee", label: "Employee" }, { key: "goal_name", label: "Goal" }, { key: "progress", label: "Progress" }, { key: "status", label: "Status", status: true }], fields: [{ name: "employee", label: "Employee", link: "Employee" }, { name: "goal_name", label: "Goal Name" }, { name: "progress", label: "Progress", type: "number" }, { name: "status", label: "Status" }] },
+  ],
+  payroll: [
+    { key: "salary_structures", label: "Salary Structures", doctype: "Salary Structure", create: "Salary Structure", columns: [{ key: "name", label: "Structure" }, { key: "payroll_frequency", label: "Frequency" }, { key: "is_active", label: "Active" }], fields: [{ name: "name", label: "Name" }, { name: "payroll_frequency", label: "Frequency", options: ["Monthly", "Weekly", "Daily"] }, { name: "is_active", label: "Active", type: "checkbox" }] },
+    { key: "structure_assignments", label: "Structure Assignments", doctype: "Salary Structure Assignment", create: "Assign Structure", columns: [{ key: "employee_name", label: "Employee" }, { key: "salary_structure", label: "Structure" }, { key: "from_date", label: "From" }, { key: "base", label: "Base", money: true }], fields: [{ name: "employee", label: "Employee", link: "Employee" }, { name: "salary_structure", label: "Salary Structure", link: "Salary Structure" }, { name: "from_date", label: "From", type: "date" }, { name: "base", label: "Base", type: "number" }] },
+    { key: "salary_slips", label: "Salary Slips", doctype: "Salary Slip", create: "Create Slip", columns: [{ key: "employee_name", label: "Employee" }, { key: "start_date", label: "Start" }, { key: "end_date", label: "End" }, { key: "net_pay", label: "Net", money: true }, { key: "status", label: "Status", status: true }], fields: [{ name: "employee", label: "Employee", link: "Employee" }, { name: "start_date", label: "Start", type: "date" }, { name: "end_date", label: "End", type: "date" }, { name: "posting_date", label: "Posting Date", type: "date" }, { name: "payroll_frequency", label: "Frequency", options: ["Monthly", "Weekly", "Daily"] }] },
+    { key: "overtime_slips", label: "Overtime", doctype: "Overtime Slip", create: "Overtime Slip", columns: [{ key: "employee_name", label: "Employee" }, { key: "overtime_type", label: "Type" }, { key: "total_overtime_hours", label: "Hours" }], fields: [{ name: "employee", label: "Employee", link: "Employee" }, { name: "overtime_type", label: "Overtime Type" }, { name: "from_date", label: "From", type: "date" }, { name: "to_date", label: "To", type: "date" }] },
+  ],
+  benefits: [
+    { key: "employee_advances", label: "Employee Advances", doctype: "Employee Advance", create: "New Advance", columns: [{ key: "employee_name", label: "Employee" }, { key: "purpose", label: "Purpose" }, { key: "advance_amount", label: "Amount", money: true }, { key: "status", label: "Status", status: true }], fields: [{ name: "employee", label: "Employee", link: "Employee" }, { name: "purpose", label: "Purpose" }, { name: "advance_amount", label: "Amount", type: "number" }, { name: "posting_date", label: "Posting Date", type: "date" }] },
+    { key: "loans", label: "Loans", doctype: "Loan", create: "New Loan", columns: [{ key: "applicant_name", label: "Applicant" }, { key: "loan_type", label: "Loan Type" }, { key: "loan_amount", label: "Amount", money: true }, { key: "status", label: "Status", status: true }], fields: [{ name: "applicant", label: "Employee", link: "Employee" }, { name: "loan_type", label: "Loan Type", link: "Loan Type" }, { name: "loan_amount", label: "Amount", type: "number" }] },
+    { key: "gratuity", label: "Gratuity", doctype: "Gratuity", create: "New Gratuity", columns: [{ key: "employee_name", label: "Employee" }, { key: "amount", label: "Amount", money: true }, { key: "docstatus", label: "Status", status: true }], fields: [{ name: "employee", label: "Employee", link: "Employee" }, { name: "gratuity_rule", label: "Gratuity Rule" }, { name: "amount", label: "Amount", type: "number" }] },
+  ],
+  training: [
+    { key: "training_programs", label: "Training Programs", doctype: "Training Program", create: "New Program", columns: [{ key: "name", label: "Program" }, { key: "description", label: "Description" }], fields: [{ name: "training_program", label: "Program Name" }, { name: "description", label: "Description", type: "textarea" }] },
+    { key: "training_events", label: "Training Events", doctype: "Training Event", create: "New Event", columns: [{ key: "event_name", label: "Event" }, { key: "training_program", label: "Program" }, { key: "event_status", label: "Status", status: true }], fields: [{ name: "event_name", label: "Event Name" }, { name: "training_program", label: "Training Program", link: "Training Program" }, { name: "start_time", label: "Start", type: "datetime-local" }, { name: "end_time", label: "End", type: "datetime-local" }] },
+    { key: "training_results", label: "Training Results", doctype: "Training Result", create: "New Result", columns: [{ key: "employee_name", label: "Employee" }, { key: "training_event", label: "Event" }, { key: "status", label: "Status", status: true }], fields: [{ name: "employee", label: "Employee", link: "Employee" }, { name: "training_event", label: "Training Event", link: "Training Event" }, { name: "status", label: "Status" }] },
+  ],
+  lifecycle: [
+    { key: "onboarding", label: "Onboarding", doctype: "Employee Onboarding", create: "Start Onboarding", columns: [{ key: "employee_name", label: "Employee" }, { key: "job_applicant", label: "Applicant" }, { key: "status", label: "Status", status: true }], fields: [{ name: "employee", label: "Employee", link: "Employee" }, { name: "job_applicant", label: "Job Applicant", link: "Job Applicant" }, { name: "status", label: "Status" }] },
+    { key: "promotions", label: "Promotions", doctype: "Employee Promotion", create: "New Promotion", columns: [{ key: "employee_name", label: "Employee" }, { key: "promotion_date", label: "Date" }, { key: "docstatus", label: "Status", status: true }], fields: [{ name: "employee", label: "Employee", link: "Employee" }, { name: "promotion_date", label: "Promotion Date", type: "date" }] },
+    { key: "transfers", label: "Transfers", doctype: "Employee Transfer", create: "New Transfer", columns: [{ key: "employee_name", label: "Employee" }, { key: "transfer_date", label: "Date" }, { key: "docstatus", label: "Status", status: true }], fields: [{ name: "employee", label: "Employee", link: "Employee" }, { name: "transfer_date", label: "Transfer Date", type: "date" }, { name: "new_company", label: "New Company", link: "Company" }] },
+    { key: "separations", label: "Separations", doctype: "Employee Separation", create: "Start Separation", columns: [{ key: "employee_name", label: "Employee" }, { key: "status", label: "Status", status: true }], fields: [{ name: "employee", label: "Employee", link: "Employee" }, { name: "status", label: "Status" }] },
+  ],
+  fleet: [
+    { key: "vehicles", label: "Vehicles", doctype: "Vehicle", create: "New Vehicle", columns: [{ key: "license_plate", label: "Plate" }, { key: "make", label: "Make" }, { key: "model", label: "Model" }, { key: "employee", label: "Employee" }, { key: "status", label: "Status", status: true }], fields: [{ name: "license_plate", label: "License Plate" }, { name: "make", label: "Make" }, { name: "model", label: "Model" }, { name: "employee", label: "Employee", link: "Employee" }, { name: "status", label: "Status" }] },
+    { key: "vehicle_logs", label: "Vehicle Logs", doctype: "Vehicle Log", create: "New Log", columns: [{ key: "license_plate", label: "Vehicle" }, { key: "employee", label: "Employee" }, { key: "date", label: "Date" }, { key: "odometer", label: "Odometer" }, { key: "price", label: "Cost", money: true }], fields: [{ name: "license_plate", label: "Vehicle", link: "Vehicle" }, { name: "employee", label: "Employee", link: "Employee" }, { name: "date", label: "Date", type: "date" }, { name: "odometer", label: "Odometer", type: "number" }, { name: "fuel_qty", label: "Fuel Qty", type: "number" }, { name: "price", label: "Cost", type: "number" }] },
+  ],
+  reports: [],
+};
+
+function FieldInput({ field, value, onChange, options }: { field: Field; value: any; onChange: (v: any) => void; options: Record<string, { name: string; label: string }[]> }) {
+  const opts = field.link ? options[field.link] || [] : [];
+  if (field.options || field.link) return <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}><option value="">Select…</option>{field.options?.map((o) => <option key={o} value={o}>{o}</option>)}{opts.map((o) => <option key={o.name} value={o.name}>{o.label || o.name}</option>)}</select>;
+  if (field.type === "textarea") return <textarea value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} rows={3} />;
+  if (field.type === "checkbox") return <input type="checkbox" checked={Boolean(value)} onChange={(e) => onChange(e.target.checked ? 1 : 0)} />;
+  return <input type={field.type || "text"} value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />;
 }
 
-export default function HRWorkspaceClient({ initialTab, initialEmployees, initialAttendance, initialLeave, initialPayroll, initialExpenses, initialRecruitment, initialAppraisals, dashMetrics }: Props) {
-  const params = useSearchParams();
-  const [tab, setTab] = useState<HrTab>(() => normalizeTab(initialTab || params.get("tab")));
-  const [employees, setEmployees] = useState<Row[]>(initialEmployees);
-  const [attendance, setAttendance] = useState<Row[]>(initialAttendance);
-  const [leave, setLeave] = useState<Row[]>(initialLeave);
-  const [payroll, setPayroll] = useState<Row[]>(initialPayroll);
-  const [expenses, setExpenses] = useState<Row[]>(initialExpenses);
-  const [recruitment, setRecruitment] = useState<Row[]>(initialRecruitment);
-  const [appraisals, setAppraisals] = useState<Row[]>(initialAppraisals);
-
-  const [query, setQuery] = useState("");
-  const [modal, setModal] = useState<null | "employee" | "attendance" | "leave" | "payroll" | "expense" | "job" | "appraisal">(null);
+function Modal({ mode, source, record, options, onClose, onSaved }: { mode: "create" | "edit"; source: Source; record?: Any; options: Record<string, { name: string; label: string }[]>; onClose: () => void; onSaved: () => void }) {
+  const [doc, setDoc] = useState<Any>(() => ({ ...(record || {}) }));
   const [busy, setBusy] = useState(false);
-  const [formError, setFormError] = useState("");
+  const [error, setError] = useState("");
+  const editable = source.fields.length ? source.fields : Object.keys(doc).filter((k) => !["name","doctype","owner","creation","modified","modified_by","docstatus","idx"].includes(k)).slice(0, 18).map((name) => ({ name, label: title(name) }));
+  async function save() {
+    setBusy(true); setError("");
+    try {
+      if (mode === "create") await api("/api/hr/records", { method: "POST", body: JSON.stringify({ doctype: source.doctype, values: doc }) });
+      else await api("/api/hr/records", { method: "PUT", body: JSON.stringify({ doctype: source.doctype, name: record?.name, values: doc }) });
+      onSaved(); onClose();
+    } catch (e: any) { setError(e?.message || "Could not save record"); } finally { setBusy(false); }
+  }
+  async function action(actionName: string) {
+    setBusy(true); setError("");
+    try { await api("/api/hr/action", { method: "POST", body: JSON.stringify({ doctype: source.doctype, name: record?.name, action: actionName }) }); onSaved(); onClose(); } catch (e: any) { setError(e?.message || "Could not complete action"); } finally { setBusy(false); }
+  }
+  return <div className="hr-modal-backdrop"><div className="hr-modal"><div className="hr-modal-head"><div><span>{source.doctype}</span><h2>{mode === "create" ? source.create || `New ${source.label}` : txt(record?.name)}</h2></div><button onClick={onClose}>×</button></div><div className="hr-form-grid">{editable.map((f) => <label key={f.name}><span>{f.label}{f.required ? " *" : ""}</span><FieldInput field={f} value={doc[f.name]} onChange={(v) => setDoc((d) => ({ ...d, [f.name]: v }))} options={options} /></label>)}</div>{error && <div className="hr-error">{error}</div>}<div className="hr-modal-actions">{mode === "edit" && <><button className="btn" onClick={() => action("submit")} disabled={busy}>Submit</button><button className="btn" onClick={() => action("cancel")} disabled={busy}>Cancel Doc</button>{source.doctype === "Leave Application" && <button className="btn" onClick={() => action("approve_leave")} disabled={busy}>Approve Leave</button>}{source.doctype === "Leave Application" && <button className="btn" onClick={() => action("reject_leave")} disabled={busy}>Reject Leave</button>}{source.doctype === "Expense Claim" && <button className="btn" onClick={() => action("approve_expense")} disabled={busy}>Approve Expense</button>}</>}<button className="btn" onClick={onClose}>Close</button><button className="btn btn-teal" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</button></div></div></div>;
+}
+
+function DataTable({ source, rows, onOpen }: { source: Source; rows: Any[]; onOpen: (source: Source, row: Any) => void }) {
+  return <div className="hr-table-wrap"><table className="demo-table hr-table"><thead><tr>{source.columns.map((c) => <th key={c.key}>{c.label}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={String(r.name || i)} onClick={() => onOpen(source, r)}>{source.columns.map((c) => <td key={c.key}>{c.status ? <span className={chipClass(r[c.key])}>{txt(r[c.key])}</span> : c.money ? money(r[c.key]) : c.key.includes("date") || c.key.endsWith("_on") ? dateText(r[c.key]) : txt(r[c.key])}</td>)}</tr>)}</tbody></table>{!rows.length && <div className="hr-empty"><b>No {source.label.toLowerCase()} yet</b><span>Create one using the action button, or check permissions/setup.</span></div>}</div>;
+}
+
+function ReportCard({ title, children }: { title: string; children: React.ReactNode }) { return <section className="demo-panel"><div className="demo-panel-head"><div><h3>{title}</h3></div></div><div style={{ height: 260 }}>{children}</div></section>; }
+
+export default function HRWorkspaceClient({ initialTab }: Props) {
+  const params = useSearchParams();
+  const [tab, setTab] = useState<HrTab>(() => normTab(initialTab || params.get("tab")));
+  const [data, setData] = useState<Record<string, Any[]>>({});
+  const [meta, setMeta] = useState<Record<string, string>>({});
+  const [options, setOptions] = useState<Record<string, { name: string; label: string }[]>>({});
+  const [reports, setReports] = useState<Any>({});
+  const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState("");
+  const [modal, setModal] = useState<{ mode: "create" | "edit"; source: Source; record?: Any } | null>(null);
   const [notice, setNotice] = useState("");
+  const sources = tab === "overview" ? Object.values(SOURCES).flat().filter(Boolean).slice(0, 10) : SOURCES[tab] || [];
 
-  // ── Derived metrics ────────────────────────────────────────────────────────
-  const activeEmp = dashMetrics.active_employees ?? employees.filter((e) => String(e.status || "").toLowerCase() === "active").length;
-  const presentToday = dashMetrics.present_today ?? attendance.filter((a) => String(a.status || "").toLowerCase() === "present").length;
-  const pendingLeave = dashMetrics.pending_leave ?? leave.filter((l) => String(l.status || "").toLowerCase() === "open").length;
-  const payrollTotal = dashMetrics.payroll_total ?? payroll.reduce((s, p) => s + Number(p.net_pay || 0), 0);
-  const pendingExpenses = dashMetrics.pending_expenses ?? expenses.filter((e) => !String(e.approval_status || e.status || "").toLowerCase().includes("approved")).length;
-  const openJobs = dashMetrics.open_jobs ?? recruitment.filter((j) => !String(j.status || "").toLowerCase().includes("closed")).length;
-  const appraisalCount = dashMetrics.appraisals ?? appraisals.length;
-
-  // ── Charts: department breakdown ───────────────────────────────────────────
-  const deptData = useMemo(() => {
-    if (dashMetrics.departments?.length) return dashMetrics.departments.map((d) => ({ name: d.department, count: d.count }));
-    const map: Record<string, number> = {};
-    employees.forEach((e) => {
-      const d = String(e.department || "No Department");
-      map[d] = (map[d] || 0) + 1;
-    });
-    return Object.entries(map).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 8);
-  }, [employees, dashMetrics.departments]);
-
-  const leaveStatusData = useMemo(() => {
-    const map: Record<string, number> = {};
-    leave.forEach((l) => { const s = String(l.status || "Open"); map[s] = (map[s] || 0) + 1; });
-    return Object.entries(map).map(([name, value]) => ({ name, value }));
-  }, [leave]);
-
-  const attendanceStatusData = useMemo(() => {
-    const map: Record<string, number> = {};
-    attendance.forEach((a) => { const s = String(a.status || "Unknown"); map[s] = (map[s] || 0) + 1; });
-    return Object.entries(map).map(([status, count]) => ({ status, count }));
-  }, [attendance]);
-
-  const payrollTrend = useMemo(() => {
-    return payroll.slice(0, 8).reverse().map((p, i) => ({
-      label: String(p.employee_name || p.employee || `Slip ${i + 1}`).slice(0, 12),
-      net: Number(p.net_pay || 0),
-      gross: Number(p.gross_pay || 0),
-    }));
-  }, [payroll]);
-
-  // ── Filtered rows per tab ─────────────────────────────────────────────────
-  function filterRows(rows: Row[]) {
-    const q = query.toLowerCase().trim();
-    if (!q) return rows;
-    return rows.filter((r) => JSON.stringify(r).toLowerCase().includes(q));
-  }
-
-  // ── Submit helper ─────────────────────────────────────────────────────────
-  async function submitForm(module: string, values: Row, onSuccess: (row: Row) => void) {
-    setBusy(true);
-    setFormError("");
+  async function load(target = tab) {
+    setLoading(true);
     try {
-      const routeMap: Record<string,string> = {
-        employees: "/api/hr/employees",
-        attendance: "/api/hr/attendance",
-        leave: "/api/hr/leave-requests",
-        payroll: "/api/hr/payroll",
-        expenses: "/api/hr/expenses",
-        recruitment: "/api/hr/recruitment",
-        performance: "/api/hr/appraisals",
-      };
-      const route = routeMap[module];
-      if (!route) throw new Error(`No SaaS API route configured for ${module}`);
-      const res = await fetch(route, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to save");
-      onSuccess(json.data || json);
-      setModal(null);
-      setNotice("Record saved successfully.");
-      setTimeout(() => setNotice(""), 3500);
-    } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setBusy(false);
-    }
+      if (target === "reports") {
+        const json = await api("/api/hr/reports"); setReports(json.data || json.message || json || {});
+      } else {
+        const group = target === "overview" ? "overview" : target;
+        const json = await api(`/api/hr/records?group=${encodeURIComponent(group)}&limit=120`);
+        setData((d) => ({ ...d, ...(json.data || {}) })); setMeta((m) => ({ ...m, ...(json.meta || {}) }));
+      }
+    } catch (e: any) { setNotice(e?.message || "Could not load HR workspace"); }
+    finally { setLoading(false); }
   }
 
-  // ── Refresh helpers ───────────────────────────────────────────────────────
-  const refresh = useCallback(async (module: string, setter: (r: Row[]) => void) => {
-    try {
-      const routeMap: Record<string,string> = {
-        employees: "/api/hr/employees",
-        attendance: "/api/hr/attendance",
-        leave: "/api/hr/leave-requests",
-        payroll: "/api/hr/payroll",
-        expenses: "/api/hr/expenses",
-        recruitment: "/api/hr/recruitment",
-        performance: "/api/hr/appraisals",
-      };
-      const route = routeMap[module];
-      if (!route) throw new Error(`No SaaS API route configured for ${module}`);
-      const res = await fetch(route);
-      const json = await res.json();
-      const rows = Array.isArray(json) ? json
-        : Array.isArray(json?.data) ? json.data
-        : Array.isArray(json?.employees) ? json.employees
-        : Array.isArray(json?.results) ? json.results
-        : Array.isArray(json?.message) ? json.message
-        : [];
-      setter(rows);
-    } catch { /* silent */ }
-  }, []);
+  useEffect(() => { void load(tab); }, [tab]);
+  useEffect(() => { api("/api/hr/options").then((j) => setOptions(j.data || j.options || {})).catch(() => undefined); }, []);
 
-  // ── Table renderer ────────────────────────────────────────────────────────
-  function Table({ rows, cols }: { rows: Row[]; cols: { key: string; label: string; money?: boolean }[] }) {
-    const r = filterRows(rows);
-    return (
-      <div style={{ overflowX:"auto" }}>
-        <table className="demo-table" style={{ minWidth:640 }}>
-          <thead><tr>{cols.map((c) => <th key={c.key}>{c.label}</th>)}<th>Status</th></tr></thead>
-          <tbody>
-            {r.length ? r.slice(0, 50).map((row, i) => (
-              <tr key={String(row.name || i)}>
-                {cols.map((c) => (
-                  <td key={c.key}>{c.money ? money(row[c.key]) : text(row[c.key])}</td>
-                ))}
-                <td><span className={statusCls(row.status || row.docstatus)}>{text(row.status || (row.docstatus === 1 ? "Submitted" : "Draft"))}</span></td>
-              </tr>
-            )) : (
-              <tr><td colSpan={cols.length + 1} style={{ textAlign:"center",color:"var(--muted)",padding:32 }}>No records found.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
+  const allRows = useMemo(() => Object.values(data).flat(), [data]);
+  const kpis = [
+    { label: "Employees", value: (data.employees || []).length || allRows.filter((r) => r.employee_name).length, tab: "employees" as HrTab },
+    { label: "Present / Attendance", value: (data.attendance || []).length, tab: "attendance" as HrTab },
+    { label: "Leave", value: (data.leave_requests || []).length, tab: "leave" as HrTab },
+    { label: "Payroll", value: (data.salary_slips || []).length, tab: "payroll" as HrTab },
+    { label: "Jobs", value: (data.job_openings || []).length, tab: "recruitment" as HrTab },
+    { label: "Training", value: (data.training_programs || []).length, tab: "training" as HrTab },
+  ];
+  const currentTitle = TABS.find((t) => t.id === tab) || TABS[0];
+  const deptChart = useMemo(() => {
+    const rows = data.employees || [];
+    const m = new Map<string, number>(); rows.forEach((r) => m.set(String(r.department || "No Department"), (m.get(String(r.department || "No Department")) || 0) + 1));
+    return Array.from(m, ([name, value]) => ({ name, value })).slice(0, 8);
+  }, [data.employees]);
+  const attendanceChart = useMemo(() => {
+    const rows = data.attendance || [];
+    const m = new Map<string, number>(); rows.forEach((r) => m.set(String(r.status || "Unknown"), (m.get(String(r.status || "Unknown")) || 0) + 1));
+    return Array.from(m, ([name, value]) => ({ name, value }));
+  }, [data.attendance]);
 
-  // ── Overview tab ──────────────────────────────────────────────────────────
-  function OverviewTab() {
-    return (
-      <>
-        {/* KPI Row */}
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:14,marginBottom:18 }}>
-          <KPI label="Active Employees" value={activeEmp} hint="Current headcount" color="teal" />
-          <KPI label="Present Today" value={presentToday} hint="Attendance today" color="navy" />
-          <KPI label="Pending Leave" value={pendingLeave} hint="Awaiting approval" color="warn" />
-          <KPI label="Payroll (MTD)" value={typeof payrollTotal === "number" ? money(payrollTotal) : String(payrollTotal)} hint="Net pay this month" color="blue" />
-          <KPI label="Expense Claims" value={pendingExpenses} hint="Awaiting approval" color="warn" />
-          <KPI label="Open Jobs" value={openJobs} hint="Recruitment pipeline" color="navy" />
-          <KPI label="Appraisals" value={appraisalCount} hint="Performance reviews" color="teal" />
-        </div>
+  function switchTab(t: HrTab) { setTab(t); setQuery(""); history.replaceState(null, "", t === "overview" ? "/portal/hr" : `/portal/hr?tab=${t}`); }
+  function filteredRows(source: Source) { const rows = data[source.key] || []; if (!query) return rows; const q = query.toLowerCase(); return rows.filter((r) => JSON.stringify(r).toLowerCase().includes(q)); }
+  function exportReportPdf() { window.print(); }
 
-        {/* Charts Row */}
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:16,marginBottom:16 }}>
-          <div className="demo-panel">
-            <div className="demo-panel-head"><div><h3>Employees by Department</h3><p>Headcount distribution across departments</p></div></div>
-            <div style={{ height:240,padding:"8px 16px 16px" }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={deptData} margin={{ top:4,right:8,left:0,bottom:40 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize:10,fill:"var(--muted)" }} axisLine={false} tickLine={false} angle={-25} textAnchor="end" />
-                  <YAxis tick={{ fontSize:11,fill:"var(--muted)" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip {...tt} />
-                  <Bar dataKey="count" fill="#28a486" radius={[6,6,0,0]} name="Employees" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="demo-panel">
-            <div className="demo-panel-head"><div><h3>Leave by Status</h3><p>Breakdown of leave application statuses</p></div></div>
-            <div style={{ height:240,padding:"8px 16px 16px" }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={leaveStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={85} innerRadius={40}>
-                    {leaveStatusData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip {...tt} />
-                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize:12,color:"var(--muted)" }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-
-        {/* Attendance today */}
-        <div className="demo-panel" style={{ marginBottom:16 }}>
-          <div className="demo-panel-head">
-            <div><h3>Today's Attendance Snapshot</h3><p>Status breakdown for all attendance records</p></div>
-          </div>
-          <div style={{ height:200,padding:"8px 16px 16px" }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={attendanceStatusData} layout="vertical" margin={{ top:4,right:16,left:8,bottom:0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize:11,fill:"var(--muted)" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <YAxis type="category" dataKey="status" tick={{ fontSize:11,fill:"var(--muted)" }} axisLine={false} tickLine={false} width={90} />
-                <Tooltip {...tt} />
-                <Bar dataKey="count" fill="#242048" radius={[0,6,6,0]} name="Count" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Quick actions */}
-        <div className="demo-grid">
-          <div className="demo-panel">
-            <div className="demo-panel-head"><div><h3>HR Quick Actions</h3><p>Common workflows at a glance</p></div></div>
-            <div className="demo-alert-list">
-              {[
-                { label: "Add Employee", desc: "Create a new staff profile", action: () => setModal("employee") },
-                { label: "Mark Attendance", desc: "Record employee attendance", action: () => setModal("attendance") },
-                { label: "Submit Leave Request", desc: "Apply for leave on behalf", action: () => setModal("leave") },
-                { label: "Process Payroll", desc: "Generate salary slips", action: () => setModal("payroll") },
-                { label: "Expense Claim", desc: "Record employee reimbursement", action: () => setModal("expense") },
-                { label: "Job Opening", desc: "Open a recruitment position", action: () => setModal("job") },
-                { label: "Performance Review", desc: "Capture an appraisal", action: () => setModal("appraisal") },
-                { label: "View All Employees", desc: "Browse headcount", action: () => { setTab("employees"); history.replaceState(null, "", "/portal/hr?tab=employees"); } },
-                { label: "Approve Pending Leave", desc: "Review open leave requests", action: () => { setTab("leave"); history.replaceState(null, "", "/portal/hr?tab=leave"); } },
-              ].map((a) => (
-                <button key={a.label} type="button" className="demo-alert text-left" onClick={a.action}>
-                  {a.label}<span>{a.desc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="demo-panel">
-            <div className="demo-panel-head"><div><h3>Recent Activity</h3><p>Latest HR record updates</p></div></div>
-            <div className="demo-alert-list">
-              {[...employees.slice(0,3).map((e) => ({ title: String(e.employee_name || e.name), sub: `Employee · ${String(e.department || "—")}`, status: String(e.status || "Active") })),
-                ...leave.slice(0,3).map((l) => ({ title: String(l.employee_name || l.employee), sub: `Leave · ${String(l.leave_type || "Annual")}`, status: String(l.status || "Open") })),
-              ].slice(0,6).map((item, i) => (
-                <div key={i} className="demo-alert" style={{ cursor:"default" }}>
-                  <strong>{item.title}</strong><span style={{ display:"flex",justifyContent:"space-between" }}>{item.sub} <span className={statusCls(item.status)}>{item.status}</span></span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  // ── Employees tab ─────────────────────────────────────────────────────────
-  function EmployeesTab() {
-    return (
-      <div className="demo-panel">
-        <div className="demo-panel-head">
-          <div><h3>Employees <span style={{ fontSize:12,fontWeight:600,color:"var(--muted)" }}>({employees.length})</span></h3><p>All staff records from your company workspace</p></div>
-          <div style={{ display:"flex",gap:8,alignItems:"center" }}>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search employees…" style={{ padding:"8px 12px",border:"1px solid var(--line)",borderRadius:9,fontSize:13 }} />
-            <button type="button" className="btn btn-teal" onClick={() => setModal("employee")}>+ Add Employee</button>
-            <button type="button" className="btn" onClick={() => refresh("employees", setEmployees)}>↺ Refresh</button>
-          </div>
-        </div>
-        <Table rows={employees} cols={[
-          { key:"employee_name", label:"Name" },
-          { key:"department", label:"Department" },
-          { key:"designation", label:"Designation" },
-          { key:"company_email", label:"Email" },
-          { key:"date_of_joining", label:"Joined" },
-        ]} />
-      </div>
-    );
-  }
-
-  // ── Attendance tab ────────────────────────────────────────────────────────
-  function AttendanceTab() {
-    return (
-      <>
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14,marginBottom:16 }}>
-          <div className="demo-panel">
-            <div className="demo-panel-head"><div><h3>Attendance Overview</h3><p>All records by status</p></div></div>
-            <div style={{ height:220,padding:"8px 16px 16px" }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={attendanceStatusData} dataKey="count" nameKey="status" cx="50%" cy="50%" outerRadius={80} innerRadius={36}>
-                    {attendanceStatusData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip {...tt} />
-                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize:12,color:"var(--muted)" }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
-            {attendanceStatusData.map((d, i) => (
-              <div key={d.status} style={{ background:"#fff",border:"1px solid var(--line)",borderRadius:10,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-                <div style={{ display:"flex",alignItems:"center",gap:10 }}>
-                  <div style={{ width:10,height:10,borderRadius:"50%",background:COLORS[i%COLORS.length] }} />
-                  <span style={{ fontWeight:600,fontSize:13 }}>{d.status}</span>
-                </div>
-                <span style={{ fontWeight:800,fontSize:18,color:"var(--navy-ink)" }}>{d.count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="demo-panel">
-          <div className="demo-panel-head">
-            <div><h3>Attendance Records <span style={{ fontSize:12,fontWeight:600,color:"var(--muted)" }}>({attendance.length})</span></h3></div>
-            <div style={{ display:"flex",gap:8 }}>
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" style={{ padding:"8px 12px",border:"1px solid var(--line)",borderRadius:9,fontSize:13 }} />
-              <button type="button" className="btn btn-teal" onClick={() => setModal("attendance")}>+ Mark Attendance</button>
-              <button type="button" className="btn" onClick={() => refresh("attendance", setAttendance)}>↺</button>
-            </div>
-          </div>
-          <Table rows={attendance} cols={[
-            { key:"employee_name", label:"Employee" },
-            { key:"attendance_date", label:"Date" },
-            { key:"working_hours", label:"Hours" },
-          ]} />
-        </div>
-      </>
-    );
-  }
-
-  // ── Leave tab ─────────────────────────────────────────────────────────────
-  function LeaveTab() {
-    return (
-      <>
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:14,marginBottom:16 }}>
-          <KPI label="Total Applications" value={leave.length} hint="All leave requests" color="navy" />
-          <KPI label="Approved" value={leave.filter((l) => String(l.status).toLowerCase() === "approved").length} hint="Approved leave" color="teal" />
-          <KPI label="Pending" value={pendingLeave} hint="Awaiting approval" color="warn" />
-        </div>
-        <div className="demo-panel">
-          <div className="demo-panel-head">
-            <div><h3>Leave Applications <span style={{ fontSize:12,fontWeight:600,color:"var(--muted)" }}>({leave.length})</span></h3></div>
-            <div style={{ display:"flex",gap:8 }}>
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" style={{ padding:"8px 12px",border:"1px solid var(--line)",borderRadius:9,fontSize:13 }} />
-              <button type="button" className="btn btn-teal" onClick={() => setModal("leave")}>+ New Leave</button>
-              <button type="button" className="btn" onClick={() => refresh("leave", setLeave)}>↺</button>
-            </div>
-          </div>
-          <Table rows={leave} cols={[
-            { key:"employee_name", label:"Employee" },
-            { key:"leave_type", label:"Type" },
-            { key:"from_date", label:"From" },
-            { key:"to_date", label:"To" },
-            { key:"total_leave_days", label:"Days" },
-          ]} />
-        </div>
-      </>
-    );
-  }
-
-  // ── Expenses tab ──────────────────────────────────────────────────────────
-  function ExpensesTab() {
-    const totalClaimed = expenses.reduce((s, e) => s + Number(e.total_claimed_amount || 0), 0);
-    const totalApproved = expenses.reduce((s, e) => s + Number(e.total_sanctioned_amount || 0), 0);
-    return (
-      <>
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:14,marginBottom:16 }}>
-          <KPI label="Expense Claims" value={expenses.length} hint="Employee reimbursements" color="navy" />
-          <KPI label="Pending Approval" value={pendingExpenses} hint="Needs manager action" color="warn" />
-          <KPI label="Claimed Total" value={money(totalClaimed)} hint="Requested amount" color="blue" />
-          <KPI label="Approved Total" value={money(totalApproved)} hint="Sanctioned amount" color="teal" />
-        </div>
-        <div className="demo-panel">
-          <div className="demo-panel-head">
-            <div><h3>Expense Claims <span style={{ fontSize:12,fontWeight:600,color:"var(--muted)" }}>({expenses.length})</span></h3><p>Claim, approve, reject and submit employee expenses.</p></div>
-            <div style={{ display:"flex",gap:8 }}>
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" style={{ padding:"8px 12px",border:"1px solid var(--line)",borderRadius:9,fontSize:13 }} />
-              <button type="button" className="btn btn-teal" onClick={() => setModal("expense")}>+ Expense Claim</button>
-              <button type="button" className="btn" onClick={() => refresh("expenses", setExpenses)}>↺</button>
-            </div>
-          </div>
-          <Table rows={expenses} cols={[
-            { key:"employee_name", label:"Employee" },
-            { key:"posting_date", label:"Date" },
-            { key:"total_claimed_amount", label:"Claimed", money:true },
-            { key:"total_sanctioned_amount", label:"Approved", money:true },
-            { key:"approval_status", label:"Approval" },
-          ]} />
-        </div>
-      </>
-    );
-  }
-
-  // ── Recruitment tab ───────────────────────────────────────────────────────
-  function RecruitmentTab() {
-    return (
-      <div className="demo-panel">
-        <div className="demo-panel-head">
-          <div><h3>Recruitment <span style={{ fontSize:12,fontWeight:600,color:"var(--muted)" }}>({recruitment.length})</span></h3><p>Job openings and hiring pipeline.</p></div>
-          <div style={{ display:"flex",gap:8 }}>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search jobs…" style={{ padding:"8px 12px",border:"1px solid var(--line)",borderRadius:9,fontSize:13 }} />
-            <button type="button" className="btn btn-teal" onClick={() => setModal("job")}>+ Job Opening</button>
-            <button type="button" className="btn" onClick={() => refresh("recruitment", setRecruitment)}>↺</button>
-          </div>
-        </div>
-        <Table rows={recruitment} cols={[
-          { key:"job_title", label:"Job Title" },
-          { key:"department", label:"Department" },
-          { key:"designation", label:"Designation" },
-          { key:"modified", label:"Updated" },
-        ]} />
-      </div>
-    );
-  }
-
-  // ── Performance tab ───────────────────────────────────────────────────────
-  function PerformanceTab() {
-    return (
-      <div className="demo-panel">
-        <div className="demo-panel-head">
-          <div><h3>Performance Reviews <span style={{ fontSize:12,fontWeight:600,color:"var(--muted)" }}>({appraisals.length})</span></h3><p>Appraisals, reviews and employee performance tracking.</p></div>
-          <div style={{ display:"flex",gap:8 }}>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search appraisals…" style={{ padding:"8px 12px",border:"1px solid var(--line)",borderRadius:9,fontSize:13 }} />
-            <button type="button" className="btn btn-teal" onClick={() => setModal("appraisal")}>+ Appraisal</button>
-            <button type="button" className="btn" onClick={() => refresh("performance", setAppraisals)}>↺</button>
-          </div>
-        </div>
-        <Table rows={appraisals} cols={[
-          { key:"employee_name", label:"Employee" },
-          { key:"employee", label:"Employee ID" },
-          { key:"appraisal_template", label:"Template" },
-          { key:"modified", label:"Updated" },
-        ]} />
-      </div>
-    );
-  }
-
-  // ── Payroll tab ───────────────────────────────────────────────────────────
-  function PayrollTab() {
-    const totalGross = payroll.reduce((s, p) => s + Number(p.gross_pay || 0), 0);
-    const totalNet = payroll.reduce((s, p) => s + Number(p.net_pay || 0), 0);
-    return (
-      <>
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:14,marginBottom:16 }}>
-          <KPI label="Salary Slips" value={payroll.length} hint="Total slips" color="navy" />
-          <KPI label="Total Gross Pay" value={money(totalGross)} hint="Sum of gross salaries" color="teal" />
-          <KPI label="Total Net Pay" value={money(totalNet)} hint="Sum of net salaries" color="blue" />
-        </div>
-
-        {payrollTrend.length > 0 && (
-          <div className="demo-panel" style={{ marginBottom:16 }}>
-            <div className="demo-panel-head"><div><h3>Payroll — Gross vs Net</h3><p>Recent salary slip comparison</p></div></div>
-            <div style={{ height:240,padding:"8px 16px 16px" }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={payrollTrend} margin={{ top:4,right:8,left:0,bottom:30 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize:10,fill:"var(--muted)" }} axisLine={false} tickLine={false} angle={-20} textAnchor="end" />
-                  <YAxis tick={{ fontSize:11,fill:"var(--muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `R${(v/1000).toFixed(0)}k`} />
-                  <Tooltip {...tt} formatter={(v: number) => [money(v)]} />
-                  <Legend wrapperStyle={{ fontSize:12,color:"var(--muted)" }} />
-                  <Bar dataKey="gross" fill="#28a486" radius={[4,4,0,0]} name="Gross Pay" />
-                  <Bar dataKey="net" fill="#242048" radius={[4,4,0,0]} name="Net Pay" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
-
-        <div className="demo-panel">
-          <div className="demo-panel-head">
-            <div><h3>Salary Slips <span style={{ fontSize:12,fontWeight:600,color:"var(--muted)" }}>({payroll.length})</span></h3></div>
-            <div style={{ display:"flex",gap:8 }}>
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" style={{ padding:"8px 12px",border:"1px solid var(--line)",borderRadius:9,fontSize:13 }} />
-              <button type="button" className="btn btn-teal" onClick={() => setModal("payroll")}>+ New Slip</button>
-              <button type="button" className="btn" onClick={() => refresh("payroll", setPayroll)}>↺</button>
-            </div>
-          </div>
-          <Table rows={payroll} cols={[
-            { key:"employee_name", label:"Employee" },
-            { key:"start_date", label:"Period Start" },
-            { key:"end_date", label:"Period End" },
-            { key:"gross_pay", label:"Gross Pay", money:true },
-            { key:"net_pay", label:"Net Pay", money:true },
-          ]} />
-        </div>
-      </>
-    );
-  }
-
-  // ── Modal definitions ─────────────────────────────────────────────────────
-  const MODALS: Record<string, { title: string; module: string; fields: ModalField[]; onSuccess: (r: Row) => void }> = {
-    employee: {
-      title: "Add Employee",
-      module: "employees",  // → /api/hr/employees
-      fields: [
-        { name:"first_name", label:"First Name", required:true },
-        { name:"last_name", label:"Last Name" },
-        { name:"gender", label:"Gender", options:["Male","Female","Other"] },
-        { name:"date_of_joining", label:"Date of Joining", type:"date", required:true },
-        { name:"department", label:"Department" },
-        { name:"designation", label:"Designation" },
-        { name:"company_email", label:"Company Email", type:"email" },
-        { name:"cell_number", label:"Cell Number", type:"tel" },
-        { name:"status", label:"Status", options:["Active","Inactive","Suspended","Left"] },
-      ],
-      onSuccess: (r) => setEmployees((p) => [r, ...p]),
-    },
-    attendance: {
-      title: "Mark Attendance",
-      module: "attendance",  // → /api/hr/attendance
-      fields: [
-        { name:"employee", label:"Employee ID", required:true },
-        { name:"attendance_date", label:"Date", type:"date", required:true },
-        { name:"status", label:"Status", required:true, options:["Present","Absent","On Leave","Half Day","Work From Home"] },
-        { name:"working_hours", label:"Working Hours", type:"number" },
-      ],
-      onSuccess: (r) => setAttendance((p) => [r, ...p]),
-    },
-    leave: {
-      title: "New Leave Application",
-      module: "leave",  // → /api/hr/leave-requests
-      fields: [
-        { name:"employee", label:"Employee ID", required:true },
-        { name:"leave_type", label:"Leave Type", required:true, options:["Annual Leave","Sick Leave","Maternity Leave","Paternity Leave","Study Leave","Unpaid Leave","Family Responsibility Leave"] },
-        { name:"from_date", label:"From Date", type:"date", required:true },
-        { name:"to_date", label:"To Date", type:"date", required:true },
-        { name:"description", label:"Reason", type:"textarea" },
-        { name:"status", label:"Status", options:["Open","Approved","Rejected","Cancelled"] },
-      ],
-      onSuccess: (r) => setLeave((p) => [r, ...p]),
-    },
-    expense: {
-      title: "New Expense Claim",
-      module: "expenses",
-      fields: [
-        { name:"employee", label:"Employee ID", required:true },
-        { name:"posting_date", label:"Posting Date", type:"date", required:true },
-        { name:"total_claimed_amount", label:"Claimed Amount", type:"number" },
-        { name:"approval_status", label:"Approval Status", options:["Draft","Approved","Rejected"] },
-        { name:"remark", label:"Remark", type:"textarea" },
-      ],
-      onSuccess: (r) => setExpenses((p) => [r, ...p]),
-    },
-    job: {
-      title: "New Job Opening",
-      module: "recruitment",
-      fields: [
-        { name:"job_title", label:"Job Title", required:true },
-        { name:"department", label:"Department" },
-        { name:"designation", label:"Designation" },
-        { name:"status", label:"Status", options:["Open","Closed"] },
-      ],
-      onSuccess: (r) => setRecruitment((p) => [r, ...p]),
-    },
-    appraisal: {
-      title: "New Appraisal",
-      module: "performance",
-      fields: [
-        { name:"employee", label:"Employee ID", required:true },
-        { name:"appraisal_template", label:"Appraisal Template" },
-        { name:"status", label:"Status", options:["Draft","Submitted","Completed","Cancelled"] },
-      ],
-      onSuccess: (r) => setAppraisals((p) => [r, ...p]),
-    },
-    payroll: {
-      title: "Create Salary Slip",
-      module: "payroll",  // → /api/hr/payroll
-      fields: [
-        { name:"employee", label:"Employee ID", required:true },
-        { name:"start_date", label:"Period Start", type:"date", required:true },
-        { name:"end_date", label:"Period End", type:"date", required:true },
-        { name:"posting_date", label:"Posting Date", type:"date" },
-        { name:"payroll_frequency", label:"Frequency", options:["Monthly","Fortnightly","Bimonthly","Weekly","Daily"] },
-      ],
-      onSuccess: (r) => setPayroll((p) => [r, ...p]),
-    },
-  };
-
-  const currentModal = modal ? MODALS[modal] : null;
-
-  return (
-    <div className="demo-workspace animate-fade-up">
-      {/* Header */}
-      <section className="demo-module-titlebar">
-        <div>
-          <div className="demo-eyebrow">People Workspace</div>
-          <h1>{TABS.find((t) => t.id === tab)?.label === "Overview" ? "HR Overview" : `${TABS.find((t) => t.id === tab)?.label} Dashboard`}</h1>
-          <p>{TABS.find((t) => t.id === tab)?.description}. Each area stays under HR but has its own focused dashboard.</p>
-        </div>
-        <div className="demo-module-actions">
-          <button type="button" className="btn btn-teal" onClick={() => setModal("employee")}>+ Add Employee</button>
-          <button type="button" className="btn" onClick={() => setModal("leave")}>+ Leave Request</button>
-          <button type="button" className="btn" onClick={() => setModal("attendance")}>+ Attendance</button>
-          <button type="button" className="btn" onClick={() => setModal("expense")}>+ Expense</button>
-        </div>
-      </section>
-
-      {/* Notice */}
-      {notice && (
-        <div style={{ background:"var(--ok-bg)",border:"1px solid var(--ok)",color:"var(--ok)",borderRadius:9,padding:"10px 16px",marginBottom:14,fontSize:13,fontWeight:600 }}>
-          ✓ {notice}
-        </div>
-      )}
-
-      {/* Dashboard switcher */}
-      <section className="demo-tabbar">
-        {TABS.map((t) => {
-          const count = t.id === "employees" ? employees.length : t.id === "attendance" ? attendance.length : t.id === "leave" ? leave.length : t.id === "payroll" ? payroll.length : t.id === "expenses" ? expenses.length : t.id === "recruitment" ? recruitment.length : t.id === "performance" ? appraisals.length : 0;
-          return (
-            <button key={t.id} type="button" onClick={() => { setTab(t.id); setQuery(""); history.replaceState(null, "", t.id === "overview" ? "/portal/hr" : `/portal/hr?tab=${t.id}`); }} className={tab === t.id ? "active" : ""}>
-              {t.label}{count ? ` (${count})` : ""}
-            </button>
-          );
-        })}
-      </section>
-
-      {/* Tab content */}
-      {tab === "overview" && <OverviewTab />}
-      {tab === "employees" && <EmployeesTab />}
-      {tab === "attendance" && <AttendanceTab />}
-      {tab === "leave" && <LeaveTab />}
-      {tab === "payroll" && <PayrollTab />}
-      {tab === "expenses" && <ExpensesTab />}
-      {tab === "recruitment" && <RecruitmentTab />}
-      {tab === "performance" && <PerformanceTab />}
-
-      {/* Modal */}
-      {currentModal && (
-        <Modal
-          title={currentModal.title}
-          fields={currentModal.fields}
-          onClose={() => { setModal(null); setFormError(""); }}
-          onSubmit={(values) => submitForm(currentModal.module, values, currentModal.onSuccess)}
-          busy={busy}
-          error={formError}
-        />
-      )}
-    </div>
-  );
+  return <div className="demo-workspace hr-workspace animate-fade-up"><style jsx global>{`
+    .hr-workspace .hr-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:16px}.hr-kpi{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;text-align:left;box-shadow:var(--shadow);cursor:pointer}.hr-kpi span{display:block;font-size:11px;text-transform:uppercase;color:var(--muted);font-weight:800}.hr-kpi b{font-size:28px;color:var(--navy-ink)}.hr-section-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}.hr-table-wrap{overflow:auto}.hr-table tr{cursor:pointer}.hr-empty{padding:28px;border:1px dashed var(--line);border-radius:14px;color:var(--muted);display:grid;gap:4px}.hr-modal-backdrop{position:fixed;inset:0;background:rgba(20,20,40,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}.hr-modal{width:min(1080px,96vw);max-height:92vh;overflow:auto;background:var(--card);border-radius:20px;padding:24px;box-shadow:0 24px 80px rgba(0,0,0,.25)}.hr-modal-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px}.hr-modal-head h2{margin:0}.hr-modal-head span{font-size:11px;text-transform:uppercase;color:var(--muted);font-weight:800}.hr-modal-head button{border:0;background:transparent;font-size:26px;cursor:pointer}.hr-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.hr-form-grid label span{display:block;font-size:12px;font-weight:800;color:var(--muted);margin-bottom:5px}.hr-form-grid input,.hr-form-grid select,.hr-form-grid textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff}.hr-modal-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:20px}.hr-error{color:var(--danger);background:var(--danger-bg);border-radius:10px;padding:10px;margin-top:12px}@media print{body *{visibility:hidden}.hr-report-print,.hr-report-print *{visibility:visible}.hr-report-print{position:absolute;left:0;top:0;width:100%;background:#fff}.demo-module-titlebar,.demo-tabbar,.demo-module-actions{display:none!important}}
+  `}</style><section className="demo-module-titlebar"><div><div className="demo-eyebrow">People Workspace</div><h1>{currentTitle.label}</h1><p>{currentTitle.subtitle}. Same HRMS workflow, cleaner SaaS interface.</p></div><div className="demo-module-actions"><button className="btn btn-teal" onClick={() => setModal({ mode: "create", source: SOURCES.employees[0] })}>+ Employee</button><button className="btn" onClick={() => switchTab("recruitment")}>Job Portal</button><button className="btn" onClick={() => switchTab("reports")}>Reports</button><button className="btn" onClick={() => load(tab)}>Refresh</button></div></section>{notice && <div className="crm-banner">{notice}</div>}<section className="demo-tabbar">{TABS.map((t) => <button key={t.id} className={tab === t.id ? "active" : ""} onClick={() => switchTab(t.id)}>{t.label}</button>)}</section>{loading && <div className="crm-loading"><span /> Loading HR…</div>}{tab === "overview" && <><div className="hr-kpi-grid">{kpis.map((k) => <button key={k.label} className="hr-kpi" onClick={() => switchTab(k.tab)}><span>{k.label}</span><b>{k.value}</b><small>Open {k.label.toLowerCase()}</small></button>)}</div><div className="hr-section-grid"><ReportCard title="Employees by Department"><ResponsiveContainer width="100%" height="100%"><BarChart data={deptChart}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="name"/><YAxis/><Tooltip/><Bar dataKey="value" fill="#28A486" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer></ReportCard><ReportCard title="Attendance by Status"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={attendanceChart} dataKey="value" nameKey="name" outerRadius={90} label>{attendanceChart.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]}/>)}</Pie><Tooltip/><Legend/></PieChart></ResponsiveContainer></ReportCard></div></>}{tab !== "overview" && tab !== "reports" && <><div style={{display:"flex",justifyContent:"space-between",gap:12,marginBottom:14,flexWrap:"wrap"}}><input value={query} onChange={(e)=>setQuery(e.target.value)} placeholder={`Search ${currentTitle.label.toLowerCase()}…`} style={{padding:"10px 12px",border:"1px solid var(--line)",borderRadius:10,minWidth:260}}/><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{sources.map((s) => <button key={s.key} className="btn btn-teal" onClick={() => setModal({ mode: "create", source: s })}>+ {s.create || s.label}</button>)}</div></div><div className="hr-section-grid">{sources.map((s) => <section key={s.key} className="demo-panel"><div className="demo-panel-head"><div><h3>{s.label} <span style={{fontSize:12,color:"var(--muted)"}}>({filteredRows(s).length})</span></h3><p>{s.doctype}</p></div><button className="btn" onClick={() => load(tab)}>↺</button></div><DataTable source={s} rows={filteredRows(s)} onOpen={(source, row) => setModal({ mode: "edit", source, record: row })}/></section>)}</div></>}{tab === "reports" && <div className="hr-report-print"><section className="demo-module-titlebar"><div><div className="demo-eyebrow">Business Suite HR Report</div><h1>Human Resources Reports</h1><p>Attendance, leave, payroll, recruitment and performance analytics.</p></div><div className="demo-module-actions"><button className="btn btn-teal" onClick={exportReportPdf}>Export Full Report PDF</button></div></section><div className="hr-kpi-grid"><button className="hr-kpi"><span>Employees</span><b>{reports.kpis?.employees || 0}</b></button><button className="hr-kpi"><span>Active</span><b>{reports.kpis?.active || 0}</b></button><button className="hr-kpi"><span>Payroll</span><b>{money(reports.kpis?.payroll_total)}</b></button><button className="hr-kpi"><span>Expenses</span><b>{money(reports.kpis?.expense_claimed)}</b></button></div><div className="hr-section-grid"><ReportCard title="Employees by Department"><ResponsiveContainer width="100%" height="100%"><BarChart data={reports.employees_by_department || []}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="label"/><YAxis/><Tooltip/><Bar dataKey="value" fill="#28A486" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer></ReportCard><ReportCard title="Leave by Type"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={reports.leave_by_type || []} dataKey="value" nameKey="label" outerRadius={90} label>{(reports.leave_by_type || []).map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]}/>)}</Pie><Tooltip/><Legend/></PieChart></ResponsiveContainer></ReportCard><ReportCard title="Payroll Gross vs Net"><ResponsiveContainer width="100%" height="100%"><BarChart data={reports.payroll_by_employee || []}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="label"/><YAxis/><Tooltip/><Legend/><Bar dataKey="gross" fill="#242048"/><Bar dataKey="net" fill="#28A486"/></BarChart></ResponsiveContainer></ReportCard><ReportCard title="Attendance by Status"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={reports.attendance_by_status || []} dataKey="value" nameKey="label" outerRadius={90} label>{(reports.attendance_by_status || []).map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]}/>)}</Pie><Tooltip/><Legend/></PieChart></ResponsiveContainer></ReportCard></div></div>}{modal && <Modal mode={modal.mode} source={modal.source} record={modal.record} options={options} onClose={() => setModal(null)} onSaved={() => { setModal(null); void load(tab); }}/>}</div>;
 }
