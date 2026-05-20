@@ -45,7 +45,7 @@ export default function DocumentWorkspaceClient({ initialFiles, googleConnected 
   const [files, setFiles] = useState<ERPFile[]>(initialFiles || []);
   const [provider, setProvider] = useState<"erpnext" | "google" | "dropbox">("erpnext");
   const [googleFiles, setGoogleFiles] = useState<CloudFile[]>([]);
-  const [storageStatus, setStorageStatus] = useState({ google: googleConnected, dropbox: dropboxConnected, googleEmail: "", dropboxEmail: "" });
+  const [storageStatus, setStorageStatus] = useState({ google: googleConnected, dropbox: dropboxConnected, googleEmail: "", dropboxEmail: "", googleConfigured: true, dropboxConfigured: true });
   const [dropboxFiles, setDropboxFiles] = useState<CloudFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
@@ -60,7 +60,7 @@ export default function DocumentWorkspaceClient({ initialFiles, googleConnected 
       const res = await fetch(`/api/documents/${which}/files`, { cache: "no-store" });
       const json = await res.json();
       if (!res.ok || !json.connected) {
-        setNotice(`${providerLabel(which)} is not connected yet. Connect it first.`);
+        setNotice(json?.error || `${providerLabel(which)} is not connected yet. Connect it first.`);
         return;
       }
       if (which === "google") setGoogleFiles(json.data || []);
@@ -80,6 +80,8 @@ export default function DocumentWorkspaceClient({ initialFiles, googleConnected 
         dropbox: Boolean(data?.dropbox?.connected),
         googleEmail: String(data?.google?.account_email || ""),
         dropboxEmail: String(data?.dropbox?.account_email || ""),
+        googleConfigured: data?.google?.configured !== false,
+        dropboxConfigured: data?.dropbox?.configured !== false,
       });
     }).catch(() => undefined);
   }, []);
@@ -190,8 +192,8 @@ export default function DocumentWorkspaceClient({ initialFiles, googleConnected 
             <div className="demo-eyebrow">Connection status</div>
             <h3>Storage Integrations</h3>
             <div className="demo-pill-row">
-              <div className="demo-pill-box"><span>Google Drive</span><b>{storageStatus.google ? "Connected" : "Not connected"}</b><small>{storageStatus.googleEmail}</small></div>
-              <div className="demo-pill-box"><span>Dropbox</span><b>{storageStatus.dropbox ? "Connected" : "Not connected"}</b><small>{storageStatus.dropboxEmail}</small></div>
+              <div className="demo-pill-box"><span>Google Drive</span><b>{!storageStatus.googleConfigured ? "Setup needed" : storageStatus.google ? "Connected" : "Not connected"}</b><small>{storageStatus.googleEmail || (!storageStatus.googleConfigured ? "Admin must add Google OAuth credentials" : "")}</small></div>
+              <div className="demo-pill-box"><span>Dropbox</span><b>{!storageStatus.dropboxConfigured ? "Setup needed" : storageStatus.dropbox ? "Connected" : "Not connected"}</b><small>{storageStatus.dropboxEmail || (!storageStatus.dropboxConfigured ? "Admin must add Dropbox OAuth credentials" : "")}</small></div>
             </div>
           </div>
         </div>
@@ -205,7 +207,7 @@ export default function DocumentWorkspaceClient({ initialFiles, googleConnected 
             <div className="w-12 h-12 rounded-xl bg-purple-600 text-white grid place-items-center mb-4">▣</div>
             <h3 className="font-black text-lg">{item.title}</h3>
             <p className="text-sm text-slate-500 mt-2 leading-6">{item.key === "erpnext" ? "Files saved in your company workspace and available to all modules." : `Connect ${item.title} and link cloud files into Business Suite.`}</p>
-            <span className={`chip ${item.connected ? "ok" : "warn"}`}>{item.connected ? "Ready" : "Connect"}</span>
+            <span className={`chip ${item.key === "google" && !storageStatus.googleConfigured ? "danger" : item.key === "dropbox" && !storageStatus.dropboxConfigured ? "danger" : item.connected ? "ok" : "warn"}`}>{item.key === "google" && !storageStatus.googleConfigured ? "Setup needed" : item.key === "dropbox" && !storageStatus.dropboxConfigured ? "Setup needed" : item.connected ? "Ready" : "Connect"}</span>
           </button>
         ))}
       </section>

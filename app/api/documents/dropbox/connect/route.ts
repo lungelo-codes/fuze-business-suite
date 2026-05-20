@@ -6,7 +6,12 @@ function getBaseUrl(req: Request) {
 
 export async function GET(req: Request) {
   const clientId = process.env.DROPBOX_CLIENT_ID;
-  if (!clientId) return NextResponse.json({ error: "Missing DROPBOX_CLIENT_ID" }, { status: 500 });
+  if (!clientId) {
+    const back = new URL(`${getBaseUrl(req)}/portal/documents`);
+    back.searchParams.set("storage", "dropbox");
+    back.searchParams.set("setup", "missing_credentials");
+    return NextResponse.redirect(back.toString());
+  }
 
   const state = crypto.randomUUID();
   const redirectUri = `${getBaseUrl(req)}/api/documents/dropbox/callback`;

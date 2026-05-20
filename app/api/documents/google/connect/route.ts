@@ -7,7 +7,10 @@ function getBaseUrl(req: Request) {
 export async function GET(req: Request) {
   const clientId = process.env.GOOGLE_DRIVE_CLIENT_ID;
   if (!clientId) {
-    return NextResponse.json({ error: "Missing GOOGLE_DRIVE_CLIENT_ID" }, { status: 500 });
+    const back = new URL(`${getBaseUrl(req)}/portal/documents`);
+    back.searchParams.set("storage", "google");
+    back.searchParams.set("setup", "missing_credentials");
+    return NextResponse.redirect(back.toString());
   }
 
   const state = crypto.randomUUID();

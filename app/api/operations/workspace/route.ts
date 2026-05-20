@@ -18,6 +18,14 @@ async function list(doctype: string, fields: string[], limit = 25) {
   return erpList<Row>(doctype, { fields, limit, orderBy: "modified desc" }).catch(() => []);
 }
 
+async function listAny(doctype: string, fieldSets: string[][], limit = 25) {
+  for (const fields of fieldSets) {
+    const rows = await list(doctype, fields, limit);
+    if (rows.length || fields.length <= 3) return rows;
+  }
+  return [];
+}
+
 function moneyTotal(rows: Row[], field: string) {
   return rows.reduce((sum, row) => sum + Number(row[field] || 0), 0);
 }
@@ -53,6 +61,7 @@ export async function GET() {
       qualityReviews,
       qualityActions,
       dataImports,
+      files,
     ] = await Promise.all([
       safeMethod("procurement.get_dashboard", base, {}),
       safeMethod("projects.get_dashboard", base, {}),
@@ -73,12 +82,13 @@ export async function GET() {
       list("Expense Claim", ["name", "employee", "employee_name", "posting_date", "total_claimed_amount", "total_sanctioned_amount", "approval_status", "status", "docstatus", "modified"]),
       list("Quality Goal", ["name", "goal", "status", "modified"]),
       list("Quality Inspection", ["name", "inspection_type", "reference_type", "reference_name", "item_code", "sample_size", "status", "docstatus", "modified"]),
-      list("Non Conformance", ["name", "subject", "quality_procedure", "supplier", "status", "modified"]),
-      list("Supplier Scorecard", ["name", "supplier", "status", "modified"]),
-      list("Quality Meeting", ["name", "meeting_date", "status", "modified"]),
-      list("Quality Review", ["name", "reviewed_by", "status", "modified"]),
-      list("Quality Action", ["name", "action", "type", "status", "modified"]),
-      list("Data Import", ["name", "reference_doctype", "import_type", "status", "percent_complete", "modified"]),
+      listAny("Non Conformance", [["name", "subject", "procedure", "supplier", "status", "modified"], ["name", "subject", "status", "modified"]]),
+      listAny("Supplier Scorecard", [["name", "supplier", "status", "modified"], ["name", "supplier", "modified"]]),
+      listAny("Quality Meeting", [["name", "meeting_date", "status", "modified"], ["name", "modified"]]),
+      listAny("Quality Review", [["name", "reviewed_by", "status", "modified"], ["name", "modified"]]),
+      listAny("Quality Action", [["name", "subject", "action", "type", "status", "modified"], ["name", "subject", "status", "modified"], ["name", "status", "modified"]]),
+      listAny("Data Import", [["name", "reference_doctype", "import_type", "status", "percent_complete", "modified"], ["name", "reference_doctype", "import_type", "modified"]]),
+      listAny("File", [["name", "file_name", "file_url", "attached_to_doctype", "attached_to_name", "is_private", "modified"], ["name", "file_name", "file_url", "modified"]]),
     ]);
 
     const procurement = {
@@ -129,13 +139,13 @@ export async function GET() {
           procurement: Object.keys(procurementDashboard as Any).length ? procurementDashboard : { cards: { suppliers: suppliers.length, material_requests: materialRequests.length, purchase_orders: purchaseOrders.length, purchase_invoices: purchaseInvoices.length } },
           projects: Object.keys(projectsDashboard as Any).length ? projectsDashboard : { cards: { active_projects: projectRows.length, open_tasks: taskRows.length, timesheets: timesheets.length, expenses: expenses.length } },
           quality: Object.keys(qualityDashboard as Any).length ? qualityDashboard : { cards: { inspections: inspections.length, non_conformances: nonConformances.length, actions: qualityActions.length, supplier_quality: supplierQuality.length } },
-          data: dataDashboard,
+          data: Object.keys(dataDashboard as Any).length ? dataDashboard : { cards: { imports: dataImports.length, files: files.length } },
           finance: financeDashboard,
         },
         procurement,
         projects,
         quality,
-        data_management: { imports: dataImports },
+        data_management: { imports: dataImports, files },
       },
     });
   } catch (error: unknown) {
