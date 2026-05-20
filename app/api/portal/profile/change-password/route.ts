@@ -1,3 +1,15 @@
 import { NextResponse } from "next/server";
 import { erpMethod } from "@/lib/server/erpnext";
-export async function POST(req: Request) { try { const body = await req.json() as { currentPassword?: string; newPassword?: string }; if (!body.currentPassword || !body.newPassword) return NextResponse.json({ error: "Current and new password are required" }, { status: 400 }); try { await erpMethod("fuze_suite.api.portal.change_password", { current_password: body.currentPassword, new_password: body.newPassword }); } catch { await erpMethod("frappe.core.doctype.user.user.update_password", { old_password: body.currentPassword, new_password: body.newPassword }); } return NextResponse.json({ success: true }); } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Password change failed" }, { status: 500 }); } }
+import { requireSaaSUser, safeJsonError, tenantArgs } from "@/lib/server/apiGuard";
+
+export async function POST(req: Request) {
+  try {
+    const session = requireSaaSUser();
+    const body = await req.json() as { currentPassword?: string; newPassword?: string };
+    if (!body.currentPassword || !body.newPassword) return NextResponse.json({ ok: false, error: "Current and new password are required" }, { status: 400 });
+    await erpMethod("fuze_suite.api.portal.change_password", tenantArgs({ current_password: body.currentPassword, new_password: body.newPassword }, session));
+    return NextResponse.json({ ok: true, success: true });
+  } catch (error: unknown) {
+    return safeJsonError(error, "Password change failed.");
+  }
+}

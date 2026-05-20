@@ -24,6 +24,7 @@ const ALWAYS_ALLOWED_PORTAL_PATHS = [
   "/portal/modules",
   "/portal/billing",
   "/portal/settings",
+  "/portal/qa",
 ];
 
 const MODULE_PATHS: Record<string, string[]> = {
@@ -44,10 +45,10 @@ const MODULE_PATHS: Record<string, string[]> = {
   projects: ["/portal/projects"],
   tasks: ["/portal/tasks"],
   documents: ["/portal/documents"],
-  employees: ["/portal/employees"],
-  payroll: ["/portal/payroll"],
-  leave: ["/portal/leave"],
-  attendance: ["/portal/attendance"],
+  employees: ["/portal/employees", "/portal/hr"],
+  payroll: ["/portal/payroll", "/portal/hr"],
+  leave: ["/portal/leave", "/portal/hr"],
+  attendance: ["/portal/attendance", "/portal/hr"],
   support: ["/portal/support"],
   chat: ["/portal/chat"],
   appointments: ["/portal/appointments"],

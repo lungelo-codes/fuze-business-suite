@@ -93,6 +93,7 @@ const GROUPS: NavGroup[] = [
       { label: "Support", href: "/portal/support", icon: "support", module: "support" },
       { label: "Team Chat", href: "/portal/chat", icon: "mail", module: "chat" },
       { label: "Appointments", href: "/portal/appointments", icon: "calendar", module: "appointments" },
+      { label: "Live QA", href: "/portal/qa", icon: "shield" },
     ],
   },
   {

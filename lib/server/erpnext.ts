@@ -73,11 +73,20 @@ function encodeFilters(filters?: unknown[]): string {
   return filters ? `filters=${encodeURIComponent(JSON.stringify(filters))}` : "";
 }
 
+function publicBackendMessage(message: string, fallback: string): string {
+  const raw = String(message || "");
+  if (!raw) return fallback;
+  if (/erpnext|frappe|doctype|traceback|permissionerror|validationerror|failed to get method|no module named|module .* has no attribute|app .* is not installed|not permitted|does not have.*permission/i.test(raw)) {
+    return fallback;
+  }
+  return raw.replace(/<[^>]+>/g, "").slice(0, 180);
+}
+
 export function resourceListPath(
   doctype: string,
   _options: { fields?: string[]; filters?: unknown[]; limit?: number; orderBy?: string } = {}
 ): string {
-  throw new BusinessSuiteError(`Raw ERPNext resource access is disabled for ${doctype}. Use the SaaS API wrapper.`);
+  throw new BusinessSuiteError(`Direct backend resource access is disabled for ${doctype}. Use the Business Suite API wrapper.`);
 }
 
 async function parseResponse<T>(res: Response, fallbackMessage: string): Promise<T> {
@@ -145,7 +154,7 @@ async function parseResponse<T>(res: Response, fallbackMessage: string): Promise
       data.exc_type ||
       fallbackMessage;
 
-    throw new BusinessSuiteError(message, res.status);
+    throw new BusinessSuiteError(publicBackendMessage(message, fallbackMessage), res.status);
   }
 
   return json as T;
