@@ -1,27 +1,26 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getERPNextBaseUrl } from "@/lib/server/erpnext";
+import { NextResponse } from 'next/server'
+import { erpMethod, BusinessSuiteError } from '@/lib/server/erpnext'
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const doctype = searchParams.get("doctype") || "";
-  const name = searchParams.get("name") || "";
-  if (!doctype || !name) return NextResponse.json({ error: "Missing document print details" }, { status: 400 });
+  try {
+    const p = new URL(req.url).searchParams
+    const doctype = p.get('doctype') || ''
+    const name = p.get('name') || ''
+    const pdf = p.get('pdf') ?? '1'
+    if (!doctype || !name) return NextResponse.json({ error: 'doctype and name are required' }, { status: 400 })
+    const result = await erpMethod<any>('invoice_quote.get_business_suite_document', { data: { doctype, name, pdf } })
+    return NextResponse.json({ data: result })
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Could not render document' }, { status: e instanceof BusinessSuiteError ? e.status : 500 })
+  }
+}
 
-  const sid = cookies().get("sid")?.value;
-  if (!sid) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
-  const baseUrl = getERPNextBaseUrl();
-  const upstream = new URL(`${baseUrl}/printview`);
-  searchParams.forEach((value, key) => upstream.searchParams.set(key, value));
-
-  const res = await fetch(upstream.toString(), { headers: { Cookie: `sid=${sid}` }, cache: "no-store" });
-  const body = await res.arrayBuffer();
-  return new NextResponse(body, {
-    status: res.status,
-    headers: {
-      "content-type": res.headers.get("content-type") || "text/html; charset=utf-8",
-      "cache-control": "no-store",
-    },
-  });
+export async function POST(req: Request) {
+  try {
+    const body = await req.json().catch(() => ({}))
+    const result = await erpMethod<any>('invoice_quote.get_business_suite_document', { data: body })
+    return NextResponse.json({ data: result })
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Could not render document' }, { status: e instanceof BusinessSuiteError ? e.status : 500 })
+  }
 }

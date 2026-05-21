@@ -9,6 +9,7 @@ import { WorkspaceCharts } from '@/components/charts/InteractiveBusinessCharts'
 import type { CrudField, CrudModuleConfig } from '@/lib/crudConfig'
 
 type Row = Record<string, unknown>
+type EmailTemplate = { name: string; subject?: string; response?: string }
 type MetadataResponse = {
   doctype: string
   fields: CrudField[]
@@ -19,6 +20,15 @@ type MetadataResponse = {
 }
 
 const SYSTEM_FIELDS = new Set(['owner', 'creation', 'modified_by', 'parent', 'parentfield', 'parenttype', 'idx'])
+const PRINTABLE_DOCTYPES = new Set(['Sales Invoice', 'Quotation', 'Salary Slip'])
+
+function defaultRecipient(row: Row): string {
+  return String(row.email_id || row.contact_email || row.customer_email || row.employee_email || row.prefered_email || row.email || '')
+}
+
+function isPrintableDoctype(doctype: string): boolean {
+  return PRINTABLE_DOCTYPES.has(doctype)
+}
 
 function getRowId(row: Row | null): string {
   return row ? String(row.name || row.id || '') : ''
@@ -119,6 +129,9 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [metaNotice, setMetaNotice] = useState('')
+  const [emailOpen, setEmailOpen] = useState(false)
+  const [templates, setTemplates] = useState<EmailTemplate[]>([])
+  const [emailValues, setEmailValues] = useState({ to: '', cc: '', bcc: '', template: '', subject: '', content: '', attach_pdf: true })
 
   const activeConfig = useMemo(() => buildConfig(config, meta), [config, meta])
   const tableFields = activeConfig.tableFields.filter((field) => !field.hideOnTable).slice(0, 6)
@@ -302,18 +315,111 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
   async function openPrint(row: Row, e?: MouseEvent) {
     e?.preventDefault(); e?.stopPropagation()
     const id = getRowId(row)
-    if (!id) return
+    if (!id || !isPrintableDoctype(activeConfig.doctype)) return
+    setLoading(true); setError('')
     try {
-      const res = await fetch(`/api/crud/${moduleId}/${encodeURIComponent(id)}/print`, { cache: 'no-store' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Could not open print view')
-      window.open(data.data.url, '_blank', 'noopener,noreferrer')
+      const res = await fetch(`/api/documents/print?doctype=${encodeURIComponent(activeConfig.doctype)}&name=${encodeURIComponent(id)}&pdf=1`, { cache: 'no-store' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Could not open print view')
+      const payload = json.data?.data || json.data || {}
+      if (payload.pdf) {
+        const byteCharacters = atob(payload.pdf)
+        const byteNumbers = Array.from(byteCharacters, (char) => char.charCodeAt(0))
+        const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' })
+        const url = URL.createObjectURL(blob)
+        window.open(url, '_blank', 'noopener,noreferrer')
+      } else if (payload.html) {
+        const win = window.open('', '_blank', 'noopener,noreferrer')
+        win?.document.write(payload.html)
+        win?.document.close()
+      } else {
+        throw new Error('No printable document was returned')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not open print view')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function openEmailComposer(row: Row, e?: MouseEvent) {
+    e?.preventDefault(); e?.stopPropagation()
+    const id = getRowId(row)
+    if (!id || !isPrintableDoctype(activeConfig.doctype)) return
+    setSelected(row)
+    setEmailValues({
+      to: defaultRecipient(row),
+      cc: '',
+      bcc: '',
+      template: '',
+      subject: `${singularTitle(activeConfig.title)} ${id}`,
+      content: `Please find attached ${singularTitle(activeConfig.title).toLowerCase()} ${id}.`,
+      attach_pdf: true,
+    })
+    setEmailOpen(true)
+    try {
+      const res = await fetch(`/api/email/templates?doctype=${encodeURIComponent(activeConfig.doctype)}`, { cache: 'no-store' })
+      const json = await res.json()
+      setTemplates(Array.isArray(json.data) ? json.data : [])
+    } catch {
+      setTemplates([])
+    }
+  }
+
+  async function renderTemplate(templateName: string) {
+    setEmailValues((prev) => ({ ...prev, template: templateName }))
+    const id = selected ? getRowId(selected) : ''
+    if (!templateName || !id) return
+    try {
+      const res = await fetch('/api/email/render-template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ template: templateName, doctype: activeConfig.doctype, name: id }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Could not render template')
+      const payload = json.data?.data || json.data || {}
+      setEmailValues((prev) => ({ ...prev, subject: payload.subject || prev.subject, content: payload.content || prev.content }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not render template')
+    }
+  }
+
+  async function sendDocumentEmail(e?: MouseEvent) {
+    e?.preventDefault(); e?.stopPropagation()
+    const id = selected ? getRowId(selected) : ''
+    if (!id) return
+    if (!emailValues.to.trim()) { setError('Recipient email is required'); return }
+    setLoading(true); setError(''); setNotice('')
+    try {
+      const res = await fetch('/api/documents/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          doctype: activeConfig.doctype,
+          name: id,
+          to: emailValues.to,
+          cc: emailValues.cc,
+          bcc: emailValues.bcc,
+          template: emailValues.template || undefined,
+          subject: emailValues.subject,
+          content: emailValues.content,
+          attach_pdf: emailValues.attach_pdf ? 1 : 0,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Could not send email')
+      setEmailOpen(false)
+      setNotice(`Email queued for ${id}.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send email')
+    } finally {
+      setLoading(false)
     }
   }
 
   function shareRecord(row: Row, e?: MouseEvent) {
+    if (isPrintableDoctype(activeConfig.doctype)) return openEmailComposer(row, e)
     e?.preventDefault(); e?.stopPropagation()
     const id = getRowId(row)
     if (!id) return
@@ -449,10 +555,26 @@ export default function CrudModulePage({ moduleId, config, initialRows = [] }: {
         <div className="crud-form-actions"><button type="button" onClick={() => setFormOpen(false)} className="btn">Cancel</button><button type="button" disabled={loading} onClick={saveRecord} className="btn btn-teal">{loading ? 'Saving…' : 'Save Record'}</button></div>
       </BusinessModal>
 
+
+      <BusinessModal open={emailOpen} title={`Email ${selected ? getRowId(selected) : ''}`} onClose={() => setEmailOpen(false)} size="lg">
+        <div className="crud-form-actions" style={{ display: 'grid', gap: 12 }}>
+          <label className="crud-detail-card"><span>To</span><input className="crud-search-input" value={emailValues.to} onChange={(e) => setEmailValues((prev) => ({ ...prev, to: e.target.value }))} placeholder="customer@example.com" /></label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <label className="crud-detail-card"><span>CC</span><input className="crud-search-input" value={emailValues.cc} onChange={(e) => setEmailValues((prev) => ({ ...prev, cc: e.target.value }))} /></label>
+            <label className="crud-detail-card"><span>BCC</span><input className="crud-search-input" value={emailValues.bcc} onChange={(e) => setEmailValues((prev) => ({ ...prev, bcc: e.target.value }))} /></label>
+          </div>
+          <label className="crud-detail-card"><span>ERPNext Email Template</span><select className="crud-search-input" value={emailValues.template} onChange={(e) => renderTemplate(e.target.value)}><option value="">No template</option>{templates.map((tpl) => <option key={tpl.name} value={tpl.name}>{tpl.name}</option>)}</select></label>
+          <label className="crud-detail-card"><span>Subject</span><input className="crud-search-input" value={emailValues.subject} onChange={(e) => setEmailValues((prev) => ({ ...prev, subject: e.target.value }))} /></label>
+          <label className="crud-detail-card"><span>Message</span><textarea className="crud-search-input" rows={7} value={emailValues.content} onChange={(e) => setEmailValues((prev) => ({ ...prev, content: e.target.value }))} /></label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={emailValues.attach_pdf} onChange={(e) => setEmailValues((prev) => ({ ...prev, attach_pdf: e.target.checked }))} /> Attach branded PDF</label>
+          <div className="crud-form-actions"><button type="button" onClick={() => setEmailOpen(false)} className="btn">Cancel</button><button type="button" disabled={loading} onClick={sendDocumentEmail} className="btn btn-teal">{loading ? 'Sending…' : 'Send Email'}</button></div>
+        </div>
+      </BusinessModal>
+
       <DetailDrawer open={drawerOpen} title={titleValue || activeConfig.title} subtitle={selected ? getRowId(selected) : ''} onClose={() => setDrawerOpen(false)}>
         {selected ? <div className="crud-drawer-space">
           {detailLoading ? <div className="demo-banner">Loading full record...</div> : null}
-          <div className="demo-panel crud-drawer-actions"><div className="demo-panel-head"><div><h3>Record Actions</h3><p>Work with this record directly from Business Suite.</p></div></div><div className="crud-action-strip"><button type="button" onClick={(e) => openEdit(selected, e)} className="btn btn-teal">Edit</button><button type="button" onClick={(e) => duplicateRecord(selected, e)} className="btn">Duplicate</button>{['Sales Invoice', 'Quotation', 'Payment Entry', 'Purchase Order', 'Sales Order'].includes(activeConfig.doctype) ? <button type="button" onClick={(e) => openPrint(selected, e)} className="btn">Print / PDF</button> : null}<button type="button" onClick={(e) => shareRecord(selected, e)} className="btn">Share</button>{activeConfig.submitEnabled && selectedDocStatus === 0 ? <button type="button" onClick={(e) => performAction('submit', selected, e)} disabled={loading} className="btn btn-teal">Submit</button> : null}{activeConfig.submitEnabled && selectedDocStatus === 1 ? <button type="button" onClick={(e) => performAction('cancel', selected, e)} disabled={loading} className="btn">Cancel</button> : null}<button type="button" onClick={(e) => deleteRecord(selected, e)} disabled={loading || selectedDocStatus === 1} className="btn crud-danger">Delete</button></div></div>
+          <div className="demo-panel crud-drawer-actions"><div className="demo-panel-head"><div><h3>Record Actions</h3><p>Work with this record directly from Business Suite.</p></div></div><div className="crud-action-strip"><button type="button" onClick={(e) => openEdit(selected, e)} className="btn btn-teal">Edit</button><button type="button" onClick={(e) => duplicateRecord(selected, e)} className="btn">Duplicate</button>{isPrintableDoctype(activeConfig.doctype) ? <button type="button" onClick={(e) => openPrint(selected, e)} className="btn">Print / PDF</button> : null}{isPrintableDoctype(activeConfig.doctype) ? <button type="button" onClick={(e) => openEmailComposer(selected, e)} className="btn">Email</button> : null}<button type="button" onClick={(e) => shareRecord(selected, e)} className="btn">Share</button>{activeConfig.submitEnabled && selectedDocStatus === 0 ? <button type="button" onClick={(e) => performAction('submit', selected, e)} disabled={loading} className="btn btn-teal">Submit</button> : null}{activeConfig.submitEnabled && selectedDocStatus === 1 ? <button type="button" onClick={(e) => performAction('cancel', selected, e)} disabled={loading} className="btn">Cancel</button> : null}<button type="button" onClick={(e) => deleteRecord(selected, e)} disabled={loading || selectedDocStatus === 1} className="btn crud-danger">Delete</button></div></div>
           <div className="crud-detail-grid">{detailFields.map((field) => <div key={field.name} className="crud-detail-card"><span>{field.label}</span><b>{isStatusField(field.name) ? <StatusChip status={valueToText(selected[field.name])} /> : valueToText(selected[field.name])}</b></div>)}</div>
           {children.map(([key, items]) => <div key={key} className="demo-panel"><div className="demo-panel-head"><div><h3>{key.replace(/_/g, ' ')}</h3><p>Linked child table records</p></div></div><div className="overflow-auto"><table className="demo-table"><tbody>{items.map((item, idx) => <tr key={idx}><td>#{idx + 1}</td><td>{Object.entries(item).filter(([k, v]) => !SYSTEM_FIELDS.has(k) && v !== undefined && v !== null && v !== '').slice(0, 8).map(([k, v]) => <span key={k} className="crud-inline-field"><b>{k.replace(/_/g, ' ')}:</b> {valueToText(v)}</span>)}</td></tr>)}</tbody></table></div></div>)}
         </div> : null}

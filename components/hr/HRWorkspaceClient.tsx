@@ -147,6 +147,9 @@ function Modal({ mode, source, record, options, available, onClose, onSaved, onO
   const [doc, setDoc] = useState<Any>(() => ({ ...(record || {}) }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [emailTo, setEmailTo] = useState(String(record?.company_email || record?.personal_email || record?.email || record?.email_id || ""));
+  const [emailSubject, setEmailSubject] = useState(`Pay Slip ${record?.name || ""}`);
+  const [emailBody, setEmailBody] = useState(`Please find attached pay slip ${record?.name || ""}.`);
   const editable: Field[] = (source.fields.length ? source.fields : Object.keys(doc).filter((k) => !["name","doctype","owner","creation","modified","modified_by","docstatus","idx"].includes(k)).slice(0, 18).map((name): Field => ({ name, label: title(name) }))).filter((field) => !field.link || available[field.link] !== false);
   async function save() {
     setBusy(true); setError("");
@@ -160,7 +163,29 @@ function Modal({ mode, source, record, options, available, onClose, onSaved, onO
     setBusy(true); setError("");
     try { await api("/api/hr/action", { method: "POST", body: JSON.stringify({ doctype: source.doctype, name: record?.name, action: actionName }) }); onSaved(); onClose(); } catch (e: any) { setError(e?.message || "Could not complete action"); } finally { setBusy(false); }
   }
-  return <div className="hr-modal-backdrop"><div className="hr-modal"><div className="hr-modal-head"><div><span>{source.doctype}</span><h2>{mode === "create" ? source.create || `New ${source.label}` : txt(record?.name)}</h2></div><button onClick={onClose}>×</button></div><div className="hr-form-grid">{editable.map((f) => <label key={f.name}><span>{f.label}{f.required ? " *" : ""}</span><FieldInput field={f} value={doc[f.name]} onChange={(v) => setDoc((d) => ({ ...d, [f.name]: v }))} options={options} available={available} onOptionCreated={onOptionCreated} /></label>)}</div>{error && <div className="hr-error">{error}</div>}<div className="hr-modal-actions">{mode === "edit" && <><button className="btn" onClick={() => action("submit")} disabled={busy}>Submit</button><button className="btn" onClick={() => action("cancel")} disabled={busy}>Cancel Doc</button>{source.doctype === "Leave Application" && <button className="btn" onClick={() => action("approve_leave")} disabled={busy}>Approve Leave</button>}{source.doctype === "Leave Application" && <button className="btn" onClick={() => action("reject_leave")} disabled={busy}>Reject Leave</button>}{source.doctype === "Expense Claim" && <button className="btn" onClick={() => action("approve_expense")} disabled={busy}>Approve Expense</button>}</>}<button className="btn" onClick={onClose}>Close</button><button className="btn btn-teal" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</button></div></div></div>;
+  async function printPaySlip() {
+    if (!record?.name) return;
+    setBusy(true); setError("");
+    try {
+      const json = await api(`/api/documents/print?doctype=Salary%20Slip&name=${encodeURIComponent(record.name)}&pdf=1`);
+      const payload = json.data?.data || json.data || {};
+      if (payload.pdf) {
+        const bytes = Uint8Array.from(atob(payload.pdf), (c) => c.charCodeAt(0));
+        const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+    } catch (e: any) { setError(e?.message || "Could not print pay slip"); } finally { setBusy(false); }
+  }
+  async function emailPaySlip() {
+    if (!record?.name) return;
+    if (!emailTo.trim()) { setError("Employee email is required"); return; }
+    setBusy(true); setError("");
+    try {
+      await api("/api/documents/email", { method: "POST", body: JSON.stringify({ doctype: "Salary Slip", name: record.name, to: emailTo, subject: emailSubject, content: emailBody, attach_pdf: 1 }) });
+      onSaved(); onClose();
+    } catch (e: any) { setError(e?.message || "Could not email pay slip"); } finally { setBusy(false); }
+  }
+  return <div className="hr-modal-backdrop"><div className="hr-modal"><div className="hr-modal-head"><div><span>{source.doctype}</span><h2>{mode === "create" ? source.create || `New ${source.label}` : txt(record?.name)}</h2></div><button onClick={onClose}>×</button></div>{mode === "edit" && source.doctype === "Salary Slip" && <div className="hr-form-grid" style={{marginBottom:16}}><label><span>Email Pay Slip To</span><input value={emailTo} onChange={(e)=>setEmailTo(e.target.value)} placeholder="employee@example.com" /></label><label><span>Email Subject</span><input value={emailSubject} onChange={(e)=>setEmailSubject(e.target.value)} /></label><label style={{gridColumn:"1/-1"}}><span>Email Message</span><textarea rows={3} value={emailBody} onChange={(e)=>setEmailBody(e.target.value)} /></label></div>}<div className="hr-form-grid">{editable.map((f) => <label key={f.name}><span>{f.label}{f.required ? " *" : ""}</span><FieldInput field={f} value={doc[f.name]} onChange={(v) => setDoc((d) => ({ ...d, [f.name]: v }))} options={options} available={available} onOptionCreated={onOptionCreated} /></label>)}</div>{error && <div className="hr-error">{error}</div>}<div className="hr-modal-actions">{mode === "edit" && <><button className="btn" onClick={() => action("submit")} disabled={busy}>Submit</button><button className="btn" onClick={() => action("cancel")} disabled={busy}>Cancel Doc</button>{source.doctype === "Leave Application" && <button className="btn" onClick={() => action("approve_leave")} disabled={busy}>Approve Leave</button>}{source.doctype === "Leave Application" && <button className="btn" onClick={() => action("reject_leave")} disabled={busy}>Reject Leave</button>}{source.doctype === "Expense Claim" && <button className="btn" onClick={() => action("approve_expense")} disabled={busy}>Approve Expense</button>}{source.doctype === "Salary Slip" && <button className="btn" onClick={printPaySlip} disabled={busy}>Print / PDF</button>}{source.doctype === "Salary Slip" && <button className="btn" onClick={emailPaySlip} disabled={busy}>Email Pay Slip</button>}</>}<button className="btn" onClick={onClose}>Close</button><button className="btn btn-teal" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</button></div></div></div>;
 }
 
 function DataTable({ source, rows, onOpen }: { source: Source; rows: Any[]; onOpen: (source: Source, row: Any) => void }) {
