@@ -62,7 +62,8 @@ export default function BusinessBrandingSettings({ fallbackCompany }: Props) {
       const res = await fetch("/api/settings/business-branding", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ company: company.name || fallbackCompany, company_settings: company, profile }) });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not save business settings");
-      setMsg("Business branding, profile and document settings saved.");
+      const warning = json.data?.profile_warning ? ` Branding saved. Profile warning: ${json.data.profile_warning}` : "Business branding, profile and document settings saved.";
+      setMsg(warning);
     } catch (e) { setMsg(e instanceof Error ? e.message : "Could not save business settings"); }
     finally { setLoading(false); }
   }
@@ -77,7 +78,7 @@ export default function BusinessBrandingSettings({ fallbackCompany }: Props) {
       if (!res.ok) throw new Error(json.error || "Logo upload failed");
       const url = json.data?.file_url || "";
       setCompany((p) => ({ ...p, company_logo: url }));
-      setMsg("Logo uploaded. Click Save business settings to keep it active on the profile.");
+      setMsg("Logo uploaded and saved to the company. Click Save business settings if you changed other fields.");
     } catch (e) { setMsg(e instanceof Error ? e.message : "Logo upload failed"); }
     finally { setLoading(false); }
   }

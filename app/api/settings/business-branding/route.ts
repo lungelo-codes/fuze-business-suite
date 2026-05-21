@@ -50,25 +50,33 @@ export async function PATCH(req: Request) {
     const companyName = await resolveCompanyName(String(body.company || ""));
     if (!companyName) return NextResponse.json({ error: "No company found" }, { status: 404 });
 
-    const companyPayload = pick(body.company_settings as Any || body, ["company_logo","default_letter_head","phone_no","email","website","tax_id","registration_details","default_bank_account"]);
+    const companyPayload = pick(body.company_settings as Any || body, ["company_name","company_logo","default_letter_head","phone_no","email","website","tax_id","registration_details","default_bank_account","default_currency","country"]);
     const erpnextUrl = getERPNextBaseUrl();
     if (typeof companyPayload.company_logo === "string" && erpnextUrl && companyPayload.company_logo.startsWith(erpnextUrl)) companyPayload.company_logo = companyPayload.company_logo.slice(erpnextUrl.length);
     let company: Any = {};
-    if (Object.keys(companyPayload).length) company = await erpPatch<Any>("Company", companyName, companyPayload);
+    if (Object.keys(companyPayload).length) {
+      const companyRes = await erpMethod<any>("settings.update_settings", { data: { company: companyName, ...companyPayload } });
+      company = companyRes?.company || companyRes?.data?.company || companyRes || {};
+    }
 
     const profilePayload = pick(body.profile as Any || body, PROFILE_FIELDS.filter(f => !["name","company"].includes(f)));
     let profile: Any | null = null;
+    let profile_warning = "";
     if (Object.keys(profilePayload).length) {
-      const existing = await erpList<Any>("Fuze Business Profile", { fields: ["name"], filters: [["company", "=", companyName]], limit: 1 });
-      if (existing[0]?.name) {
-        profile = await erpPatch<Any>("Fuze Business Profile", String(existing[0].name), profilePayload);
-      } else {
-        const { erpCreate } = await import("@/lib/server/erpnext");
-        profile = await erpCreate<Any>("Fuze Business Profile", { company: companyName, ...profilePayload });
+      try {
+        const existing = await erpList<Any>("Fuze Business Profile", { fields: ["name"], filters: [["company", "=", companyName]], limit: 1 });
+        if (existing[0]?.name) {
+          profile = await erpPatch<Any>("Fuze Business Profile", String(existing[0].name), profilePayload);
+        } else {
+          const { erpCreate } = await import("@/lib/server/erpnext");
+          profile = await erpCreate<Any>("Fuze Business Profile", { company: companyName, ...profilePayload });
+        }
+      } catch (err) {
+        profile_warning = err instanceof Error ? err.message : "Business profile could not be saved";
       }
     }
 
-    return NextResponse.json({ data: { company, profile } });
+    return NextResponse.json({ data: { company, profile, profile_warning } });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Could not save business settings" }, { status: e instanceof BusinessSuiteError ? e.status : 500 });
   }

@@ -19,7 +19,8 @@ export default function PortalShell({ children, activeModules = [], companyName,
   const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [companyLogo, setCompanyLogo] = useState("");
+  const [platformLogo, setPlatformLogo] = useState("");
+  const [tenantLogo, setTenantLogo] = useState("");
 
   useEffect(() => {
     setMounted(true);
@@ -36,9 +37,15 @@ export default function PortalShell({ children, activeModules = [], companyName,
     let active = true;
     (async () => {
       try {
-        const res = await fetch(`/api/settings/business-branding?company=${encodeURIComponent(companyName || "")}`, { cache: "no-store" });
-        const json = await res.json();
-        if (active && json.data?.company?.company_logo) setCompanyLogo(String(json.data.company.company_logo));
+        const [tenantRes, platformRes] = await Promise.all([
+          fetch(`/api/settings/tenant-control?company=${encodeURIComponent(companyName || "")}`, { cache: "no-store" }),
+          fetch(`/api/settings/platform-control`, { cache: "no-store" }),
+        ]);
+        const tenantJson = await tenantRes.json().catch(() => ({}));
+        const platformJson = await platformRes.json().catch(() => ({}));
+        if (active && tenantJson.data?.company_logo) setTenantLogo(String(tenantJson.data.company_logo));
+        if (active && platformJson.data?.platform_logo) setPlatformLogo(String(platformJson.data.platform_logo));
+        else if (active && platformJson.data?.website_logo) setPlatformLogo(String(platformJson.data.website_logo));
       } catch {}
     })();
     return () => { active = false };
@@ -64,7 +71,7 @@ export default function PortalShell({ children, activeModules = [], companyName,
         <Sidebar
           activeModules={activeModules}
           companyName={companyName}
-          companyLogo={companyLogo}
+          companyLogo={platformLogo}
           role={role}
           plan={plan}
           theme={theme}
@@ -75,7 +82,7 @@ export default function PortalShell({ children, activeModules = [], companyName,
         <Topbar
           plan={plan}
           companyName={companyName}
-          companyLogo={companyLogo}
+          companyLogo={tenantLogo}
           role={role}
           theme={theme}
           onToggleTheme={toggleTheme}

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { erpMethod, BusinessSuiteError } from "@/lib/server/erpnext";
+import { erpMethod, BusinessSuiteError, getERPNextBaseUrl } from "@/lib/server/erpnext";
 
 export async function POST(req: Request) {
   try {
@@ -21,7 +21,9 @@ export async function POST(req: Request) {
       target,
     });
 
-    const fileUrl = result?.file_url || result?.logo || result?.data?.file_url || result?.data?.logo;
+    const rawUrl = result?.file_url || result?.logo || result?.data?.file_url || result?.data?.logo || result?.stored_file_url || result?.data?.stored_file_url;
+    const base = getERPNextBaseUrl();
+    const fileUrl = typeof rawUrl === "string" && rawUrl.startsWith("/") ? `${base}${rawUrl}` : rawUrl;
     return NextResponse.json({ data: { file_url: fileUrl, raw: result } });
   } catch (e) {
     return NextResponse.json(
