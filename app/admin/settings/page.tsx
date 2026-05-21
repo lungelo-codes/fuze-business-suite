@@ -1,3 +1,4 @@
+import AdminPlatformSettings from "./AdminPlatformSettings";
 export default function AdminSettingsPage() {
   const backendUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL || "https://business-suite.fuzedigital.co.za";
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
@@ -103,6 +104,8 @@ export default function AdminSettingsPage() {
           </div>
         </div>
       </div>
+
+      <AdminPlatformSettings />
 
       {/* Environment variables guide */}
       <div className="card card-pad" style={{ marginTop: 18 }}>

@@ -1,58 +1,32 @@
 import { NextResponse } from "next/server";
-import { getERPNextBaseUrl } from "@/lib/server/erpnext";
-import { cookies } from "next/headers";
-
-function authHeaders(): HeadersInit {
-  const sid = cookies().get("sid")?.value;
-  return sid ? { Cookie: `sid=${sid}` } : {};
-}
+import { erpMethod, BusinessSuiteError } from "@/lib/server/erpnext";
 
 export async function POST(req: Request) {
   try {
-    const erpnextUrl = getERPNextBaseUrl();
     const input = await req.formData();
     const file = input.get("file");
     const company = String(input.get("company") || "");
+    const target = String(input.get("target") || "company");
 
-    if (!(file instanceof File) || !company) {
-      return NextResponse.json({ error: "Missing logo file or company" }, { status: 400 });
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "Missing logo file" }, { status: 400 });
     }
 
-    const form = new FormData();
-    form.set("file", file, file.name);
-    form.set("doctype", "Company");
-    form.set("docname", company);
-    form.set("fieldname", "company_logo");
-    form.set("is_private", "0");
-
-    const res = await fetch(`${erpnextUrl}/api/method/upload_file`, {
-      method: "POST",
-      headers: authHeaders(),
-      body: form,
-      cache: "no-store",
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const base64 = buffer.toString("base64");
+    const result = await erpMethod<any>("settings.upload_logo", {
+      file_name: file.name,
+      file_content: base64,
+      company,
+      target,
     });
 
-    const text = await res.text();
-    let json: any = {};
-    try {
-      json = JSON.parse(text);
-    } catch {
-      json = { raw: text };
-    }
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: json.message || json.exception || "Logo upload failed" },
-        { status: res.status }
-      );
-    }
-
-    const fileUrl = json.message?.file_url || json.data?.file_url || json.file_url;
-    return NextResponse.json({ data: { file_url: fileUrl, raw: json } });
+    const fileUrl = result?.file_url || result?.logo || result?.data?.file_url || result?.data?.logo;
+    return NextResponse.json({ data: { file_url: fileUrl, raw: result } });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Logo upload failed" },
-      { status: 500 }
+      { status: e instanceof BusinessSuiteError ? e.status : 500 }
     );
   }
 }
