@@ -6,6 +6,16 @@ import { requireSaaSUser, safeJsonError, tenantArgs, tenantData } from "@/lib/se
 type Row = Record<string, unknown>;
 
 const GROUPS: Record<string, { doctype: string; key: string; fields: string[]; orderBy?: string; method?: string }[]> = {
+  setup: [
+    { key: "departments", doctype: "Department", fields: ["name","department_name","company","parent_department","modified"], orderBy: "modified desc" },
+    { key: "branches", doctype: "Branch", fields: ["name","branch","modified"], orderBy: "modified desc" },
+    { key: "designations", doctype: "Designation", fields: ["name","designation_name","modified"], orderBy: "modified desc" },
+    { key: "grades", doctype: "Employee Grade", fields: ["name","employee_grade","modified"], orderBy: "modified desc" },
+    { key: "employment_types", doctype: "Employment Type", fields: ["name","employee_type_name","modified"], orderBy: "modified desc" },
+    { key: "leave_types", doctype: "Leave Type", fields: ["name","leave_type_name","is_lwp","is_earned_leave","modified"], orderBy: "modified desc" },
+    { key: "shift_types", doctype: "Shift Type", fields: ["name","shift_type_name","start_time","end_time","enable_auto_attendance","holiday_list","modified"], orderBy: "modified desc" },
+    { key: "holiday_lists", doctype: "Holiday List", fields: ["name","holiday_list_name","from_date","to_date","total_holidays","modified"], orderBy: "modified desc" },
+  ],
   employees: [
     { key: "employees", doctype: "Employee", method: "hr.get_employees", fields: ["name","employee_name","first_name","last_name","department","designation","branch","grade","employment_type","status","company_email","cell_number","date_of_joining","user_id","reports_to","modified"], orderBy: "modified desc" },
   ],

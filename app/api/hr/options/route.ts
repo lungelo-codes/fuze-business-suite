@@ -1,10 +1,10 @@
 
 import { NextResponse } from "next/server";
-import { erpList, erpMethod } from "@/lib/server/erpnext";
+import { erpCreate, erpList, erpMethod } from "@/lib/server/erpnext";
 import { requireSaaSUser, safeJsonError } from "@/lib/server/apiGuard";
 
 type Row = Record<string, unknown>;
-const DEFAULT_TARGETS = ["Employee","Department","Designation","Branch","Employee Grade","Employment Type","Gender","Leave Type","Shift Type","Holiday List","Company","Salary Structure","Salary Component","Job Opening","Job Applicant","Appraisal Template","Training Program","Vehicle","Loan Type","Expense Claim Type","Project","User"];
+const DEFAULT_TARGETS = ["Employee","Department","Designation","Branch","Employee Grade","Employment Type","Gender","Leave Type","Shift Type","Holiday List","Company","Salary Structure","Salary Component","Job Opening","Job Applicant","Interview Round","Interview Type","Appraisal Template","Training Program","Vehicle","Loan Type","Expense Claim Type","Project","User"];
 
 async function optionsFor(doctype: string, search?: string) {
   try {
@@ -30,5 +30,50 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: true, data, options: data });
   } catch (error: unknown) {
     return safeJsonError(error, "Could not load HR dropdowns.");
+  }
+}
+
+
+function quickValues(doctype: string, label: string): Record<string, unknown> {
+  const clean = label.trim();
+  const map: Record<string, Record<string, unknown>> = {
+    Department: { department_name: clean },
+    Branch: { branch: clean },
+    Designation: { designation_name: clean },
+    "Employee Grade": { employee_grade: clean },
+    "Employment Type": { employee_type_name: clean },
+    Gender: { gender: clean },
+    "Leave Type": { leave_type_name: clean },
+    "Shift Type": { shift_type_name: clean, start_time: "08:00:00", end_time: "17:00:00" },
+    "Holiday List": { holiday_list_name: clean },
+    "Interview Round": { interview_round: clean },
+    "Interview Type": { interview_type: clean },
+    "Training Program": { training_program: clean },
+    "Loan Type": { loan_name: clean },
+    "Expense Claim Type": { expense_type: clean },
+  };
+  return map[doctype] || { name: clean };
+}
+
+export async function POST(req: Request) {
+  try {
+    requireSaaSUser();
+    const body = await req.json().catch(() => ({}));
+    const doctype = String(body.doctype || "");
+    const label = String(body.label || body.name || "").trim();
+    if (!doctype || !label) return NextResponse.json({ ok: false, error: "Missing option details" }, { status: 400 });
+    let created: any;
+    try {
+      created = await erpMethod("business_crud.quick_create", { doctype, label, values: quickValues(doctype, label) });
+    } catch {
+      created = await erpCreate<Row>(doctype, quickValues(doctype, label));
+    }
+    const row = {
+      name: String(created?.data?.name || created?.data?.id || created?.message?.name || created?.name || label),
+      label: String(created?.data?.label || created?.data?.name || created?.message?.label || created?.message?.name || label),
+    };
+    return NextResponse.json({ ok: true, data: row, record: row }, { status: 201 });
+  } catch (error: unknown) {
+    return safeJsonError(error, "Could not create HR option.");
   }
 }
