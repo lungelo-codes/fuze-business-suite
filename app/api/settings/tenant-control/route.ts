@@ -35,7 +35,7 @@ export async function GET() {
     const result = await erpMethod<any>("settings.get_tenant_settings", { company: contextCompany(), tenant: contextTenant() });
     return NextResponse.json({ data: unwrap(result) });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Could not load tenant settings" }, { status: e instanceof BusinessSuiteError ? e.status : 500 });
+    return NextResponse.json({ error: e instanceof BusinessSuiteError ? (e.rawMessage || e.message) : e instanceof Error ? e.message : "Could not load tenant settings" }, { status: e instanceof BusinessSuiteError ? e.status : 500 });
   }
 }
 
@@ -45,6 +45,6 @@ export async function PATCH(req: Request) {
     const result = await erpMethod<any>("settings.save_tenant_settings", { data: { company: contextCompany(), tenant: contextTenant(), ...stripCustomerAdminFields(body) } });
     return NextResponse.json({ data: unwrap(result) });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Could not save tenant settings" }, { status: e instanceof BusinessSuiteError ? e.status : 500 });
+    return NextResponse.json({ error: e instanceof BusinessSuiteError ? (e.rawMessage || e.message) : e instanceof Error ? e.message : "Could not save tenant settings" }, { status: e instanceof BusinessSuiteError ? e.status : 500 });
   }
 }

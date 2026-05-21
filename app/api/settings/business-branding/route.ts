@@ -37,7 +37,7 @@ export async function GET(req: Request) {
     const result = await erpMethod<any>("settings.get_business_branding", { company });
     return NextResponse.json({ data: unwrap(result) });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Could not load business settings" }, { status: e instanceof BusinessSuiteError ? e.status : 500 });
+    return NextResponse.json({ error: e instanceof BusinessSuiteError ? (e.rawMessage || e.message) : e instanceof Error ? e.message : "Could not load business settings" }, { status: e instanceof BusinessSuiteError ? e.status : 500 });
   }
 }
 
@@ -48,6 +48,6 @@ export async function PATCH(req: Request) {
     const result = await erpMethod<any>("settings.save_business_branding", { data: { ...body, company } });
     return NextResponse.json({ data: unwrap(result) });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Could not save business settings" }, { status: e instanceof BusinessSuiteError ? e.status : 500 });
+    return NextResponse.json({ error: e instanceof BusinessSuiteError ? (e.rawMessage || e.message) : e instanceof Error ? e.message : "Could not save business settings" }, { status: e instanceof BusinessSuiteError ? e.status : 500 });
   }
 }

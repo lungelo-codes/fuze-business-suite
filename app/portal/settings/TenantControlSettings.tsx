@@ -5,7 +5,7 @@ type Any = Record<string, any>;
 const defaults = {
   tenant_name: "", company: "", company_name: "", plan: "Starter", active_modules: [], billing_status: "Trial",
   trial_end: "", next_billing_date: "", default_currency: "ZAR", country: "South Africa",
-  website_logo: "", email_from: "", ikhokha_merchant_id: "", ikhokha_public_key: "", ikhokha_secret_key: "",
+  email_from: "", ikhokha_merchant_id: "", ikhokha_public_key: "", ikhokha_secret_key: "",
   ikhokha_webhook_secret: "", yoco_public_key: "", yoco_secret_key: "", yoco_webhook_secret: "",
   payfast_payment_link: ""
 };
@@ -56,20 +56,6 @@ export default function TenantControlSettings({ isAdmin = false }: { isAdmin?: b
     finally { setLoading(false); }
   }
 
-  async function uploadWebsiteLogo(file?: File | null) {
-    if (!file) return;
-    setLoading(true); setMsg("");
-    try {
-      const fd = new FormData(); fd.set("file", file); fd.set("company", settings.company || ""); fd.set("target", "tenant_website");
-      const res = await fetch("/api/settings/upload-logo", { method: "POST", body: fd });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Website logo upload failed");
-      setSettings((p) => ({ ...p, website_logo: json.data?.file_url || p.website_logo }));
-      setMsg("Website/portal logo uploaded. Save settings to apply it everywhere.");
-    } catch (e) { setMsg(e instanceof Error ? e.message : "Website logo upload failed"); }
-    finally { setLoading(false); }
-  }
-
   async function makePaymentLink() {
     const amount = window.prompt("Enter subscription amount in ZAR", "499");
     if (!amount) return;
@@ -91,7 +77,7 @@ export default function TenantControlSettings({ isAdmin = false }: { isAdmin?: b
       <div>
         <h4>Defaults & Branding</h4>
         <div className="field-row"><Input label="Default Currency" value={settings.default_currency} onChange={(v) => setSettings({ ...settings, default_currency: v || "ZAR" })} /><Input label="Country" value={settings.country} onChange={(v) => setSettings({ ...settings, country: v || "South Africa" })} /></div>
-        <div className="field-row"><label className="field"><span>Company Logo</span><input className="inp" type="file" accept="image/*" onChange={(e) => uploadLogo(e.target.files?.[0])} /></label><label className="field"><span>Website/Portal Logo</span><input className="inp" type="file" accept="image/*" onChange={(e) => uploadWebsiteLogo(e.target.files?.[0])} /></label></div>
+        <div className="field-row"><label className="field"><span>Company Logo</span><input className="inp" type="file" accept="image/*" onChange={(e) => uploadLogo(e.target.files?.[0])} /></label><div className="banner info">Your company logo is used on your profile and customer documents. The portal/dashboard logo is controlled by the SaaS admin.</div></div>
         <div className="field-row"><Input label="Default Invoice Print Format" value={settings.default_invoice_print_format} onChange={(v) => setSettings({ ...settings, default_invoice_print_format: v })} /><Input label="Default Quote Print Format" value={settings.default_quote_print_format} onChange={(v) => setSettings({ ...settings, default_quote_print_format: v })} /></div>
         <Input label="Default Payslip Print Format" value={settings.default_payslip_print_format} onChange={(v) => setSettings({ ...settings, default_payslip_print_format: v })} />
       </div>
@@ -104,8 +90,7 @@ export default function TenantControlSettings({ isAdmin = false }: { isAdmin?: b
         <div className="banner info" style={{ marginTop: 12 }}>Admin-only: plans, trials, billing status and payment links are stored in ERPNext settings.</div>
       </div> : <div>
         <h4>Document & Email Defaults</h4>
-        <Input label="Default Email From" value={settings.email_from} onChange={(v) => setSettings({ ...settings, email_from: v })} placeholder="accounts@yourcompany.co.za" />
-        <div className="banner info" style={{ marginTop: 12 }}>Subscription state is managed by the SaaS admin. Your plan will stay linked to your account after logout.</div>
+        <Input label="Default Email From" value={settings.email_from} onChange={(v) => setSettings({ ...settings, email_from: v })} placeholder={settings.user_email || "your signup email"} />
       </div>}
     </div>
     <div className="two-col" style={{ alignItems: "start", marginTop: 18 }}>

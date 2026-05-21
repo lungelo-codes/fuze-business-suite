@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, ROLE_COOKIE } from "@/lib/modules";
+import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, ROLE_COOKIE, TENANT_COOKIE } from "@/lib/modules";
 
 export async function GET() {
-  const response = NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_BASE_URL || "https://fuze-business-suite.vercel.app/"));
+  const response = NextResponse.redirect("https://fuze-business-suite.vercel.app/");
   
   // Clear all portal cookies
-  [MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, ROLE_COOKIE].forEach((name) => {
+  [MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, ROLE_COOKIE, TENANT_COOKIE].forEach((name) => {
     response.cookies.set(name, "", { path: "/", maxAge: 0 });
   });
 

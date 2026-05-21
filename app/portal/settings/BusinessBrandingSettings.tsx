@@ -76,7 +76,7 @@ export default function BusinessBrandingSettings({ fallbackCompany }: Props) {
         localStorage.setItem("business-suite-invoice-format", invoiceFormat);
         localStorage.setItem("business-suite-quote-format", quoteFormat);
       } catch {}
-      const res = await fetch("/api/settings/business-branding", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ company: company.name || fallbackCompany, company_settings: { ...company, default_currency: company.default_currency || "ZAR", country: company.country || "South Africa" }, profile: { ...profile, base_currency: profile.base_currency || "ZAR" } }) });
+      const res = await fetch("/api/settings/business-branding", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ company: company.name || fallbackCompany, company_settings: { ...company, default_currency: company.default_currency || "ZAR", country: company.country || "South Africa" }, profile: { ...profile, email: profile.email || company.email || "", base_currency: profile.base_currency || "ZAR" } }) });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Could not save business settings");
       if (json.data?.company) setCompany({ ...emptyCompany, ...json.data.company });
@@ -110,7 +110,7 @@ export default function BusinessBrandingSettings({ fallbackCompany }: Props) {
         <div className="field-row"><Input label="Company Name" value={company.company_name || company.name} onChange={(v) => setCompany({ ...company, company_name: v })} /><Input label="Tax/VAT ID" value={company.tax_id} onChange={(v) => setCompany({ ...company, tax_id: v })} /></div>
         <div className="field-row"><Input label="Phone" value={company.phone_no} onChange={(v) => setCompany({ ...company, phone_no: v })} /><Input label="Email" value={company.email} onChange={(v) => setCompany({ ...company, email: v })} /></div>
         <Input label="Website" value={company.website} onChange={(v) => setCompany({ ...company, website: v })} />
-        <div className="field-row"><Input label="Company Logo Path" value={company.company_logo} onChange={(v) => setCompany({ ...company, company_logo: v })} placeholder="/files/logo.png" /><label className="field"><span>Upload Logo</span><input className="inp" type="file" accept="image/*" onChange={(e) => uploadLogo(e.target.files?.[0])} /></label></div>
+        <div className="field-row"><label className="field"><span>Company Logo</span><input className="inp" type="file" accept="image/*" onChange={(e) => uploadLogo(e.target.files?.[0])} /></label><div className="banner info">Upload the customer/company logo here. The dashboard/site logo is controlled by the SaaS admin.</div></div>
         {logoPreview ? <div className="banner info"><strong>Logo preview:</strong><br /><img src={logoPreview} alt="Company logo" style={{ maxHeight: 72, maxWidth: 220, marginTop: 8, objectFit: "contain" }} /></div> : null}
         <Select label="Default Letter Head" value={company.default_letter_head || ""} onChange={(v) => setCompany({ ...company, default_letter_head: v })}><option value="">Select letterhead</option>{letterheads.map((lh) => <option key={lh.name} value={lh.name}>{lh.name}{lh.is_default ? " — default" : ""}</option>)}</Select>
       </div>
