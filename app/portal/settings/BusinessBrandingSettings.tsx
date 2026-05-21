@@ -5,11 +5,14 @@ type Any = Record<string, any>;
 type Option = { name: string; is_default?: number; disabled?: number; doc_type?: string; standard?: string };
 
 type Props = { fallbackCompany: string };
-const emptyCompany = { name: "", company_name: "", company_logo: "", default_letter_head: "", phone_no: "", email: "", website: "", tax_id: "", registration_details: "", default_bank_account: "" };
-const emptyProfile = { trading_name: "", registration_number: "", industry: "", financial_year_end: "", vat_registered: 0, vat_registration_date: "", phone: "", email: "", website: "", street_address: "", suburb: "", city: "", province: "", postal_code: "", bank_name: "", account_number: "", branch_code: "" };
+const emptyCompany = { name: "", company_name: "", company_logo: "", default_letter_head: "", phone_no: "", email: "", website: "", tax_id: "", registration_details: "", default_bank_account: "", default_currency: "ZAR", country: "South Africa" };
+const emptyProfile = { trading_name: "", registration_number: "", industry: "", financial_year_end: "", base_currency: "ZAR", vat_registered: 0, vat_registration_date: "", phone: "", email: "", website: "", street_address: "", suburb: "", city: "", province: "", postal_code: "", bank_name: "", account_number: "", branch_code: "" };
 
 function Input({ label, value, onChange, placeholder, type = "text" }: { label: string; value: any; onChange: (v: any) => void; placeholder?: string; type?: string }) {
   return <label className="field"><span>{label}</span><input className="inp" type={type} value={value || ""} placeholder={placeholder || label} onChange={(e) => onChange(type === "checkbox" ? e.currentTarget.checked : e.currentTarget.value)} /></label>;
+}
+function DatalistInput({ label, value, onChange, options, placeholder, listId }: { label: string; value: any; onChange: (v: string) => void; options: string[]; placeholder?: string; listId: string }) {
+  return <label className="field"><span>{label}</span><input className="inp" list={listId} value={value || ""} placeholder={placeholder || label} onChange={(e) => onChange(e.currentTarget.value)} /><datalist id={listId}>{options.map((o) => <option key={o} value={o} />)}</datalist></label>;
 }
 function Select({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
   return <label className="field"><span>{label}</span><select className="inp" value={value || ""} onChange={(e) => onChange(e.target.value)}>{children}</select></label>;
@@ -21,6 +24,7 @@ export default function BusinessBrandingSettings({ fallbackCompany }: Props) {
   const [letterheads, setLetterheads] = useState<Option[]>([]);
   const [invoiceFormats, setInvoiceFormats] = useState<Option[]>([]);
   const [quoteFormats, setQuoteFormats] = useState<Option[]>([]);
+  const [industryOptions, setIndustryOptions] = useState<string[]>([]);
   const [invoiceFormat, setInvoiceFormat] = useState("Sales Invoice Standard");
   const [quoteFormat, setQuoteFormat] = useState("Quotation");
   const [msg, setMsg] = useState("");
@@ -35,22 +39,35 @@ export default function BusinessBrandingSettings({ fallbackCompany }: Props) {
     (async () => {
       setLoading(true);
       try {
-        const [brandingRes, printRes] = await Promise.all([
+        const [brandingRes, printRes, industriesRes] = await Promise.all([
           fetch(`/api/settings/business-branding?company=${encodeURIComponent(fallbackCompany || "")}`, { cache: "no-store" }),
-          fetch("/api/settings/print-options", { cache: "no-store" })
+          fetch("/api/settings/print-options", { cache: "no-store" }),
+          fetch("/api/settings/industry-options", { cache: "no-store" })
         ]);
-        const branding = await brandingRes.json();
-        const print = await printRes.json();
+        const branding = await brandingRes.json().catch(() => ({}));
+        const print = await printRes.json().catch(() => ({}));
+        const industries = await industriesRes.json().catch(() => ({}));
+        if (!brandingRes.ok) throw new Error(branding.error || "Could not load business settings.");
         if (branding.data?.company) setCompany({ ...emptyCompany, ...branding.data.company });
         if (branding.data?.profile) setProfile({ ...emptyProfile, ...branding.data.profile });
         setLetterheads(print.data?.letterheads || []);
         setInvoiceFormats(print.data?.invoiceFormats || []);
         setQuoteFormats(print.data?.quoteFormats || []);
+        setIndustryOptions(industries.data?.options || []);
       } catch (e) {
         setMsg(e instanceof Error ? e.message : "Could not load business settings.");
       } finally { setLoading(false); }
     })();
   }, [fallbackCompany]);
+
+  async function refreshIndustryOptions(value: string) {
+    setProfile({ ...profile, industry: value });
+    try {
+      const res = await fetch(`/api/settings/industry-options?q=${encodeURIComponent(value)}`, { cache: "no-store" });
+      const json = await res.json();
+      if (res.ok) setIndustryOptions(json.data?.options || []);
+    } catch {}
+  }
 
   async function save() {
     setLoading(true); setMsg("");
@@ -59,9 +76,11 @@ export default function BusinessBrandingSettings({ fallbackCompany }: Props) {
         localStorage.setItem("business-suite-invoice-format", invoiceFormat);
         localStorage.setItem("business-suite-quote-format", quoteFormat);
       } catch {}
-      const res = await fetch("/api/settings/business-branding", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ company: company.name || fallbackCompany, company_settings: company, profile }) });
-      const json = await res.json();
+      const res = await fetch("/api/settings/business-branding", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ company: company.name || fallbackCompany, company_settings: { ...company, default_currency: company.default_currency || "ZAR", country: company.country || "South Africa" }, profile: { ...profile, base_currency: profile.base_currency || "ZAR" } }) });
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Could not save business settings");
+      if (json.data?.company) setCompany({ ...emptyCompany, ...json.data.company });
+      if (json.data?.profile) setProfile({ ...emptyProfile, ...json.data.profile });
       const warning = json.data?.profile_warning ? ` Branding saved. Profile warning: ${json.data.profile_warning}` : "Business branding, profile and document settings saved.";
       setMsg(warning);
     } catch (e) { setMsg(e instanceof Error ? e.message : "Could not save business settings"); }
@@ -72,7 +91,7 @@ export default function BusinessBrandingSettings({ fallbackCompany }: Props) {
     if (!file || !(company.name || fallbackCompany)) return;
     setLoading(true); setMsg("");
     try {
-      const fd = new FormData(); fd.set("file", file); fd.set("company", company.name || fallbackCompany);
+      const fd = new FormData(); fd.set("file", file); fd.set("company", company.name || fallbackCompany); fd.set("target", "company");
       const res = await fetch("/api/settings/upload-logo", { method: "POST", body: fd });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Logo upload failed");
@@ -107,7 +126,7 @@ export default function BusinessBrandingSettings({ fallbackCompany }: Props) {
       <div>
         <h4>Business profile</h4>
         <div className="field-row"><Input label="Trading Name" value={profile.trading_name} onChange={(v) => setProfile({ ...profile, trading_name: v })} /><Input label="CIPC Registration Number" value={profile.registration_number} onChange={(v) => setProfile({ ...profile, registration_number: v })} /></div>
-        <div className="field-row"><Input label="Industry" value={profile.industry} onChange={(v) => setProfile({ ...profile, industry: v })} /><Input label="Base Currency" value={profile.base_currency} onChange={(v) => setProfile({ ...profile, base_currency: v })} /></div>
+        <div className="field-row"><DatalistInput label="Industry" listId="business-suite-industry-options" value={profile.industry} options={industryOptions} onChange={refreshIndustryOptions} placeholder="Start typing, for example Construction" /><Input label="Base Currency" value={profile.base_currency || "ZAR"} onChange={(v) => setProfile({ ...profile, base_currency: v || "ZAR" })} /></div>
         <div className="field-row"><Input label="Profile Phone" value={profile.phone} onChange={(v) => setProfile({ ...profile, phone: v })} /><Input label="Profile Email" value={profile.email} onChange={(v) => setProfile({ ...profile, email: v })} /></div>
         <Input label="Profile Website" value={profile.website} onChange={(v) => setProfile({ ...profile, website: v })} />
       </div>
@@ -119,6 +138,6 @@ export default function BusinessBrandingSettings({ fallbackCompany }: Props) {
         <Input label="Account Number" value={profile.account_number} onChange={(v) => setProfile({ ...profile, account_number: v })} />
       </div>
     </div>
-    {msg ? <div className="banner info" style={{ marginTop: 18 }}>{msg}</div> : null}
+    {msg ? <div className={msg.toLowerCase().includes("could") || msg.toLowerCase().includes("failed") ? "banner" : "banner info"} style={{ marginTop: 18 }}>{msg}</div> : null}
   </div>;
 }
