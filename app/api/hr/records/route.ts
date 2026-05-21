@@ -8,7 +8,6 @@ type Row = Record<string, unknown>;
 const GROUPS: Record<string, { doctype: string; key: string; fields: string[]; orderBy?: string; method?: string }[]> = {
   setup: [
     { key: "departments", doctype: "Department", fields: ["name","department_name","company","parent_department","modified"], orderBy: "modified desc" },
-    { key: "branches", doctype: "Branch", fields: ["name","branch","modified"], orderBy: "modified desc" },
     { key: "designations", doctype: "Designation", fields: ["name","designation_name","modified"], orderBy: "modified desc" },
     { key: "grades", doctype: "Employee Grade", fields: ["name","employee_grade","modified"], orderBy: "modified desc" },
     { key: "employment_types", doctype: "Employment Type", fields: ["name","employee_type_name","modified"], orderBy: "modified desc" },

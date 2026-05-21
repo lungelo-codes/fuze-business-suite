@@ -9,7 +9,6 @@ const DEFAULT_TARGETS = [
   "Employee",
   "Department",
   "Designation",
-  "Branch",
   "Employee Grade",
   "Employment Type",
   "Gender",
@@ -97,7 +96,6 @@ function fallbackFields(doctype: string) {
     Employee: ["name", "employee_name", "department", "designation", "status"],
     Department: ["name", "department_name", "company", "parent_department"],
     Designation: ["name", "designation_name"],
-    Branch: ["name", "branch"],
     "Employee Grade": ["name", "employee_grade"],
     "Employment Type": ["name", "employee_type_name"],
     Gender: ["name", "gender"],
@@ -114,16 +112,20 @@ function fallbackFields(doctype: string) {
   return map[doctype] || ["name"];
 }
 
-async function fallbackOptions(doctype: string): Promise<OptionRow[]> {
+async function fallbackOptions(doctype: string): Promise<{ rows: OptionRow[]; available: boolean }> {
   try {
     const result = await erpMethod("business_crud.get_options", { doctype, query: "", limit: 120 });
     const rows = unwrapOptions(result, doctype);
-    if (rows.length) return rows;
+    return { rows, available: true };
   } catch {
     // controlled fallback below
   }
-  const rows = await erpList<Row>(doctype, { fields: fallbackFields(doctype), limit: 120, orderBy: "modified desc" }).catch(() => []);
-  return rows.map(asOption).filter(Boolean) as OptionRow[];
+  try {
+    const rows = await erpList<Row>(doctype, { fields: fallbackFields(doctype), limit: 120, orderBy: "modified desc" });
+    return { rows: rows.map(asOption).filter(Boolean) as OptionRow[], available: true };
+  } catch {
+    return { rows: [], available: false };
+  }
 }
 
 function quickValues(doctype: string, label: string, company?: string): Record<string, unknown> {
@@ -138,8 +140,6 @@ function quickValues(doctype: string, label: string, company?: string): Record<s
       return { department_name: clean, ...withCompany() };
     case "Designation":
       return { designation_name: clean };
-    case "Branch":
-      return { branch: clean };
     case "Employee Grade":
       return { name: clean, employee_grade: clean };
     case "Employment Type":
@@ -184,15 +184,14 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, data, options: data, available });
     } catch {
       const entries = await Promise.all(targets.map(async (dt) => {
-        const rows = await fallbackOptions(dt);
-        return [dt, rows] as const;
+        const result = await fallbackOptions(dt);
+        return [dt, result.rows, result.available] as const;
       }));
       const data: Record<string, OptionRow[]> = {};
       const available: Record<string, boolean> = {};
-      for (const [dt, rows] of entries) {
+      for (const [dt, rows, isAvailable] of entries) {
         data[dt] = rows;
-        // In fallback mode, a missing/blocked doctype returns no rows; keep it hidden only for known optional masters like Branch.
-        available[dt] = dt === "Branch" ? rows.length > 0 : true;
+        available[dt] = isAvailable;
       }
       return NextResponse.json({ ok: true, data, options: data, available });
     }
