@@ -16,7 +16,8 @@ export async function GET() {
   const { store, company, tenant } = ctx();
   // FIX: Read the cookie-stored plan/modules first as the source of truth.
   // Only override with backend data if the backend actually returns a valid plan.
-  let plan = store.get(PLAN_COOKIE)?.value || "Starter";
+  const cookiePlan = store.get(PLAN_COOKIE)?.value || "Starter";
+  let plan = cookiePlan;
   let activeModules = parseModules(store.get(MODULE_COOKIE)?.value);
 
   try {
@@ -24,7 +25,11 @@ export async function GET() {
     // FIX: Only use backend result if it actually contains a plan value.
     // Prevent silent reset to Starter when the backend returns empty/null.
     if (result?.plan) {
-      plan = result.plan;
+      // Keep a deliberate non-Starter browser selection if ERPNext only
+      // returns its default Starter value. This prevents the UI from
+      // jumping back to Starter after logout/login before tenant settings
+      // have synced into tenant context.
+      plan = result.plan === "Starter" && cookiePlan !== "Starter" ? cookiePlan : result.plan;
     }
     if (Array.isArray(result?.active_modules) && result.active_modules.length > 0) {
       activeModules = result.active_modules;

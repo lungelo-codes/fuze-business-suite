@@ -222,24 +222,36 @@ export async function POST(req: Request) {
     let finalPlan = rawTenant.plan;
     let finalModules = rawTenant.modules;
 
-    if (finalPlan === "__UNKNOWN__") {
-      const incomingCookies = req.headers.get("cookie") || "";
-      const planMatch = incomingCookies.match(new RegExp(`${PLAN_COOKIE}=([^;]+)`));
-      const moduleMatch = incomingCookies.match(new RegExp(`${MODULE_COOKIE}=([^;]+)`));
-      if (planMatch?.[1]) {
-        try { finalPlan = decodeURIComponent(planMatch[1]); } catch { finalPlan = "Starter"; }
-      } else {
-        finalPlan = "Starter";
-      }
-      if (moduleMatch?.[1]) {
-        try {
-          const parsed = JSON.parse(decodeURIComponent(moduleMatch[1]));
-          finalModules = Array.isArray(parsed) ? parsed : getModulesForPlan(finalPlan);
-        } catch { finalModules = getModulesForPlan(finalPlan); }
-      } else {
-        finalModules = getModulesForPlan(finalPlan);
-      }
+    const incomingCookies = req.headers.get("cookie") || "";
+    const planMatch = incomingCookies.match(new RegExp(`${PLAN_COOKIE}=([^;]+)`));
+    const moduleMatch = incomingCookies.match(new RegExp(`${MODULE_COOKIE}=([^;]+)`));
+    let cookiePlan = "";
+    let cookieModules: string[] = [];
+    if (planMatch?.[1]) {
+      try { cookiePlan = decodeURIComponent(planMatch[1]); } catch { cookiePlan = ""; }
     }
+    if (moduleMatch?.[1]) {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(moduleMatch[1]));
+        cookieModules = Array.isArray(parsed) ? cleanModules(parsed.map(String)) : [];
+      } catch { cookieModules = []; }
+    }
+
+    if (finalPlan === "__UNKNOWN__") {
+      finalPlan = cookiePlan || "Starter";
+      finalModules = cookieModules.length ? cookieModules : getModulesForPlan(finalPlan);
+    }
+
+    // If ERPNext returns its default Starter plan but the browser still has a
+    // deliberate non-Starter selection, keep the user's selected plan. This
+    // fixes logout/login cycles where tenant plan settings were not yet synced
+    // back to the tenant context method.
+    if (!isAdmin && finalPlan === "Starter" && cookiePlan && cookiePlan !== "Starter") {
+      finalPlan = cookiePlan;
+      finalModules = cookieModules.length ? cookieModules : getModulesForPlan(finalPlan);
+    }
+
+    if (!finalModules.length) finalModules = getModulesForPlan(finalPlan);
 
     const tenant = { ...rawTenant, plan: finalPlan, modules: finalModules };
 
