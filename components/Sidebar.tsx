@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 interface SidebarProps {
@@ -14,6 +14,8 @@ interface SidebarProps {
 
 type NavItem = { label: string; href: string; icon: string; module?: string; badge?: string; exact?: boolean };
 type NavGroup = { title: string; items: NavItem[] };
+
+type PlanModuleEvent = CustomEvent<{ plan?: string; modules?: string[] }>;
 
 function Icon({ name }: { name: string }) {
   const paths: Record<string, string> = {
@@ -54,7 +56,9 @@ const GROUPS: NavGroup[] = [
   { title: "Home", items: [{ label: "Dashboard", href: "/portal", icon: "dashboard", exact: true }] },
   {
     title: "CRM & Sales", items: [
-      { label: "CRM Workspace", href: "/portal/crm", icon: "crm" },
+      { label: "CRM Workspace", href: "/portal/crm", icon: "crm", module: "crm" },
+      { label: "Leads", href: "/portal/crm?tab=leads", icon: "target", module: "leads" },
+      { label: "Opportunities", href: "/portal/crm?tab=opportunities", icon: "target", module: "opportunities" },
       { label: "Customers", href: "/portal/crm?tab=customers", icon: "users", module: "customers" },
       { label: "Quotes", href: "/portal/crm?tab=quotes", icon: "quote", module: "quotes" },
       { label: "Sales Orders", href: "/portal/crm?tab=sales-orders", icon: "invoice", module: "sales-orders" },
@@ -74,8 +78,9 @@ const GROUPS: NavGroup[] = [
     title: "Operations", items: [
       { label: "Operations Overview", href: "/portal/operations", icon: "project", module: "operations", exact: true },
       { label: "Procurement", href: "/portal/operations?tab=procurement", icon: "procurement", module: "suppliers" },
+      { label: "Inventory", href: "/portal/operations?tab=inventory", icon: "box", module: "items" },
       { label: "Projects", href: "/portal/operations?tab=projects", icon: "task", module: "projects" },
-      { label: "Quality", href: "/portal/operations?tab=quality", icon: "shield", module: "operations" },
+      { label: "Quality", href: "/portal/operations?tab=quality", icon: "shield", module: "quality" },
       { label: "Documents", href: "/portal/documents", icon: "folder", module: "documents" },
     ],
   },
@@ -83,9 +88,9 @@ const GROUPS: NavGroup[] = [
     title: "HR", items: [
       { label: "HR Overview", href: "/portal/hr", icon: "hr", module: "employees", exact: true },
       { label: "Employees", href: "/portal/hr?tab=employees", icon: "person", module: "employees" },
-      { label: "Attendance", href: "/portal/hr?tab=attendance", icon: "calendar", module: "employees" },
-      { label: "Leave", href: "/portal/hr?tab=leave", icon: "task", module: "employees" },
-      { label: "Payroll", href: "/portal/hr?tab=payroll", icon: "invoice", module: "employees" },
+      { label: "Attendance", href: "/portal/hr?tab=attendance", icon: "calendar", module: "attendance" },
+      { label: "Leave", href: "/portal/hr?tab=leave", icon: "task", module: "leave" },
+      { label: "Payroll", href: "/portal/hr?tab=payroll", icon: "invoice", module: "payroll" },
       { label: "Expenses", href: "/portal/hr?tab=expenses", icon: "card", module: "employees" },
       { label: "Recruitment", href: "/portal/hr?tab=recruitment", icon: "users", module: "employees" },
       { label: "Performance", href: "/portal/hr?tab=performance", icon: "chart", module: "employees" },
@@ -96,7 +101,7 @@ const GROUPS: NavGroup[] = [
       { label: "Support", href: "/portal/support", icon: "support", module: "support" },
       { label: "Team Chat", href: "/portal/chat", icon: "mail", module: "chat" },
       { label: "Appointments", href: "/portal/appointments", icon: "calendar", module: "appointments" },
-      { label: "Live QA", href: "/portal/qa", icon: "shield" },
+      { label: "Live QA", href: "/portal/qa", icon: "shield", module: "quality" },
     ],
   },
   {
@@ -114,26 +119,21 @@ function normalizeModule(m?: string) { return m?.trim().toLowerCase(); }
 
 function moduleAliases(module?: string): string[] {
   switch (module) {
-    case "leads": return ["leads", "crm", "crm-sales", "sales"];
-    case "opportunities": return ["opportunities", "deals", "crm", "sales"];
-    case "customers": return ["customers", "crm", "sales"];
-    case "quotes": return ["quotes", "crm", "sales"];
-    case "sales-orders": return ["sales-orders", "sales", "crm"];
-    case "contracts": return ["contracts", "crm", "sales"];
-    case "invoices": return ["invoices", "finance", "accounting", "sales"];
-    case "payments": return ["payments", "finance", "accounting"];
-    case "compliance": return ["compliance", "finance", "sa-compliance"];
-    case "operations": return ["operations", "procurement", "buying", "inventory", "stock", "projects", "tasks", "quality", "data-management", "documents"];
-    case "documents": return ["documents", "operations"];
-    case "suppliers": return ["suppliers", "procurement", "buying", "operations"];
-    case "items": return ["items", "inventory", "stock", "operations"];
-    case "projects": return ["projects", "operations"];
-    case "tasks": return ["tasks", "projects", "operations"];
-    case "employees": return ["employees", "hr", "hr-payroll", "people"];
-    case "support": return ["support", "helpdesk", "service"];
-    case "chat": return ["chat", "team-chat", "messages"];
-    case "appointments": return ["appointments", "calendar", "service"];
+    case "quality": return ["quality", "operations"];
+    case "operations": return ["operations", "suppliers", "purchase-orders", "items", "projects", "tasks", "quality", "documents"];
     default: return module ? [module] : [];
+  }
+}
+
+function readLocalPlanModules() {
+  if (typeof window === "undefined") return { plan: "", modules: [] as string[] };
+  try {
+    const plan = window.localStorage.getItem("fuze_plan_live") || "";
+    const raw = window.localStorage.getItem("fuze_modules_live") || "[]";
+    const modules = JSON.parse(raw);
+    return { plan, modules: Array.isArray(modules) ? modules : [] };
+  } catch {
+    return { plan: "", modules: [] as string[] };
   }
 }
 
@@ -141,13 +141,60 @@ export default function Sidebar({ activeModules = [], companyName, companyLogo, 
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentHref = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
-  const activeSet = new Set(activeModules.map((m) => m.trim().toLowerCase()));
+  const [liveModules, setLiveModules] = useState<string[]>(activeModules);
+  const [livePlan, setLivePlan] = useState(plan || "Starter");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setLiveModules(activeModules);
+    setLivePlan(plan || "Starter");
+  }, [activeModules, plan]);
+
+  useEffect(() => {
+    const local = readLocalPlanModules();
+    if (local.modules.length) setLiveModules(local.modules);
+    if (local.plan) setLivePlan(local.plan);
+
+    const refreshFromServer = async () => {
+      try {
+        const res = await fetch("/api/saas/tenant-modules", { cache: "no-store" });
+        const json = await res.json().catch(() => ({}));
+        if (res.ok) {
+          if (Array.isArray(json.activeModules) && json.activeModules.length) setLiveModules(json.activeModules);
+          if (json.plan) setLivePlan(String(json.plan));
+        }
+      } catch {}
+    };
+
+    const onPlanModulesChanged = (event: Event) => {
+      const detail = (event as PlanModuleEvent).detail || {};
+      if (Array.isArray(detail.modules)) setLiveModules(detail.modules);
+      if (detail.plan) setLivePlan(detail.plan);
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "fuze_plan_live" || event.key === "fuze_modules_live") {
+        const next = readLocalPlanModules();
+        if (next.modules.length) setLiveModules(next.modules);
+        if (next.plan) setLivePlan(next.plan);
+      }
+    };
+
+    refreshFromServer();
+    window.addEventListener("fuze-plan-modules-changed", onPlanModulesChanged);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("fuze-plan-modules-changed", onPlanModulesChanged);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
+  const activeSet = new Set(liveModules.map((m) => m.trim().toLowerCase()).filter(Boolean));
 
   function isVisible(module?: string): boolean {
     const n = normalizeModule(module);
     if (!n) return true;
-    if (!activeSet.size) return true;
+    if (!activeSet.size) return false;
     return moduleAliases(n).some((a) => activeSet.has(a));
   }
 
@@ -216,7 +263,7 @@ export default function Sidebar({ activeModules = [], companyName, companyLogo, 
 
       <div className="subscription-card demo-subscription-card">
         <div className="subscription-top">
-          <div><div className="subscription-plan">{plan || "Starter"}</div><div className="subscription-muted">{activeModules.length} active modules</div></div>
+          <div><div className="subscription-plan">{livePlan || "Starter"}</div><div className="subscription-muted">{liveModules.length} active modules</div></div>
           <span className="subscription-status">Active</span>
         </div>
         <div className="subscription-progress"><span /></div>
