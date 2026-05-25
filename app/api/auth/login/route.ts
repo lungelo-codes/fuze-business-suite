@@ -124,17 +124,32 @@ async function fetchUserRoles(backendUrl: string, email: string, sid?: string): 
 
 async function fetchTenantContext(site?: string, email?: string): Promise<TenantContext> {
   const cleanSite = normalizeSite(site);
+  // FIX: Do NOT default to "Starter" here — use null sentinel so the
+  // caller can decide whether the backend actually returned a plan.
   const fallbackPlan = "Starter";
   const fallbackModules = getModulesForPlan(fallbackPlan);
 
   if (!MASTER_ERPNEXT_URL || !ERPNEXT_API_KEY || !ERPNEXT_API_SECRET) {
+    // No backend configured — keep whatever plan the user had (caller
+    // will merge with existing cookie; here we just signal "unknown").
     return { companyName: companyFromSite(site), plan: fallbackPlan, modules: fallbackModules };
   }
 
   const result = await backendMethod<any>(MASTER_ERPNEXT_URL, "business_crud.get_tenant_context", { site: cleanSite, email });
+
+  // FIX: If the backend returned nothing at all (network error, method
+  // missing, etc.) return a sentinel that tells the caller the plan is
+  // unknown — we must NOT silently reset to "Starter".
+  if (!result) {
+    return { companyName: companyFromSite(site), plan: "__UNKNOWN__", modules: [] };
+  }
+
   const tenant = result?.tenant || result?.data?.tenant || {};
   const tenantId = String(tenant.name || "");
-  const plan = String(tenant.plan || tenant.subscription_plan || fallbackPlan).trim() || fallbackPlan;
+  const rawPlan = String(tenant.plan || tenant.subscription_plan || "").trim();
+  // FIX: Only use fallback plan when the backend explicitly has no plan
+  // field (new tenant). Never silently downgrade a returning user.
+  const plan = rawPlan || fallbackPlan;
   const companyName = String(tenant.company_name || companyFromSite(site));
   let modules = cleanModules([
     ...parseModuleValue(tenant.selected_modules),
@@ -192,13 +207,41 @@ export async function POST(req: Request) {
       roles.includes("Administrator") ||
       roles.includes("System Manager");
 
-    const tenant = isAdmin
+    const rawTenant = isAdmin
       ? {
           companyName: "Fuze Business Suite",
           plan: "Business Pro",
           modules: ALL_MODULES.map((module) => module.id),
         }
       : await fetchTenantContext(cleanSite, email);
+
+    // FIX: If the backend lookup failed (__UNKNOWN__ sentinel), read the
+    // existing plan/modules cookies from the incoming request and keep
+    // them — this prevents a failed backend call from resetting the user
+    // back to Starter on every login.
+    let finalPlan = rawTenant.plan;
+    let finalModules = rawTenant.modules;
+
+    if (finalPlan === "__UNKNOWN__") {
+      const incomingCookies = req.headers.get("cookie") || "";
+      const planMatch = incomingCookies.match(new RegExp(`${PLAN_COOKIE}=([^;]+)`));
+      const moduleMatch = incomingCookies.match(new RegExp(`${MODULE_COOKIE}=([^;]+)`));
+      if (planMatch?.[1]) {
+        try { finalPlan = decodeURIComponent(planMatch[1]); } catch { finalPlan = "Starter"; }
+      } else {
+        finalPlan = "Starter";
+      }
+      if (moduleMatch?.[1]) {
+        try {
+          const parsed = JSON.parse(decodeURIComponent(moduleMatch[1]));
+          finalModules = Array.isArray(parsed) ? parsed : getModulesForPlan(finalPlan);
+        } catch { finalModules = getModulesForPlan(finalPlan); }
+      } else {
+        finalModules = getModulesForPlan(finalPlan);
+      }
+    }
+
+    const tenant = { ...rawTenant, plan: finalPlan, modules: finalModules };
 
     const response = NextResponse.json({
       success: true,
@@ -212,6 +255,10 @@ export async function POST(req: Request) {
 
     const secure = process.env.NODE_ENV === "production";
     const common = { httpOnly: false, sameSite: "lax" as const, secure, path: "/", maxAge: 60 * 60 * 24 };
+    // FIX: Plan and module cookies must outlive the session cookie so
+    // that even if the backend lookup fails the user's chosen plan is
+    // preserved. Use a long-lived expiry (365 days) consistent with
+    // how tenant_site and tenant_backend are stored.
     const long = { ...common, maxAge: 365 * 86400 };
 
     response.cookies.set("sid", sid, common);
@@ -221,9 +268,11 @@ export async function POST(req: Request) {
     response.cookies.set("tenant_backend", backendUrl, long);
     response.cookies.set(TENANT_COOKIE, tenant.tenantId || cleanSite, long);
     response.cookies.set(ROLE_COOKIE, isAdmin ? "admin" : "customer", common);
-    response.cookies.set(PLAN_COOKIE, tenant.plan, common);
-    response.cookies.set(COMPANY_COOKIE, encodeURIComponent(tenant.companyName), common);
-    response.cookies.set(MODULE_COOKIE, encodeURIComponent(JSON.stringify(tenant.modules)), common);
+    // FIX: Store plan and modules with long expiry so they survive
+    // logout/login cycles where the backend may be unreachable.
+    response.cookies.set(PLAN_COOKIE, tenant.plan, long);
+    response.cookies.set(COMPANY_COOKIE, encodeURIComponent(tenant.companyName), long);
+    response.cookies.set(MODULE_COOKIE, encodeURIComponent(JSON.stringify(tenant.modules)), long);
 
     return response;
   } catch (error) {

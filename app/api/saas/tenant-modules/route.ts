@@ -14,13 +14,23 @@ function ctx() {
 
 export async function GET() {
   const { store, company, tenant } = ctx();
+  // FIX: Read the cookie-stored plan/modules first as the source of truth.
+  // Only override with backend data if the backend actually returns a valid plan.
   let plan = store.get(PLAN_COOKIE)?.value || "Starter";
   let activeModules = parseModules(store.get(MODULE_COOKIE)?.value);
+
   try {
     const result = await erpMethod<any>("settings.get_tenant_plan", { company, tenant });
-    plan = result?.plan || plan;
-    activeModules = Array.isArray(result?.active_modules) ? result.active_modules : activeModules;
+    // FIX: Only use backend result if it actually contains a plan value.
+    // Prevent silent reset to Starter when the backend returns empty/null.
+    if (result?.plan) {
+      plan = result.plan;
+    }
+    if (Array.isArray(result?.active_modules) && result.active_modules.length > 0) {
+      activeModules = result.active_modules;
+    }
   } catch {}
+
   const modules = activeModules.length ? activeModules : getModulesForPlan(plan);
   return NextResponse.json({ modules: ALL_MODULES, activeModules: modules, plan, total: calculateSubscriptionTotal(plan, modules) });
 }
@@ -36,7 +46,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Could not save plan/module settings" }, { status: e instanceof BusinessSuiteError ? e.status : 500 });
   }
   const res = NextResponse.json({ ok: true, modules: ALL_MODULES, activeModules: modules, plan, total: calculateSubscriptionTotal(plan, modules), decision: { effective: "immediate", message: "Plan and module selection saved to backend settings." } });
-  res.cookies.set(PLAN_COOKIE, plan, { path: "/", sameSite: "lax" });
-  res.cookies.set(MODULE_COOKIE, encodeURIComponent(JSON.stringify(modules)), { path: "/", sameSite: "lax" });
+  // FIX: Use long-lived expiry (365 days) so plan persists across logout/login.
+  res.cookies.set(PLAN_COOKIE, plan, { path: "/", sameSite: "lax", maxAge: 365 * 86400 });
+  res.cookies.set(MODULE_COOKIE, encodeURIComponent(JSON.stringify(modules)), { path: "/", sameSite: "lax", maxAge: 365 * 86400 });
   return res;
 }
