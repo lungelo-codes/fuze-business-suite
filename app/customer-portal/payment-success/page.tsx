@@ -1,2 +1,0 @@
-import PortalDocumentView from "@/components/customer-portal/PortalDocumentView";
-export default function PaymentSuccessPage() { return <PortalDocumentView type="payment" title="Payment received" subtitle="Your payment was returned successfully. The tenant payment webhook will update ERPNext invoice status." document={{ status: "Paid", name: "Payment success" }} actions={[{ label: "Back to portal", href: "/customer-portal", primary: true }]} />; }

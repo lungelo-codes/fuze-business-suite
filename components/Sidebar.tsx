@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 interface SidebarProps {
@@ -14,6 +14,7 @@ interface SidebarProps {
 
 type NavItem = { label: string; href: string; icon: string; module?: string; badge?: string; exact?: boolean };
 type NavGroup = { title: string; items: NavItem[] };
+
 type PlanModuleEvent = CustomEvent<{ plan?: string; modules?: string[] }>;
 
 function Icon({ name }: { name: string }) {
@@ -41,54 +42,85 @@ function Icon({ name }: { name: string }) {
     billing: "M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2Z",
     procurement: "M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0",
     hr: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
-    ai: "M12 2l1.8 5.4L20 9.2l-5.2 3.5L16.6 20 12 15.8 7.4 20l1.8-7.3L4 9.2l6.2-1.8L12 2Z",
     signout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
     default: "M12 2v20M2 12h20",
   };
-  return <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={paths[name] || paths.default} /></svg>;
+  return (
+    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d={paths[name] || paths.default} />
+    </svg>
+  );
 }
 
 const GROUPS: NavGroup[] = [
-  { title: "Main", items: [
-    { label: "Dashboard", href: "/portal", icon: "dashboard", exact: true },
-    { label: "CRM", href: "/portal/crm", icon: "crm", module: "crm" },
-    { label: "Sales", href: "/portal/sales-orders", icon: "chart", module: "selling" },
-    { label: "Projects", href: "/portal/projects", icon: "project", module: "projects" },
-    { label: "Support", href: "/portal/support", icon: "support", module: "support" },
-    { label: "HR", href: "/portal/hr", icon: "hr", module: "hr" },
-    { label: "Accounting", href: "/portal/accounting", icon: "invoice", module: "accounting" },
-    { label: "Assets", href: "/portal/assets", icon: "truck", module: "assets" },
-    { label: "Buying", href: "/portal/buying", icon: "procurement", module: "buying" },
-    { label: "Subcontracting", href: "/portal/subcontracting", icon: "users", module: "subcontracting" },
-    { label: "Insights", href: "/portal/insights", icon: "chart", module: "insights" },
-  ]},
-  { title: "Portal", items: [
-    { label: "Client Portal", href: "/customer-portal", icon: "users", module: "portal-login" },
-  ]},
-  { title: "AI & Automation", items: [
-    { label: "AI Assistant", href: "/portal/insights?tab=ai", icon: "ai", module: "ai", badge: "New" },
-  ]},
-  { title: "Settings", items: [
-    { label: "Settings", href: "/portal/settings", icon: "settings" },
-  ]},
+  { title: "Home", items: [{ label: "Dashboard", href: "/portal", icon: "dashboard", exact: true }] },
+  {
+    title: "CRM & Sales", items: [
+      { label: "CRM Workspace", href: "/portal/crm", icon: "crm", module: "crm" },
+      { label: "Leads", href: "/portal/crm?tab=leads", icon: "target", module: "leads" },
+      { label: "Opportunities", href: "/portal/crm?tab=opportunities", icon: "target", module: "opportunities" },
+      { label: "Customers", href: "/portal/crm?tab=customers", icon: "users", module: "customers" },
+      { label: "Quotes", href: "/portal/crm?tab=quotes", icon: "quote", module: "quotes" },
+      { label: "Sales Orders", href: "/portal/crm?tab=sales-orders", icon: "invoice", module: "sales-orders" },
+      { label: "Contracts", href: "/portal/crm?tab=contracts", icon: "invoice", module: "contracts" },
+    ],
+  },
+  {
+    title: "Finance", items: [
+      { label: "Finance", href: "/portal/finance", icon: "chart", module: "payments" },
+      { label: "Invoices", href: "/portal/finance?tab=invoices", icon: "invoice", module: "invoices" },
+      { label: "Payments", href: "/portal/finance?tab=payments", icon: "card", module: "payments" },
+      { label: "Banking", href: "/portal/finance?tab=banking", icon: "bank", module: "payments" },
+      { label: "Compliance", href: "/portal/finance?tab=compliance", icon: "shield", module: "compliance" },
+    ],
+  },
+  {
+    title: "Operations", items: [
+      { label: "Operations Overview", href: "/portal/operations", icon: "project", module: "operations", exact: true },
+      { label: "Procurement", href: "/portal/operations?tab=procurement", icon: "procurement", module: "suppliers" },
+      { label: "Inventory", href: "/portal/operations?tab=inventory", icon: "box", module: "items" },
+      { label: "Projects", href: "/portal/operations?tab=projects", icon: "task", module: "projects" },
+      { label: "Quality", href: "/portal/operations?tab=quality", icon: "shield", module: "quality" },
+      { label: "Documents", href: "/portal/documents", icon: "folder", module: "documents" },
+    ],
+  },
+  {
+    title: "HR", items: [
+      { label: "HR Overview", href: "/portal/hr", icon: "hr", module: "employees", exact: true },
+      { label: "Employees", href: "/portal/hr?tab=employees", icon: "person", module: "employees" },
+      { label: "Attendance", href: "/portal/hr?tab=attendance", icon: "calendar", module: "attendance" },
+      { label: "Leave", href: "/portal/hr?tab=leave", icon: "task", module: "leave" },
+      { label: "Payroll", href: "/portal/hr?tab=payroll", icon: "invoice", module: "payroll" },
+      { label: "Expenses", href: "/portal/hr?tab=expenses", icon: "card", module: "employees" },
+      { label: "Recruitment", href: "/portal/hr?tab=recruitment", icon: "users", module: "employees" },
+      { label: "Performance", href: "/portal/hr?tab=performance", icon: "chart", module: "employees" },
+    ],
+  },
+  {
+    title: "Service", items: [
+      { label: "Support", href: "/portal/support", icon: "support", module: "support" },
+      { label: "Team Chat", href: "/portal/chat", icon: "mail", module: "chat" },
+      { label: "Appointments", href: "/portal/appointments", icon: "calendar", module: "appointments" },
+      { label: "Live QA", href: "/portal/qa", icon: "shield", module: "quality" },
+    ],
+  },
+  {
+    title: "Account", items: [
+      { label: "Reports", href: "/portal/reports", icon: "chart" },
+      { label: "Business Profile", href: "/portal/business-profile", icon: "settings" },
+      { label: "Modules", href: "/portal/modules", icon: "box" },
+      { label: "Billing", href: "/portal/billing", icon: "billing" },
+      { label: "Settings", href: "/portal/settings", icon: "settings" },
+    ],
+  },
 ];
+
+function normalizeModule(m?: string) { return m?.trim().toLowerCase(); }
 
 function moduleAliases(module?: string): string[] {
   switch (module) {
-    case "accounting": return ["accounting", "invoices", "payments", "banking"];
-    case "banking": return ["banking", "payments", "accounting"];
-    case "selling": return ["selling", "sales-orders", "quotes", "crm"];
-    case "buying": return ["buying", "suppliers", "purchase-orders"];
-    case "inventory": return ["inventory", "items"];
-    case "hr": return ["hr", "employees", "attendance", "leave", "payroll"];
     case "quality": return ["quality", "operations"];
-    case "assets": return ["assets", "asset", "asset-management"];
-    case "subcontracting": return ["subcontracting", "buying", "operations"];
-    case "projects": return ["projects", "project", "tasks", "operations"];
-    case "support": return ["support", "issues", "helpdesk"];
-    case "insights": return ["insights", "reports", "ai"];
-    case "portal-login": return ["portal-login", "client-portal", "customer-portal"];
-    case "ai": return ["ai", "insights", "reports"];
+    case "operations": return ["operations", "suppliers", "purchase-orders", "items", "projects", "tasks", "quality", "documents"];
     default: return module ? [module] : [];
   }
 }
@@ -100,7 +132,9 @@ function readLocalPlanModules() {
     const raw = window.localStorage.getItem("fuze_modules_live") || "[]";
     const modules = JSON.parse(raw);
     return { plan, modules: Array.isArray(modules) ? modules : [] };
-  } catch { return { plan: "", modules: [] as string[] }; }
+  } catch {
+    return { plan: "", modules: [] as string[] };
+  }
 }
 
 export default function Sidebar({ activeModules = [], companyName, companyLogo, role, plan, onCollapse }: SidebarProps) {
@@ -111,24 +145,33 @@ export default function Sidebar({ activeModules = [], companyName, companyLogo, 
   const [livePlan, setLivePlan] = useState(plan || "Starter");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  useEffect(() => { setLiveModules(activeModules); setLivePlan(plan || "Starter"); }, [activeModules, plan]);
+  useEffect(() => {
+    setLiveModules(activeModules);
+    setLivePlan(plan || "Starter");
+  }, [activeModules, plan]);
 
   useEffect(() => {
     const local = readLocalPlanModules();
     if (local.modules.length) setLiveModules(local.modules);
     if (local.plan) setLivePlan(local.plan);
+
     const refreshFromServer = async () => {
       try {
         const res = await fetch("/api/saas/tenant-modules", { cache: "no-store" });
         const json = await res.json().catch(() => ({}));
-        if (res.ok) { if (Array.isArray(json.activeModules) && json.activeModules.length) setLiveModules(json.activeModules); if (json.plan) setLivePlan(String(json.plan)); }
+        if (res.ok) {
+          if (Array.isArray(json.activeModules) && json.activeModules.length) setLiveModules(json.activeModules);
+          if (json.plan) setLivePlan(String(json.plan));
+        }
       } catch {}
     };
+
     const onPlanModulesChanged = (event: Event) => {
       const detail = (event as PlanModuleEvent).detail || {};
       if (Array.isArray(detail.modules)) setLiveModules(detail.modules);
       if (detail.plan) setLivePlan(detail.plan);
     };
+
     const onStorage = (event: StorageEvent) => {
       if (event.key === "fuze_plan_live" || event.key === "fuze_modules_live") {
         const next = readLocalPlanModules();
@@ -136,47 +179,100 @@ export default function Sidebar({ activeModules = [], companyName, companyLogo, 
         if (next.plan) setLivePlan(next.plan);
       }
     };
+
     refreshFromServer();
     window.addEventListener("fuze-plan-modules-changed", onPlanModulesChanged);
     window.addEventListener("storage", onStorage);
-    return () => { window.removeEventListener("fuze-plan-modules-changed", onPlanModulesChanged); window.removeEventListener("storage", onStorage); };
+    return () => {
+      window.removeEventListener("fuze-plan-modules-changed", onPlanModulesChanged);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
-  const activeSet = useMemo(() => new Set(liveModules.map((m) => m.trim().toLowerCase()).filter(Boolean)), [liveModules]);
-  const isVisible = (module?: string) => !module || !activeSet.size || moduleAliases(module).some((a) => activeSet.has(a));
-  const isActive = (href: string, exact?: boolean) => href.includes("?") ? currentHref === href : exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
-  const groupHasActive = (group: NavGroup) => group.items.some((item) => isActive(item.href, item.exact));
-  const enabledCount = liveModules.length;
+  const activeSet = new Set(liveModules.map((m) => m.trim().toLowerCase()).filter(Boolean));
 
-  return <aside className="sidebar demo-sidebar">
-    <div className="brand demo-brand">
-      {companyLogo ? <img className="brand-logo-img" src={companyLogo} alt={companyName || "Company logo"} /> : <div className="brand-mark demo-brand-mark">BS</div>}
-      <div className="brand-copy"><div className="brand-name">Business Suite</div><div className="brand-sub">{companyName || "Business portal"}</div></div>
-      {onCollapse && <button type="button" className="sidebar-collapse" aria-label="Hide main menu" onClick={onCollapse}>☰</button>}
-    </div>
+  function isVisible(module?: string): boolean {
+    const n = normalizeModule(module);
+    if (!n) return true;
+    if (!activeSet.size) return false;
+    return moduleAliases(n).some((a) => activeSet.has(a));
+  }
 
-    {role === "admin" && <div className="nav admin-nav"><a className="nav-item" href="/admin"><Icon name="shield" />Admin Dashboard</a></div>}
+  function isActive(href: string, exact?: boolean): boolean {
+    if (href.includes("?")) return currentHref === href;
+    if (exact) return pathname === href;
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
 
-    <div className="demo-nav-scroll">
-      {GROUPS.map((group) => {
-        const visible = group.items.filter((item) => isVisible(item.module));
-        if (!visible.length) return null;
-        const open = groupHasActive(group) || collapsed[group.title] !== true;
-        return <div key={group.title} className="demo-nav-group">
-          <button type="button" onClick={() => setCollapsed((prev) => ({ ...prev, [group.title]: !prev[group.title] }))} style={{ display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",background:"none",border:"none",cursor:"pointer",padding:"14px 16px 4px",fontSize:"10.5px",letterSpacing:".8px",fontWeight:800,textTransform:"uppercase" }}>
-            <span>{group.title}</span><span style={{ fontSize:9, opacity:0.55, marginRight:4 }}>{open ? "▲" : "▼"}</span>
-          </button>
-          {open && <nav className="nav">{visible.map((item) => <a key={item.href} className={`nav-item nav-item-${item.module || item.icon}${isActive(item.href, item.exact) ? " active" : ""}`} href={item.href}><span className="nav-icon-shell"><Icon name={item.icon} /></span><span>{item.label}</span>{item.badge && <span className="nav-badge">{item.badge}</span>}</a>)}</nav>}
-        </div>;
-      })}
-    </div>
+  function groupHasActive(group: NavGroup): boolean {
+    return group.items.some((item) => isActive(item.href, item.exact));
+  }
 
-    <div className="subscription-card demo-subscription-card">
-      <div className="subscription-top"><div><div className="subscription-plan">{livePlan || "Starter"}</div><div className="subscription-muted">{enabledCount} active modules</div></div><span className="subscription-status">Active</span></div>
-      <div className="subscription-progress"><span style={{ width: `${Math.min(100, Math.max(18, enabledCount * 4))}%` }} /></div>
-      <a className="subscription-button" href="/portal/billing">Manage Subscription</a>
-    </div>
+  function toggleGroup(title: string) {
+    setCollapsed((prev) => ({ ...prev, [title]: !prev[title] }));
+  }
 
-    <div className="demo-signout"><a className="nav-item" href="/api/auth/logout"><Icon name="signout" />Sign Out</a></div>
-  </aside>;
+  return (
+    <aside className="sidebar demo-sidebar">
+      <div className="brand demo-brand">
+        {companyLogo
+          ? <img className="brand-logo-img" src={companyLogo} alt={companyName || "Company logo"} />
+          : <div className="brand-mark demo-brand-mark">BS</div>}
+        <div className="brand-copy">
+          <div className="brand-name">Business Suite</div>
+          <div className="brand-sub">{companyName || "Business portal"}</div>
+        </div>
+        {onCollapse && <button type="button" className="sidebar-collapse" aria-label="Hide main menu" onClick={onCollapse}>☰</button>}
+      </div>
+
+      {role === "admin" && (
+        <div className="nav admin-nav">
+          <a className="nav-item" href="/admin"><Icon name="shield" />Admin Dashboard</a>
+        </div>
+      )}
+
+      <div className="demo-nav-scroll">
+        {GROUPS.map((group) => {
+          const visible = group.items.filter((item) => isVisible(item.module));
+          if (!visible.length) return null;
+          const open = groupHasActive(group) || collapsed[group.title] !== true;
+          return (
+            <div key={group.title} className="demo-nav-group">
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.title)}
+                style={{ display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",background:"none",border:"none",cursor:"pointer",padding:"14px 16px 4px",fontSize:"10.5px",letterSpacing:".8px",color:"var(--muted-2)",fontWeight:700,textTransform:"uppercase" }}
+              >
+                <span>{group.title}</span>
+                <span style={{ fontSize:9, opacity:0.5, marginRight:4 }}>{open ? "▲" : "▼"}</span>
+              </button>
+              {open && (
+                <nav className="nav">
+                  {visible.map((item) => (
+                    <a key={item.href} className={`nav-item${isActive(item.href, item.exact) ? " active" : ""}`} href={item.href}>
+                      <Icon name={item.icon} /><span>{item.label}</span>
+                      {item.badge && <span className="nav-badge">{item.badge}</span>}
+                    </a>
+                  ))}
+                </nav>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="subscription-card demo-subscription-card">
+        <div className="subscription-top">
+          <div><div className="subscription-plan">{livePlan || "Starter"}</div><div className="subscription-muted">{liveModules.length} active modules</div></div>
+          <span className="subscription-status">Active</span>
+        </div>
+        <div className="subscription-progress"><span /></div>
+        <a className="subscription-button" href="/portal/billing">Manage Subscription</a>
+      </div>
+
+      <div className="demo-signout">
+        <a className="nav-item" href="/api/auth/logout"><Icon name="signout" />Sign Out</a>
+      </div>
+    </aside>
+  );
 }

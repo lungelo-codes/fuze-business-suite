@@ -40,10 +40,6 @@ export default function Topbar({ plan, companyName, companyLogo, role, theme = "
         {searchOpen && <div className="search-popover"><div className="search-popover-head"><strong>Global Search</strong><span>Tenant-safe records</span></div>{results.map((item) => <a key={item.href} href={item.href} onClick={() => setSearchOpen(false)}><span><strong>{item.title}</strong><small>{item.type}</small></span><em>Open</em></a>)}</div>}
       </div>
       <div className="top-right">
-        <div className="topbar-actions">
-          <a className="shell-action-primary" href="/portal/crm">+ New</a>
-          <a className="shell-action-ghost" href="/portal/settings">Customize</a>
-        </div>
         <button type="button" className="theme-toggle" onClick={onToggleTheme}>{theme === "dark" ? "Light" : "Dark"}</button>
         <a className="tenant-chip" href="/portal/billing"><span className="dot" />{plan || "Starter"}</a>
         <NotificationBell />

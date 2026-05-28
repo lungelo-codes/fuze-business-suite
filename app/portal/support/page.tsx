@@ -1,50 +1,26 @@
-import CoreBusinessWorkspace from "@/components/modules/CoreBusinessWorkspace";
-import { countOpen, safeList } from "@/lib/server/coreBusinessData";
+import ModernModuleDashboard from "@/components/modules/ModernModuleDashboard";
+import { erpList } from "@/lib/server/erpnext";
+
+type Row = Record<string, unknown>;
+async function safeList(doctype: string, fields: string[]): Promise<Row[]> { try { return await erpList<Row>(doctype, { fields, limit: 100, orderBy: "modified desc" }); } catch { return []; } }
 
 export default async function SupportPage() {
-  const [issues, comms, todos] = await Promise.all([
-    safeList("Issue", ["name", "subject", "customer", "status", "priority", "raised_by", "modified"], 100),
-    safeList("Communication", ["name", "subject", "sender", "communication_type", "status", "modified"], 80),
-    safeList("ToDo", ["name", "description", "allocated_to", "status", "priority", "reference_type", "reference_name", "modified"], 60),
+  const [issues, comms] = await Promise.all([
+    safeList("Issue", ["name", "subject", "customer", "status", "priority", "raised_by", "modified"]),
+    safeList("Communication", ["name", "subject", "sender", "communication_type", "status", "modified"]),
   ]);
-  const rows = [...issues, ...comms, ...todos];
-  const urgent = issues.filter((r) => /urgent|high/i.test(String(r.priority || ""))).length;
-  const resolved = issues.filter((r) => /resolved|closed/i.test(String(r.status || ""))).length;
-
-  return <CoreBusinessWorkspace
-    moduleName="support"
-    eyebrow="Support Workspace"
+  const rows = [...issues, ...comms];
+  return <ModernModuleDashboard
     title="Support Desk"
-    description="Manage customer tickets, SLA risk, replies, internal tasks and customer satisfaction from a focused service workspace."
+    eyebrow="Service Workspace"
+    description="Manage customer issues, communication, SLA risk and knowledge base tasks from a clear support dashboard."
     rows={rows}
+    tabs={["Support Dashboard", "Tickets", "SLA", "Knowledge Base", "Customer Issues"]}
+    metrics={[{ label: "Tickets", value: issues.length, hint: "Issue records" }, { label: "Messages", value: comms.length, hint: "Communication logs" }, { label: "Urgent", value: issues.filter((r) => String(r.priority || '').toLowerCase().includes('urgent')).length, hint: "Priority cases" }, { label: "Resolved", value: issues.filter((r) => String(r.status || '').toLowerCase().includes('resolved')).length, hint: "Completed tickets" }]}
+    actions={[{ label: "Create Ticket", href: "/portal/support", description: "Log a customer issue" }, { label: "Open Chat", href: "/portal/chat", description: "Discuss with team" }, { label: "Create Task", href: "/portal/tasks", description: "Assign support work" }]}
     primaryField="subject"
     secondaryField="customer"
     statusField="status"
-    aiTitle="Support AI Service Coach"
-    tabs={["Dashboard", "Tickets", "SLA", "Messages", "Knowledge Base", "Reports"]}
-    metrics={[
-      { label: "Tickets", value: issues.length, hint: "Issue records", trend: `${countOpen(issues)} open`, tone: "blue" },
-      { label: "Urgent", value: urgent, hint: "High priority cases", trend: "Needs owner attention", tone: "orange" },
-      { label: "Resolved", value: resolved, hint: "Closed cases", trend: "Service delivery", tone: "green" },
-      { label: "Messages", value: comms.length, hint: "Communication logs", trend: `${todos.length} follow-ups`, tone: "purple" },
-    ]}
-    stages={[
-      { label: "Open", value: issues.filter((r) => /open/i.test(String(r.status || ""))).length || 18, amount: "New cases", tone: "blue" },
-      { label: "In Progress", value: issues.filter((r) => /progress|replied/i.test(String(r.status || ""))).length || 11, amount: "Being handled", tone: "purple" },
-      { label: "SLA Risk", value: urgent || 4, amount: "High priority", tone: "orange" },
-      { label: "Waiting", value: issues.filter((r) => /waiting|hold/i.test(String(r.status || ""))).length || 5, amount: "Client input", tone: "pink" },
-      { label: "Resolved", value: resolved || 22, amount: "Closed", tone: "green" },
-    ]}
-    insights={[
-      { title: "SLA focus", detail: "Prioritise urgent and waiting tickets before they affect customer retention.", tone: "warn" },
-      { title: "Support summary", detail: "AI should summarize repeated issues and suggest help-centre content.", tone: "ok" },
-      { title: "Owner view", detail: "Show open tickets, risk, response quality and customer pain points clearly.", tone: "ok" },
-    ]}
-    actions={[
-      { label: "+ Create Ticket", href: "/portal/support", description: "Log a customer issue" },
-      { label: "Open Chat", href: "/portal/chat", description: "Discuss with the team" },
-      { label: "Create Task", href: "/portal/tasks", description: "Assign support work" },
-      { label: "Customer Portal", href: "/customer-portal", description: "View client-facing ticket flow" },
-    ]}
+    mode="support"
   />;
 }

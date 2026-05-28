@@ -1,2 +1,0 @@
-import PortalDocumentView from "@/components/customer-portal/PortalDocumentView";
-export default function PaymentCancelledPage() { return <PortalDocumentView type="payment" title="Payment cancelled" subtitle="The payment was cancelled. You can return to the invoice and try again." document={{ status: "Cancelled", name: "Payment cancelled" }} actions={[{ label: "Try again", href: "/customer-portal/pay", primary: true }, { label: "Back to portal", href: "/customer-portal" }]} />; }

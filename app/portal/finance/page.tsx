@@ -1,2 +1,2 @@
-import { redirect } from "next/navigation";
-export default function FinancePage() { redirect("/portal/accounting"); }
+import FinanceWorkspaceClient from "@/components/finance/FinanceWorkspaceClient";
+export default function FinancePage() { return <FinanceWorkspaceClient />; }
