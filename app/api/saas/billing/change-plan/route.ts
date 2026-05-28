@@ -1,58 +1,37 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
+import { calculatePlanChange } from "@/lib/billingRules";
+import { sanitizeSubscriptionSelection } from "@/lib/saasAccess";
+import { getModulesForPlan } from "@/lib/modules";
 
 type PlanChangeBody = {
-  currentPlan: string
-  newPlan: string
-  balanceDue?: number
-  daysRemaining?: number
-}
-
-const planRank: Record<string, number> = {
-  Starter: 1,
-  Business: 2,
-  Enterprise: 3,
-}
+  currentPlan?: string;
+  currentModules?: string[];
+  newPlan?: string;
+  nextPlan?: string;
+  modules?: string[];
+  outstandingAmount?: number;
+  balanceDue?: number;
+  nextDueDate?: string;
+};
 
 export async function POST(req: Request) {
-  const body = (await req.json()) as PlanChangeBody
+  const body = (await req.json().catch(() => ({}))) as PlanChangeBody;
+  const next = sanitizeSubscriptionSelection({ plan: body.newPlan || body.nextPlan, modules: body.modules });
+  const currentPlan = body.currentPlan || "Starter";
+  const currentModules = Array.isArray(body.currentModules) && body.currentModules.length ? body.currentModules : getModulesForPlan(currentPlan);
+  const decision = calculatePlanChange({
+    currentPlan,
+    currentModules,
+    nextPlan: next.plan,
+    nextModules: next.modules,
+    outstandingAmount: Number(body.outstandingAmount ?? body.balanceDue ?? 0),
+    nextDueDate: body.nextDueDate,
+  });
 
-  const currentRank = planRank[body.currentPlan] || 0
-  const newRank = planRank[body.newPlan] || 0
-  const balanceDue = body.balanceDue || 0
-
-  if (balanceDue > 0 && newRank < currentRank) {
-    return NextResponse.json(
-      {
-        ok: false,
-        action: 'blocked',
-        message:
-          'Downgrades are blocked while the account has an outstanding balance.',
-      },
-      { status: 402 },
-    )
+  if (decision.effective === "blocked") {
+    return NextResponse.json({ ok: false, action: "blocked", next, decision, message: decision.message }, { status: 402 });
   }
 
-  if (newRank > currentRank) {
-    return NextResponse.json({
-      ok: true,
-      action: 'upgrade_now',
-      message:
-        'Upgrade will apply immediately. A top-up invoice should be generated for the remaining billing period.',
-    })
-  }
-
-  if (newRank < currentRank) {
-    return NextResponse.json({
-      ok: true,
-      action: 'schedule_downgrade',
-      message:
-        'Downgrade has been scheduled for the next billing cycle. Current modules remain active until the paid period ends.',
-    })
-  }
-
-  return NextResponse.json({
-    ok: true,
-    action: 'no_change',
-    message: 'Plan is unchanged.',
-  })
+  const action = decision.direction === "upgrade" ? "upgrade_now" : decision.direction === "downgrade" ? "schedule_downgrade" : "apply_now";
+  return NextResponse.json({ ok: true, action, next, decision, message: decision.message });
 }

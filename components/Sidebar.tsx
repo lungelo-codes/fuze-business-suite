@@ -49,50 +49,26 @@ function Icon({ name }: { name: string }) {
 }
 
 const GROUPS: NavGroup[] = [
-  { title: "Workspace", items: [{ label: "Dashboard", href: "/portal", icon: "dashboard", exact: true }, { label: "AI Insights", href: "/portal/reports", icon: "ai", module: "ai", badge: "z.ai" }] },
-  { title: "CRM & Selling", items: [
-    { label: "CRM Workspace", href: "/portal/crm", icon: "crm", module: "crm" },
-    { label: "Leads", href: "/portal/crm?tab=leads", icon: "target", module: "leads" },
-    { label: "Opportunities", href: "/portal/crm?tab=opportunities", icon: "target", module: "opportunities" },
-    { label: "Customers", href: "/portal/crm?tab=customers", icon: "users", module: "customers" },
-    { label: "Quotes", href: "/portal/crm?tab=quotes", icon: "quote", module: "quotes" },
-    { label: "Sales Orders", href: "/portal/crm?tab=sales-orders", icon: "invoice", module: "selling" },
-    { label: "Contracts", href: "/portal/crm?tab=contracts", icon: "invoice", module: "contracts" },
-  ]},
-  { title: "Finance", items: [
-    { label: "Accounting", href: "/portal/finance", icon: "chart", module: "accounting" },
-    { label: "Invoices", href: "/portal/finance?tab=invoices", icon: "invoice", module: "invoices" },
-    { label: "Payments", href: "/portal/finance?tab=payments", icon: "card", module: "payments" },
-    { label: "Banking", href: "/portal/finance?tab=banking", icon: "bank", module: "banking" },
-    { label: "Compliance", href: "/portal/finance?tab=compliance", icon: "shield", module: "compliance" },
-  ]},
-  { title: "Operations", items: [
-    { label: "Operations Hub", href: "/portal/operations", icon: "project", module: "buying", exact: true },
-    { label: "Buying", href: "/portal/operations?tab=procurement", icon: "procurement", module: "buying" },
-    { label: "Inventory", href: "/portal/operations?tab=inventory", icon: "box", module: "inventory" },
-    { label: "Assets", href: "/portal/assets", icon: "truck", module: "assets" },
-    { label: "Subcontracting", href: "/portal/subcontracting", icon: "users", module: "subcontracting" },
-    { label: "Projects", href: "/portal/operations?tab=projects", icon: "task", module: "projects" },
-    { label: "Quality", href: "/portal/operations?tab=quality", icon: "shield", module: "quality" },
-    { label: "Documents", href: "/portal/documents", icon: "folder", module: "documents" },
-  ]},
-  { title: "HR", items: [
-    { label: "HR Workspace", href: "/portal/hr", icon: "hr", module: "hr", exact: true },
-    { label: "Employees", href: "/portal/hr?tab=employees", icon: "person", module: "employees" },
-    { label: "Attendance", href: "/portal/hr?tab=attendance", icon: "calendar", module: "attendance" },
-    { label: "Leave", href: "/portal/hr?tab=leave", icon: "task", module: "leave" },
-    { label: "Payroll", href: "/portal/hr?tab=payroll", icon: "invoice", module: "payroll" },
-  ]},
-  { title: "Service", items: [
+  { title: "Main", items: [
+    { label: "Dashboard", href: "/portal", icon: "dashboard", exact: true },
+    { label: "CRM", href: "/portal/crm", icon: "crm", module: "crm" },
+    { label: "Sales", href: "/portal/sales-orders", icon: "chart", module: "selling" },
+    { label: "Projects", href: "/portal/projects", icon: "project", module: "projects" },
     { label: "Support", href: "/portal/support", icon: "support", module: "support" },
-    { label: "Appointments", href: "/portal/appointments", icon: "calendar", module: "appointments" },
-    { label: "Client Portal", href: "/customer-portal", icon: "users", module: "portal-login" },
-    { label: "Team Chat", href: "/portal/chat", icon: "mail", module: "chat" },
+    { label: "HR", href: "/portal/hr", icon: "hr", module: "hr" },
+    { label: "Accounting", href: "/portal/accounting", icon: "invoice", module: "accounting" },
+    { label: "Assets", href: "/portal/assets", icon: "truck", module: "assets" },
+    { label: "Buying", href: "/portal/buying", icon: "procurement", module: "buying" },
+    { label: "Subcontracting", href: "/portal/subcontracting", icon: "users", module: "subcontracting" },
+    { label: "Insights", href: "/portal/insights", icon: "chart", module: "insights" },
   ]},
-  { title: "Control", items: [
-    { label: "Reports", href: "/portal/reports", icon: "chart", module: "insights" },
-    { label: "Modules", href: "/portal/modules", icon: "box" },
-    { label: "Billing", href: "/portal/billing", icon: "billing" },
+  { title: "Portal", items: [
+    { label: "Client Portal", href: "/customer-portal", icon: "users", module: "portal-login" },
+  ]},
+  { title: "AI & Automation", items: [
+    { label: "AI Assistant", href: "/portal/insights?tab=ai", icon: "ai", module: "ai", badge: "New" },
+  ]},
+  { title: "Settings", items: [
     { label: "Settings", href: "/portal/settings", icon: "settings" },
   ]},
 ];
@@ -106,7 +82,13 @@ function moduleAliases(module?: string): string[] {
     case "inventory": return ["inventory", "items"];
     case "hr": return ["hr", "employees", "attendance", "leave", "payroll"];
     case "quality": return ["quality", "operations"];
-    case "ai": return ["ai", "insights"];
+    case "assets": return ["assets", "asset", "asset-management"];
+    case "subcontracting": return ["subcontracting", "buying", "operations"];
+    case "projects": return ["projects", "project", "tasks", "operations"];
+    case "support": return ["support", "issues", "helpdesk"];
+    case "insights": return ["insights", "reports", "ai"];
+    case "portal-login": return ["portal-login", "client-portal", "customer-portal"];
+    case "ai": return ["ai", "insights", "reports"];
     default: return module ? [module] : [];
   }
 }
@@ -184,7 +166,7 @@ export default function Sidebar({ activeModules = [], companyName, companyLogo, 
           <button type="button" onClick={() => setCollapsed((prev) => ({ ...prev, [group.title]: !prev[group.title] }))} style={{ display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",background:"none",border:"none",cursor:"pointer",padding:"14px 16px 4px",fontSize:"10.5px",letterSpacing:".8px",fontWeight:800,textTransform:"uppercase" }}>
             <span>{group.title}</span><span style={{ fontSize:9, opacity:0.55, marginRight:4 }}>{open ? "▲" : "▼"}</span>
           </button>
-          {open && <nav className="nav">{visible.map((item) => <a key={item.href} className={`nav-item${isActive(item.href, item.exact) ? " active" : ""}`} href={item.href}><Icon name={item.icon} /><span>{item.label}</span>{item.badge && <span className="nav-badge">{item.badge}</span>}</a>)}</nav>}
+          {open && <nav className="nav">{visible.map((item) => <a key={item.href} className={`nav-item nav-item-${item.module || item.icon}${isActive(item.href, item.exact) ? " active" : ""}`} href={item.href}><span className="nav-icon-shell"><Icon name={item.icon} /></span><span>{item.label}</span>{item.badge && <span className="nav-badge">{item.badge}</span>}</a>)}</nav>}
         </div>;
       })}
     </div>

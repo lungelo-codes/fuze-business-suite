@@ -41,6 +41,7 @@ function deterministicInsight(moduleName: string, context: AISourceRecord = {}) 
   if (payables > 0) actions.push("Check supplier payables and match them against expected cash collections.");
   if (customers === 0 && moduleName.toLowerCase().includes("crm")) actions.push("Capture at least 10 leads/customers so CRM reports become useful.");
   if (suppliers === 0 && moduleName.toLowerCase().includes("buy")) actions.push("Add key suppliers and default payment terms before creating purchase orders.");
+  if (moduleName.toLowerCase().includes("portal")) actions.push("Use the portal to reduce admin calls: send payment links, quote approvals and ticket updates from one place.");
   if (!actions.length) actions.push("Keep data up to date, review monthly trends, and compare module activity every week.");
 
   return {
@@ -66,6 +67,7 @@ export async function buildModuleContext(moduleName: string, company?: string): 
     if (["projects", "operations"].includes(mod)) return (await erpMethod("projects.dashboard", body)) as AISourceRecord || {};
     if (["hr", "people"].includes(mod)) return (await erpMethod("hr.dashboard", body)) as AISourceRecord || {};
     if (["support", "helpdesk"].includes(mod)) return (await erpMethod("helpdesk.dashboard", body)) as AISourceRecord || {};
+    if (["client-portal", "portal-login", "customer-portal"].includes(mod)) return (await erpMethod("portal.get_customer_portal_summary", body)) as AISourceRecord || {};
     return (await erpMethod("insights.get_business_overview", body)) as AISourceRecord || {};
   } catch {
     return {};

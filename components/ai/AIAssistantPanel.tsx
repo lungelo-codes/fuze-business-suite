@@ -12,7 +12,8 @@ export default function AIAssistantPanel({ moduleName = "overview", title = "AI 
   async function load(customQuestion?: string) {
     setLoading(true); setError("");
     try {
-      const res = await fetch("/api/ai/summary", {
+      const endpoint = customQuestion ? "/api/ai/summary" : `/api/ai/summary?module=${encodeURIComponent(moduleName)}`;
+      const res = await fetch(endpoint, {
         method: customQuestion ? "POST" : "GET",
         headers: customQuestion ? { "Content-Type": "application/json" } : undefined,
         body: customQuestion ? JSON.stringify({ module: moduleName, question: customQuestion }) : undefined,

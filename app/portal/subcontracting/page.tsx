@@ -1,27 +1,49 @@
-import AIAssistantPanel from "@/components/ai/AIAssistantPanel";
-import ModernModuleDashboard from "@/components/modules/ModernModuleDashboard";
-import { erpList } from "@/lib/server/erpnext";
-
-type Row = Record<string, unknown>;
-async function safeList(doctype: string, fields: string[]): Promise<Row[]> { try { return await erpList<Row>(doctype, { fields, limit: 100, orderBy: "modified desc" }); } catch { return []; } }
+import ERPModuleWorkspace from "@/components/modules/ERPModuleWorkspace";
+import { safeList } from "@/lib/server/coreBusinessData";
 
 export default async function SubcontractingPage() {
-  const [orders, receipts] = await Promise.all([
-    safeList("Subcontracting Order", ["name", "supplier", "transaction_date", "status", "per_received", "modified"]),
-    safeList("Subcontracting Receipt", ["name", "supplier", "posting_date", "status", "modified"]),
+  const [orders, receipts, suppliers, items] = await Promise.all([
+    safeList("Subcontracting Order", ["name", "supplier", "transaction_date", "status", "per_received", "modified"], 100),
+    safeList("Subcontracting Receipt", ["name", "supplier", "posting_date", "status", "modified"], 100),
+    safeList("Supplier", ["name", "supplier_name", "supplier_group", "modified"], 80),
+    safeList("Item", ["name", "item_name", "item_group", "is_sub_contracted_item", "modified"], 80),
   ]);
-  const rows = [...orders, ...receipts];
-  return <><AIAssistantPanel moduleName="subcontracting" title="Subcontracting AI Analyst" /><ModernModuleDashboard
-    title="Subcontracting"
+  const rows = [...orders, ...receipts, ...items, ...suppliers];
+  return <ERPModuleWorkspace
+    moduleName="subcontracting"
     eyebrow="ERPNext Subcontracting"
-    description="Manage subcontracting orders, supplied items, receipts and supplier progress from the operations hub."
+    title="Subcontracting Workspace"
+    description="Manage subcontracting orders, supplied items, raw material flow, subcontractor receipts and vendor performance."
     rows={rows}
-    tabs={["Orders", "Receipts", "Supplied Items", "Supplier Progress"]}
-    metrics={[{ label: "Orders", value: orders.length, hint: "Subcontracting orders" }, { label: "Receipts", value: receipts.length, hint: "Receipt records" }, { label: "Open", value: orders.filter((r) => !String(r.status || '').toLowerCase().includes('completed')).length, hint: "Need follow-up" }, { label: "Completed", value: orders.filter((r) => String(r.status || '').toLowerCase().includes('completed')).length, hint: "Closed orders" }]}
-    actions={[{ label: "New Order", href: "/portal/subcontracting", description: "Create subcontracting order" }, { label: "Supplier 360", href: "/portal/operations?tab=procurement", description: "Review supplier records" }, { label: "Projects", href: "/portal/operations?tab=projects", description: "Link to project work" }]}
+    tabs={["Overview", "Orders", "Receipts", "Supplied Items", "Vendors", "Costs"]}
+    metrics={[
+      { label: "Orders", value: orders.length, hint: "Subcontracting orders", tone: "blue" },
+      { label: "Receipts", value: receipts.length, hint: "Subcontracting receipts", tone: "green" },
+      { label: "Vendors", value: suppliers.length, hint: "Available suppliers", tone: "orange" },
+      { label: "Items", value: items.length, hint: "Subcontract items", tone: "purple" },
+    ]}
+    flow={[
+      { label: "Create Order", count: orders.length, tone: "blue" },
+      { label: "Send Materials", hint: "Supplied items", tone: "purple" },
+      { label: "Receive Work", count: receipts.length, tone: "green" },
+      { label: "Track Cost", hint: "Linked buying", tone: "orange" },
+      { label: "Close Job", hint: "Project billing", tone: "pink" },
+    ]}
+    actions={[
+      { label: "New Order", href: "/portal/subcontracting", description: "Create subcontracting order" },
+      { label: "Supplier 360", href: "/portal/buying", description: "Review supplier and purchase history" },
+      { label: "Project Link", href: "/portal/projects", description: "Connect subcontracting to project cost" },
+    ]}
+    insights={[
+      { title: "Prevent cost leakage", detail: "Compare subcontracting receipts to project budgets before billing.", tone: "warn" },
+      { title: "Vendor accountability", detail: "Track which vendors receive materials and when they return finished work.", tone: "ok" },
+      { title: "Project profit", detail: "Subcontracting costs should feed into project profitability reports.", tone: "ok" },
+    ]}
     primaryField="name"
     secondaryField="supplier"
     statusField="status"
-    mode="projects"
-  /></>;
+    valueField="per_received"
+    aiTitle="Subcontracting AI Analyst"
+    ownerQuestion="Which subcontractors are delaying work or reducing project profit?"
+  />;
 }
