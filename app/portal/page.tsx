@@ -3,6 +3,7 @@ import { getDashboardData } from "@/lib/server/data";
 import { MODULE_COOKIE, PLAN_COOKIE, COMPANY_COOKIE, getModulesForPlan } from "@/lib/modules";
 import { money } from "@/lib/mappers";
 import { DashboardCharts } from "@/components/charts/InteractiveBusinessCharts";
+import AIAssistantPanel from "@/components/ai/AIAssistantPanel";
 
 function isOpenStatus(status?: string): boolean {
   const value = (status || "").toLowerCase();
@@ -135,6 +136,8 @@ export default async function DashboardPage() {
             ? <StatCard label="Total Paid" value={money(totalPaid)} hint="Payment entries" href="/portal/payments" icon="✓" />
             : null}
       </section>
+
+      <AIAssistantPanel moduleName="overview" title="Business AI Summary" />
 
       <DashboardCharts revenue={revenueChart} activity={activityChart} />
 

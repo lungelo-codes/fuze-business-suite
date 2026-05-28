@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from "recharts";
+import AIAssistantPanel from "@/components/ai/AIAssistantPanel";
 
 interface ReportData {
   // Finance
@@ -152,6 +153,8 @@ export default function ReportsPage() {
           <button className="btn btn-teal" onClick={() => downloadExport("pdf")}>Print PDF</button>
         </div>
       </div>
+
+      <AIAssistantPanel moduleName="reports" title="Reports AI Analysis" />
 
       {/* Global KPI strip */}
       <div className="demo-stat-grid">

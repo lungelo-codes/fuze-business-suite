@@ -1,3 +1,4 @@
+import AIAssistantPanel from "@/components/ai/AIAssistantPanel";
 import ModernModuleDashboard from "@/components/modules/ModernModuleDashboard";
 import { erpList } from "@/lib/server/erpnext";
 
@@ -10,7 +11,7 @@ export default async function SupportPage() {
     safeList("Communication", ["name", "subject", "sender", "communication_type", "status", "modified"]),
   ]);
   const rows = [...issues, ...comms];
-  return <ModernModuleDashboard
+  return <><AIAssistantPanel moduleName="support" title="Support AI Analyst" /><ModernModuleDashboard
     title="Support Desk"
     eyebrow="Service Workspace"
     description="Manage customer issues, communication, SLA risk and knowledge base tasks from a clear support dashboard."
@@ -22,5 +23,5 @@ export default async function SupportPage() {
     secondaryField="customer"
     statusField="status"
     mode="support"
-  />;
+  /></>;
 }
